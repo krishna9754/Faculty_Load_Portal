@@ -540,6 +540,7 @@ export default function App() {
         faculty={faculty}
         batches={batches}
         loads={loads}
+        batchManagers={batchManagers}
         extraClasses={extraClasses}
         rescheduledClasses={rescheduledClasses}
         cancelledClasses={cancelledClasses}
