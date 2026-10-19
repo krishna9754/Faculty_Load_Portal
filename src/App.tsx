@@ -13,6 +13,7 @@ import { downloadSampleTemplate } from '@/lib/templateUtils';
 import { AnimeThemeSelectorModal } from '@/components/AnimeThemeSelectorModal';
 import { AnimeCharacterSVG } from '@/components/AnimeCharacterSVG';
 import { ANIME_THEMES, type AnimeThemeId, type AnimeTheme } from '@/lib/animeThemes';
+import { AIAssistant } from '@/components/AIAssistant';
 
 import {
   GraduationCap,
@@ -532,6 +533,17 @@ export default function App() {
         onClose={() => setThemeModalOpen(false)}
         currentThemeId={animeThemeId}
         onSelectTheme={handleSelectAnimeTheme}
+      />
+
+      {/* AI Assistant Kabir (Hinglish Buddy with Real Male Voice) */}
+      <AIAssistant
+        faculty={faculty}
+        batches={batches}
+        loads={loads}
+        extraClasses={extraClasses}
+        rescheduledClasses={rescheduledClasses}
+        cancelledClasses={cancelledClasses}
+        onNavigateTab={(tab) => setActiveTab(tab as Tab)}
       />
     </div>
   );
