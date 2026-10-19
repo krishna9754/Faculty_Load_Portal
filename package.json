@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "edge-tts-universal": "^1.4.0",
     "exceljs": "^4.4.0",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",
