@@ -282,8 +282,10 @@ export function AIAssistant({
   const recognitionRef = useRef<any>(null);
   const startListenerRef = useRef<() => void>(() => {});
   const customAudioElementRef = useRef<HTMLAudioElement | null>(null);
+  const studioAudioElementRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const studioAudioBuffersRef = useRef<Map<string, AudioBuffer>>(new Map());
   const hideCardTimeoutRef = useRef<any>(null);
   const isStoppedRef = useRef<boolean>(false);
   const isRecognizingRef = useRef<boolean>(false);
@@ -298,25 +300,64 @@ export function AIAssistant({
   const activeWebAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const activeAudioElementRef = useRef<HTMLAudioElement | null>(null);
 
-  // 🎵 Preload and decode custom studio voice into Web Audio buffer for instant, unblocked playback
+  // 🎵 Preload and decode custom studio voice & all section clips into Web Audio buffer
   useEffect(() => {
     let active = true;
     const preloadCustomAudio = async () => {
       try {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         if (!AudioCtx) return;
-        const ctx = new AudioCtx();
+        const ctx = audioCtxRef.current || new AudioCtx();
         audioCtxRef.current = ctx;
 
-        let res = await fetch(greetingAudioSrc);
-        if (!res.ok) {
-          res = await fetch('/mayra-greeting.wav');
-        }
-        const arrayBuf = await res.arrayBuffer();
-        const decoded = await ctx.decodeAudioData(arrayBuf);
-        if (active) {
-          audioBufferRef.current = decoded;
-          console.log('✅ Mayra custom studio voice decoded in memory buffer!');
+        // 1. Preload main intro greeting
+        try {
+          let res = await fetch(greetingAudioSrc);
+          if (!res.ok) {
+            res = await fetch('/mayra-greeting.wav');
+          }
+          const arrayBuf = await res.arrayBuffer();
+          const decoded = await ctx.decodeAudioData(arrayBuf);
+          if (active) {
+            audioBufferRef.current = decoded;
+            console.log('✅ Mayra custom studio voice decoded in memory buffer!');
+          }
+        } catch (e) {}
+
+        // 2. Preload section studio clips for instant 0ms playback
+        const clips = [
+          '/audio/nav-planner.wav',
+          '/audio/nav-freeslots.wav',
+          '/audio/nav-faculty.wav',
+          '/audio/nav-search.wav',
+          '/audio/nav-addload.wav',
+          '/audio/nav-batches.wav',
+          '/audio/nav-clashes.wav',
+          '/audio/nav-alerts.wav',
+          '/audio/nav-mail.wav',
+          '/audio/nav-extra.wav',
+          '/audio/nav-dashboard.wav',
+          '/audio/nav-whoami.wav',
+          '/audio/nav-stop.wav',
+          '/audio/nav-theme.wav',
+          '/audio/nav-help.wav',
+          '/audio/nav-ignore.wav',
+          '/audio/nav-sad.wav',
+          '/audio/nav-blush.wav',
+        ];
+
+        for (const clip of clips) {
+          if (!active) break;
+          try {
+            const res = await fetch(clip);
+            if (res.ok) {
+              const buf = await res.arrayBuffer();
+              const decoded = await ctx.decodeAudioData(buf);
+              if (active) {
+                studioAudioBuffersRef.current.set(clip, decoded);
+              }
+            }
+          } catch (e) {}
         }
       } catch (err) {
         console.warn('Audio pre-decode note:', err);
@@ -503,8 +544,10 @@ export function AIAssistant({
     stopSpeaking();
     isStoppedRef.current = false;
 
+    // 🛡️ CRITICAL FIX: Strip all '!' and punctuation marks so Google Speech Synthesis NEVER articulates "exclamation point"!
     const clean = fullText
-      .replace(/[*_#`~•]/g, ' ')
+      .replace(/[!¡?¿]/g, ' ')
+      .replace(/[*_#`~•:;,\-—–"']/g, ' ')
       .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
       .replace(/https?:\/\/\S+/g, '')
       .replace(/[()\[\]{}]/g, ', ')
@@ -515,8 +558,8 @@ export function AIAssistant({
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
     const sentences = clean
-      .split(/(?<=[.?!।\n])\s+/)
-      .map(s => s.trim())
+      .split(/(?<=[.।\n])\s+/)
+      .map(s => s.replace(/[!¡?¿]/g, '').trim())
       .filter(s => s.length > 0);
 
     if (sentences.length === 0) return;
@@ -557,7 +600,7 @@ export function AIAssistant({
         return;
       }
 
-      const sentence = sentences[currentIdx];
+      const sentence = sentences[currentIdx].replace(/[!¡?¿]/g, '').trim();
       currentIdx++;
 
       const utterance = new SpeechSynthesisUtterance(sentence);
@@ -686,7 +729,7 @@ export function AIAssistant({
   };
 
   // 🎵 Studio Voice Clip Player: Plays real human girl audio for 100% voice consistency across all portal sections!
-  const playStudioVoice = (audioUrl: string, fallbackDevanagariText: string, emotionToSet: MayraEmotion = 'normal') => {
+  const playStudioVoice = async (audioUrl: string, fallbackDevanagariText: string, emotionToSet: MayraEmotion = 'normal') => {
     stopSpeaking();
     isStoppedRef.current = false;
 
@@ -720,29 +763,73 @@ export function AIAssistant({
       }, 600);
     };
 
-    try {
-      const audio = new Audio(audioUrl);
-      activeAudioElementRef.current = audio;
-      audio.onended = () => {
-        if (activeAudioElementRef.current === audio) {
-          activeAudioElementRef.current = null;
+    // 1. First priority: Play pre-decoded Web Audio buffer (instant 0ms, unblocked by autoplay policies!)
+    const ctx = audioCtxRef.current;
+    if (ctx) {
+      try {
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
         }
-        onAudioDone();
-      };
-      audio.onerror = () => {
-        if (speechSessionIdRef.current !== thisSessionId) return;
-        speakAnimeVoice(fallbackDevanagariText);
-      };
-      const p = audio.play();
-      if (p !== undefined) {
-        p.catch(() => {
-          if (speechSessionIdRef.current !== thisSessionId) return;
-          speakAnimeVoice(fallbackDevanagariText);
-        });
+        let buffer = studioAudioBuffersRef.current.get(audioUrl);
+        if (!buffer) {
+          const res = await fetch(audioUrl);
+          if (res.ok) {
+            const arrayBuf = await res.arrayBuffer();
+            buffer = await ctx.decodeAudioData(arrayBuf);
+            studioAudioBuffersRef.current.set(audioUrl, buffer);
+          }
+        }
+        if (buffer && speechSessionIdRef.current === thisSessionId) {
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          activeWebAudioSourceRef.current = source;
+          source.onended = () => {
+            if (activeWebAudioSourceRef.current === source) {
+              activeWebAudioSourceRef.current = null;
+            }
+            onAudioDone();
+          };
+          source.start(0);
+          return;
+        }
+      } catch (err) {
+        console.warn('Web Audio buffer playback note, trying HTMLAudio:', err);
       }
-    } catch (e) {
-      speakAnimeVoice(fallbackDevanagariText);
     }
+
+    // 2. Secondary fallback: Dedicated HTML Audio element
+    if (studioAudioElementRef.current) {
+      try {
+        const el = studioAudioElementRef.current;
+        el.src = audioUrl;
+        el.currentTime = 0;
+        activeAudioElementRef.current = el;
+        el.onended = () => {
+          if (activeAudioElementRef.current === el) {
+            activeAudioElementRef.current = null;
+          }
+          onAudioDone();
+        };
+        const p = el.play();
+        if (p !== undefined) {
+          p.then(() => {
+            setIsSpeaking(true);
+          }).catch(err => {
+            console.warn('Studio HTMLAudio play failed, falling back to speech synthesis:', err);
+            if (speechSessionIdRef.current !== thisSessionId) return;
+            speakAnimeVoice(fallbackDevanagariText);
+          });
+          return;
+        }
+      } catch (e) {
+        speakAnimeVoice(fallbackDevanagariText);
+        return;
+      }
+    }
+
+    // 3. Final Fallback: Sanitized voice synthesizer
+    speakAnimeVoice(fallbackDevanagariText);
   };
 
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions (Devanagari Hindi & Hinglish support)
@@ -1692,6 +1779,11 @@ export function AIAssistant({
         customAudioElementRef.current.load();
       } catch (e) {}
     }
+    if (studioAudioElementRef.current) {
+      try {
+        studioAudioElementRef.current.load();
+      } catch (e) {}
+    }
 
     if (!isMicMuted) {
       // Muting ONLY the microphone (listening)
@@ -1723,6 +1815,11 @@ export function AIAssistant({
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume();
     }
+    if (studioAudioElementRef.current) {
+      try {
+        studioAudioElementRef.current.load();
+      } catch (e) {}
+    }
     // If mic was muted, click un-mutes it and starts listening
     if (isMicMuted) {
       setIsMicMuted(false);
@@ -1738,10 +1835,19 @@ export function AIAssistant({
 
   return (
     <>
-      {/* 🎵 Hidden Audio Element for Preloaded Studio Voice */}
+      {/* 🎵 Hidden Audio Elements for Preloaded Studio Voice */}
       <audio
         ref={customAudioElementRef}
         src={greetingAudioSrc}
+        preload="auto"
+        playsInline
+        onEnded={() => {
+          setIsSpeaking(false);
+          setTimeout(() => setEmotion('normal'), 2500);
+        }}
+      />
+      <audio
+        ref={studioAudioElementRef}
         preload="auto"
         playsInline
         onEnded={() => {
