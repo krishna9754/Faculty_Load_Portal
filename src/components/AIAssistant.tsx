@@ -249,6 +249,8 @@ export function AIAssistant({
   const audioBufferRef = useRef<AudioBuffer | null>(null);
   const hideCardTimeoutRef = useRef<any>(null);
   const isStoppedRef = useRef<boolean>(false);
+  const isRecognizingRef = useRef<boolean>(false);
+  const interimTimerRef = useRef<any>(null);
 
   // 🎵 Preload and decode custom studio voice into Web Audio buffer for instant, unblocked mobile playback
   useEffect(() => {
@@ -478,59 +480,16 @@ export function AIAssistant({
     speakNextSentence();
   };
 
-  // 🎵 Play Krishna Sir's Custom Studio Voice Recording
+  // 🎵 JARVIS Anime Girl Voice Greeting (Addressing as "Sir")
   const playGreetingAudio = () => {
     stopSpeaking();
     isStoppedRef.current = false;
     setIsSpeaking(true);
     setEmotion('happy');
-    const greetingText = 'Hello Krishna Sir, aap kaise ho? Main kya help kar sakti hoon?';
+    const greetingText = 'Hello Sir, aap kaise ho? Main kya help kar sakti hoon?';
     setLastSpeechResponse(greetingText);
     setShowSubtitleCard(true);
-
-    // 1. Try Web Audio buffer first (instant, guaranteed on mobile/desktop without media lockups)
-    if (audioCtxRef.current && audioBufferRef.current) {
-      try {
-        if (audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
-        }
-        const source = audioCtxRef.current.createBufferSource();
-        source.buffer = audioBufferRef.current;
-        source.connect(audioCtxRef.current.destination);
-        source.onended = () => {
-          setIsSpeaking(false);
-          setEmotion('normal');
-          if (hideCardTimeoutRef.current) clearTimeout(hideCardTimeoutRef.current);
-          hideCardTimeoutRef.current = setTimeout(() => setShowSubtitleCard(false), 5000);
-        };
-        source.start(0);
-        return;
-      } catch (e) {
-        console.warn('Web Audio buffer playback fallback to HTMLAudio:', e);
-      }
-    }
-
-    // 2. Fallback to HTMLAudio element
-    if (customAudioElementRef.current) {
-      try {
-        customAudioElementRef.current.currentTime = 0;
-        const playPromise = customAudioElementRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              setIsSpeaking(true);
-            })
-            .catch(err => {
-              console.warn('Custom audio playback failed, falling back to synthesis:', err);
-              speakAnimeVoice(greetingText);
-            });
-        }
-      } catch (e) {
-        speakAnimeVoice(greetingText);
-      }
-    } else {
-      speakAnimeVoice(greetingText);
-    }
+    speakAnimeVoice(greetingText);
   };
 
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions (Devanagari Hindi & Hinglish support)
@@ -584,7 +543,7 @@ export function AIAssistant({
       q.includes('मत सुनना') ||
       q.includes('इग्नोर')
     ) {
-      const resp = 'Theek hai Krishna Sir! Main ye baat ignore kar rahi hoon. 😊';
+      const resp = 'Theek hai Sir! Main ye baat ignore kar rahi hoon. 😊';
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -606,7 +565,7 @@ export function AIAssistant({
       /(प्यार|लव यू|बहुत अच्छी|क्यूट|स्वीट|शुक्रिया|थैंक यू|शर्मा|सुंदर)/.test(q);
     if (isLoving) {
       setEmotion('blush');
-      const resp = 'Aww thank you so much Krishna Sir! 🥰 Aap itne pyaar se baat karte ho to mujhe sach me sharm aa jaati hai... Hehe!';
+      const resp = 'Aww thank you so much Sir! 🥰 Aap itne pyaar se baat karte ho to mujhe sach me sharm aa jaati hai... Hehe!';
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -639,7 +598,7 @@ export function AIAssistant({
       const freeFaculties = faculty.filter(f => !busyFacultyIds.has(f.id));
 
       if (dayLoads.length === 0 || freeFaculties.length === faculty.length) {
-        const resp = `Haii Krishna Sir! Aaj koi bhi lecture schedule nahi hai, sabhi faculty free hain! Main aapko live availability screen par le aayi hoon. 😊`;
+        const resp = `Haii Sir! Aaj koi bhi lecture schedule nahi hai, sabhi faculty free hain! Main aapko live availability screen par le aayi hoon. 😊`;
         setLastSpeechResponse(resp);
         speakAnimeVoice(resp);
         return;
@@ -648,13 +607,13 @@ export function AIAssistant({
       if (freeFaculties.length > 0) {
         const names = freeFaculties.slice(0, 5).map(f => f.name).join(', ');
         const extraCount = freeFaculties.length > 5 ? ` aur ${freeFaculties.length - 5} anya teachers` : '';
-        const resp = `Krishna Sir! Aaj ye faculty free hain: ${names}${extraCount}! Main aapko availability screen par le aayi hoon.`;
+        const resp = `Sir! Aaj ye faculty free hain: ${names}${extraCount}! Main aapko availability screen par le aayi hoon.`;
         setLastSpeechResponse(resp);
         speakAnimeVoice(resp);
         return;
       }
 
-      const resp = `Krishna Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko availability screen par le aayi hoon.`;
+      const resp = `Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko availability screen par le aayi hoon.`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -697,7 +656,7 @@ export function AIAssistant({
       q.includes('समय सारणी')
     ) {
       if (onNavigateTab) onNavigateTab('search');
-      const resp = `Ji Krishna Sir! Timetable aur Lectures screen open kar di hai!`;
+      const resp = `Ji Sir! Timetable aur Lectures screen open kar di hai!`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -754,7 +713,7 @@ export function AIAssistant({
       q.includes('सिलेबस')
     ) {
       if (onNavigateTab) onNavigateTab('batchSyllabus');
-      const resp = `Ji Krishna Sir! Batches aur Syllabus screen open kar di hai.`;
+      const resp = `Ji Sir! Batches aur Syllabus screen open kar di hai.`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -784,7 +743,7 @@ export function AIAssistant({
       q.includes('मैं कौन हूं') ||
       q.includes('कृष्णा')
     ) {
-      const resp = `Aap is portal ke Tony Stark hain, Krishna Sir! Hamare Head Administrator aur Chief Architect! JARVIS system aapke aadesh par hamesha taiyar hai. 🙏`;
+      const resp = `Aap is portal ke Tony Stark hain, Sir! Hamare Head Administrator aur Chief Architect! JARVIS system aapke aadesh par hamesha taiyar hai. 🙏`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -800,12 +759,12 @@ export function AIAssistant({
       if (onNavigateTab) onNavigateTab('facultyAvailability');
       const facLoads = loads.filter(l => l.faculty_id === matchedFaculty.id);
       if (facLoads.length === 0) {
-        const resp = `Krishna Sir! ${matchedFaculty.name} (${matchedFaculty.department}) ka aaj koi load nahi hai, ye free hain!`;
+        const resp = `Sir! ${matchedFaculty.name} (${matchedFaculty.department}) ka aaj koi load nahi hai, ye free hain!`;
         setLastSpeechResponse(resp);
         speakAnimeVoice(resp);
         return;
       }
-      const resp = `Krishna Sir! ${matchedFaculty.name} ke weekly total ${facLoads.length} lectures scheduled hain!`;
+      const resp = `Sir! ${matchedFaculty.name} ke weekly total ${facLoads.length} lectures scheduled hain!`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -861,14 +820,21 @@ export function AIAssistant({
 
     const startListener = () => {
       if (!micActiveRef.current) return;
+      if (isRecognizingRef.current) return; // Prevent duplicate instances!
 
       try {
+        if (recognitionRef.current) {
+          try { recognitionRef.current.abort(); } catch (e) {}
+          recognitionRef.current = null;
+        }
+
         recognition = new SpeechRec();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'hi-IN'; // Recognizes Hindi, Hinglish, English seamlessly
 
         recognition.onstart = () => {
+          isRecognizingRef.current = true;
           setIsListening(true);
         };
 
@@ -888,6 +854,24 @@ export function AIAssistant({
           setIsDetectingSpeech(false);
         };
 
+        const executeCommand = (cmdText: string) => {
+          const cleanCommand = cmdText
+            .replace(/\b(mayra|maira|myra|aira|meera|jarvis)\b/gi, '')
+            .replace(/(मायरा|मैरा|मीरा|जार्विस)/gi, '')
+            .trim();
+
+          setTimeout(() => {
+            setLiveHeardText('');
+            setWakeWordDetected(false);
+          }, 3000);
+
+          if (!cleanCommand) {
+            processVoiceCommand('jarvis');
+          } else {
+            processVoiceCommand(cleanCommand);
+          }
+        };
+
         recognition.onresult = (event: any) => {
           setIsDetectingSpeech(true);
           let interim = '';
@@ -898,7 +882,7 @@ export function AIAssistant({
 
             // 🛑 INSTANT REAL-TIME STOP: Only when user explicitly commands STOP / CHUP
             const hasStop = /^(stop|chup|shant|ruko|ruk ja|quiet|bas|स्टॉप|चुप|शांत|रुको|रुक|बस)$/i.test(currentTranscript) ||
-              /\b(mayra stop|chup ho jao|chup raho|bolna band karo|stop speaking|शांत हो जाओ)\b/i.test(currentTranscript);
+              /\b(mayra stop|jarvis stop|chup ho jao|chup raho|bolna band karo|stop speaking|शांत हो जाओ)\b/i.test(currentTranscript);
 
             if (hasStop && isSpeaking) {
               console.log('🛑 Real-time Stop triggered:', currentTranscript);
@@ -908,35 +892,31 @@ export function AIAssistant({
               setShowSubtitleCard(false);
               setLiveHeardText('');
               setWakeWordDetected(false);
+              if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
               return;
             }
 
             if (event.results[i].isFinal) {
-              const transcript = event.results[i][0].transcript.trim();
-              console.log('Voice heard:', transcript);
-              setLiveHeardText(transcript);
-
-              setIsDetectingSpeech(false);
-
-              // 🎯 Direct command execution: No mandatory wake-word (Recognizes both JARVIS & Mayra)!
-              const cleanCommand = transcript
-                .replace(/\b(mayra|maira|myra|aira|meera|jarvis)\b/gi, '')
-                .replace(/(मायरा|मैरा|मीरा|जार्विस)/gi, '')
-                .trim();
-
-              setTimeout(() => {
-                setLiveHeardText('');
-                setWakeWordDetected(false);
-              }, 3000);
-
-              if (!cleanCommand) {
-                // If user called "JARVIS" or "Mayra", greet directly
-                processVoiceCommand('jarvis');
-              } else {
-                processVoiceCommand(cleanCommand);
+              if (interimTimerRef.current) {
+                clearTimeout(interimTimerRef.current);
+                interimTimerRef.current = null;
               }
+              const transcript = event.results[i][0].transcript.trim();
+              console.log('Voice heard (Final):', transcript);
+              setLiveHeardText(transcript);
+              setIsDetectingSpeech(false);
+              executeCommand(transcript);
             } else {
               setLiveHeardText(interim);
+              // Fallback debounce: If Chrome on mobile delays isFinal, execute interim after 1.2s silence
+              if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
+              interimTimerRef.current = setTimeout(() => {
+                if (interim && micActiveRef.current) {
+                  console.log('Voice heard (Debounced interim):', interim);
+                  setIsDetectingSpeech(false);
+                  executeCommand(interim);
+                }
+              }, 1200);
             }
           }
         };
@@ -948,29 +928,31 @@ export function AIAssistant({
             micActiveRef.current = false;
             setIsListening(false);
             setIsDetectingSpeech(false);
-          } else if (micActiveRef.current) {
-            setTimeout(() => {
-              try {
-                if (micActiveRef.current) startListener();
-              } catch (e) {}
-            }, 400);
           }
+          // Note: Do NOT restart here! onend will restart cleanly without duplicate collision!
         };
 
         recognition.onend = () => {
+          isRecognizingRef.current = false;
+          setIsDetectingSpeech(false);
+          recognitionRef.current = null;
+
           // Auto-restart if mic is still active
           if (micActiveRef.current) {
             setTimeout(() => {
               try {
-                if (micActiveRef.current) startListener();
+                if (micActiveRef.current && !isRecognizingRef.current) {
+                  startListener();
+                }
               } catch (e) {}
-            }, 250);
+            }, 300);
           }
         };
 
         recognitionRef.current = recognition;
         recognition.start();
       } catch (e) {
+        isRecognizingRef.current = false;
         console.warn('Recognition start exception, retrying:', e);
         if (micActiveRef.current) {
           setTimeout(startListener, 1000);
@@ -982,10 +964,13 @@ export function AIAssistant({
 
     return () => {
       micActiveRef.current = false;
+      isRecognizingRef.current = false;
+      if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.stop();
+          recognitionRef.current.abort();
         } catch (e) {}
+        recognitionRef.current = null;
       }
     };
   }, [loads, faculty, extraClasses, cancelledClasses, isMicMuted]);
@@ -1111,7 +1096,7 @@ export function AIAssistant({
 
               {lastUserCommand && (
                 <div className="text-[11px] font-mono text-slate-300 bg-cyan-950/30 px-2.5 py-1 rounded-md border border-cyan-500/20">
-                  <span className="text-amber-400 font-bold uppercase tracking-wider">CMD // KRISHNA SIR:</span> "{lastUserCommand}"
+                  <span className="text-amber-400 font-bold uppercase tracking-wider">CMD // SIR:</span> "{lastUserCommand}"
                 </div>
               )}
 
