@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X,
-  Send,
   Mic,
   MicOff,
   Volume2,
   VolumeX,
-  Sparkles,
-  Trash2,
-  Minimize2,
-  Maximize2,
   Radio,
   ExternalLink,
-  Settings,
-  Music,
+  Sparkles,
+  Heart,
+  Smile,
+  Frown,
+  X,
 } from 'lucide-react';
 import type {
   Faculty,
@@ -38,43 +35,33 @@ interface AIAssistantProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-interface Message {
-  id: string;
-  sender: 'user' | 'assistant';
-  text: string;
-  timestamp: Date;
-  quickAction?: {
-    label: string;
-    action: () => void;
-  };
-}
-
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// ElevenLabs Voice ID for Mayra (Studio Human Female Voice)
-const ELEVENLABS_MAYRA_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel
+type MayraEmotion = 'normal' | 'sad' | 'blush' | 'happy' | 'speaking';
 
-// 👩 Animated AI Human Woman Avatar (Mayra GIF) - Pure transparent & stable
+// 👩 Animated Mayra Avatar with Emotion Badges & Clean Transparent Frame
 function AIHumanWomanAvatar({
-  size = 48,
+  size = 88,
   isSpeaking = false,
   isListening = false,
+  emotion = 'normal',
 }: {
   size?: number;
   isSpeaking?: boolean;
   isListening?: boolean;
+  emotion?: MayraEmotion;
 }) {
   return (
     <div
       className="relative flex items-center justify-center select-none bg-transparent"
       style={{ width: size, height: size }}
     >
-      {/* Animated Avatar GIF - Pure transparent background */}
+      {/* Animated Avatar GIF */}
       <img
         src={mayraGif}
-        alt="Mayra AI Assistant"
+        alt="Mayra Anime Companion"
         className={`w-full h-full object-contain filter drop-shadow-md transition-transform duration-200 ${
-          isSpeaking ? 'scale-105' : ''
+          isSpeaking ? 'scale-105' : 'hover:scale-105'
         }`}
         onError={(e) => {
           const target = e.currentTarget;
@@ -84,16 +71,28 @@ function AIHumanWomanAvatar({
         }}
       />
 
-      {/* Speaking Active Indicator Badge */}
+      {/* Emotion Overlay Emoji */}
+      {emotion === 'sad' && (
+        <span className="absolute -top-1 -right-1 text-base animate-bounce" title="Mayra is sad 🥺">
+          🥺
+        </span>
+      )}
+      {emotion === 'blush' && (
+        <span className="absolute -top-1 -right-1 text-base animate-pulse" title="Mayra is blushing 🥰">
+          🥰
+        </span>
+      )}
+
+      {/* Speaking Indicator Badge */}
       {isSpeaking && (
-        <span className="absolute bottom-2 right-2 w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+        <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
           <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
         </span>
       )}
 
-      {/* Listening Mic Indicator Badge */}
-      {isListening && (
-        <span className="absolute bottom-2 right-2 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+      {/* Listening Indicator Badge */}
+      {isListening && !isSpeaking && (
+        <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm" title="Mic Always-On">
           <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
         </span>
       )}
@@ -102,7 +101,15 @@ function AIHumanWomanAvatar({
 }
 
 // 💭 Authentic Comic Puffy Thought Cloud with Lobes & Trail Dots
-function ComicThoughtCloud() {
+function ComicThoughtCloud({
+  text,
+  subtitle,
+  emotion = 'normal',
+}: {
+  text: string;
+  subtitle?: string;
+  emotion?: MayraEmotion;
+}) {
   return (
     <div className="relative inline-flex items-center justify-center select-none pointer-events-none drop-shadow-md">
       <svg
@@ -111,8 +118,7 @@ function ComicThoughtCloud() {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* Cloud Body - Overlapping Fluffy Circles & Lobes */}
-        <g fill="#ffffff" stroke="#f472b6" strokeWidth="2" strokeLinejoin="round">
+        <g fill="#ffffff" stroke={emotion === 'sad' ? '#93c5fd' : emotion === 'blush' ? '#f43f5e' : '#f472b6'} strokeWidth="2" strokeLinejoin="round">
           {/* Main solid center body */}
           <ellipse cx="118" cy="50" rx="84" ry="28" fill="#ffffff" stroke="none" />
 
@@ -145,13 +151,15 @@ function ComicThoughtCloud() {
 
       {/* Text inside the Cloud */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pb-5 px-5 text-center pointer-events-none">
-        <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-800 leading-tight flex items-center gap-1">
-          <span className="text-pink-500">✨</span>
-          <span>Hi Sir, I am Mayra!</span>
+        <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-800 leading-tight flex items-center gap-1 max-w-[170px] truncate">
+          {emotion === 'sad' ? '🥺' : emotion === 'blush' ? '🥰' : '✨'}
+          <span>{text}</span>
         </span>
-        <span className="text-[9px] sm:text-[10px] font-bold text-pink-600 leading-tight">
-          How can I help you?
-        </span>
+        {subtitle && (
+          <span className="text-[9px] sm:text-[10px] font-bold text-pink-600 leading-tight mt-0.5 max-w-[170px] truncate">
+            {subtitle}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -167,62 +175,24 @@ export function AIAssistant({
   cancelledClasses,
   onNavigateTab,
 }: AIAssistantProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-
-  // Initial welcome message from Mayra
-  const [messages, setMessages] = useState<Message[]>(() => {
-    return [
-      {
-        id: '1',
-        sender: 'assistant',
-        text: 'Hello Sir, kaise ho aap? 😊\n\nMain Mayra hoon, aapki AI Assistant! Mere paas poore portal ka 100% access hai. Aap Hindi ya English me mujhse kisi bhi teacher ka timetable, room status, cancelled classes ya free teachers pooch sakte hain. How can I help you today?',
-        timestamp: new Date(),
-      },
-    ];
-  });
-
-  const [inputText, setInputText] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(true); // Always ON
+  const [emotion, setEmotion] = useState<MayraEmotion>('normal');
+  const [lastSpeechResponse, setLastSpeechResponse] = useState<string>('');
+  const [lastUserCommand, setLastUserCommand] = useState<string>('');
+  const [showSubtitleCard, setShowSubtitleCard] = useState<boolean>(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
     const saved = localStorage.getItem('ai_mayra_voice_enabled');
     return saved !== null ? saved === 'true' : true;
   });
 
-  // Speech Recognition with live real-time speech feedback
-  const [isListening, setIsListening] = useState(false);
-  const [interimTranscript, setInterimTranscript] = useState('');
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [showSettings, setShowSettings] = useState(false);
-
-  // ElevenLabs Key (Optional for Studio Voice)
-  const [elevenLabsKey, setElevenLabsKey] = useState<string>(() => {
-    return localStorage.getItem('ai_mayra_elevenlabs_key') || '';
-  });
-  const [useElevenLabs, setUseElevenLabs] = useState<boolean>(() => {
-    return localStorage.getItem('ai_mayra_use_elevenlabs') === 'true';
-  });
-
-  // Optional Gemini API Key
-  const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('ai_mayra_gemini_key') || '';
-  });
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const micActiveRef = useRef<boolean>(true);
   const recognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const hideCardTimeoutRef = useRef<any>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    if (isOpen && !isMinimized) {
-      scrollToBottom();
-    }
-  }, [messages, isOpen, isMinimized, interimTranscript]);
-
-  // Load voices
+  // Load browser voices
   useEffect(() => {
     const updateVoices = () => {
       if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -253,15 +223,23 @@ export function AIAssistant({
       name.includes('ravi') ||
       name.includes('guy') ||
       name.includes('mark') ||
-      name.includes('google हिन्दी') // Chrome's Google हिन्दी is a male voice
+      name.includes('google हिन्दी')
     );
   };
 
-  // Pick genuine, smooth human female voice for Mayra (Women Voice)
-  const getMayraVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
-    if (!availableVoices.length) return { voice: null, pitch: 1.25, rate: 1.0 };
+  // 🌸 Pick Cute Anime Girl Voice (Pitch 1.48 - Super sweet, lively & feminine)
+  const getMayraAnimeVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
+    if (!availableVoices.length) return { voice: null, pitch: 1.48, rate: 1.08 };
 
-    // 1. Check Indian Female voices first
+    // 1. Japanese / Anime / Cute female voices if installed
+    const animeJapanese = availableVoices.find(v => 
+      !isMaleVoice(v) && (v.name.includes('Kyoko') || v.name.includes('Otoya') || v.lang.startsWith('ja'))
+    );
+    if (animeJapanese) {
+      return { voice: animeJapanese, pitch: 1.42, rate: 1.05 };
+    }
+
+    // 2. High Quality Indian & Natural Female Voices
     const indianFemale = availableVoices.find(v => 
       !isMaleVoice(v) && (
         v.name.includes('Veena') ||  // Apple Indian English Female
@@ -277,34 +255,29 @@ export function AIAssistant({
     );
 
     if (indianFemale) {
-      return { voice: indianFemale, pitch: 1.22, rate: 0.98 };
+      return { voice: indianFemale, pitch: 1.48, rate: 1.06 };
     }
 
-    // 2. High-quality natural English Female voices
-    const englishFemale = availableVoices.find(v => 
+    // 3. Apple & Windows sweet female voices
+    const cuteFemale = availableVoices.find(v => 
       !isMaleVoice(v) && (
-        v.name.toLowerCase().includes('female') ||
-        v.name.includes('Samantha') || // Apple smooth US Female
-        v.name.includes('Victoria') ||
+        v.name.includes('Samantha') || 
+        v.name.includes('Victoria') || 
         v.name.includes('Karen') ||
         v.name.includes('Zira') ||
         v.name.includes('Google UK English Female') ||
-        v.name.includes('Google US English Female')
+        v.name.includes('Google US English Female') ||
+        v.name.toLowerCase().includes('female')
       )
     );
 
-    if (englishFemale) {
-      return { voice: englishFemale, pitch: 1.22, rate: 0.98 };
+    if (cuteFemale) {
+      return { voice: cuteFemale, pitch: 1.48, rate: 1.08 };
     }
 
-    // 3. Fallback to any voice that is NOT male
+    // 4. Non-male fallback with high anime pitch
     const nonMale = availableVoices.find(v => !isMaleVoice(v));
-    if (nonMale) {
-      return { voice: nonMale, pitch: 1.25, rate: 0.98 };
-    }
-
-    // 4. Force high female pitch if system only has generic voice
-    return { voice: null, pitch: 1.3, rate: 0.98 };
+    return { voice: nonMale || null, pitch: 1.5, rate: 1.08 };
   };
 
   const stopSpeaking = () => {
@@ -319,8 +292,8 @@ export function AIAssistant({
     setIsSpeaking(false);
   };
 
-  // Smooth chunked speech for Mayra (Women voice, no stuttering)
-  const speakText = async (fullText: string) => {
+  // 🎙️ Anime Girl Voice Synthesizer
+  const speakAnimeVoice = async (fullText: string) => {
     if (!voiceEnabled) return;
     stopSpeaking();
 
@@ -334,52 +307,6 @@ export function AIAssistant({
 
     if (!clean) return;
 
-    // ElevenLabs Studio Human Voice
-    if (useElevenLabs && elevenLabsKey.trim()) {
-      try {
-        setIsSpeaking(true);
-        const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_MAYRA_VOICE}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'xi-api-key': elevenLabsKey.trim(),
-          },
-          body: JSON.stringify({
-            text: clean,
-            model_id: 'eleven_multilingual_v2',
-            voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.8,
-              style: 0.35,
-              use_speaker_boost: true,
-            },
-          }),
-        });
-
-        if (res.ok) {
-          const blob = await res.blob();
-          const audioUrl = URL.createObjectURL(blob);
-          const audio = new Audio(audioUrl);
-          currentAudioRef.current = audio;
-
-          audio.onended = () => {
-            setIsSpeaking(false);
-            URL.revokeObjectURL(audioUrl);
-          };
-          audio.onerror = () => {
-            setIsSpeaking(false);
-            URL.revokeObjectURL(audioUrl);
-          };
-
-          await audio.play();
-          return;
-        }
-      } catch (err) {
-        console.warn('ElevenLabs error, using smooth browser speech:', err);
-      }
-    }
-
-    // Natural Browser Female Speech (Smooth sentence queue)
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
     const sentenceChunks = clean
@@ -389,7 +316,7 @@ export function AIAssistant({
 
     if (sentenceChunks.length === 0) return;
 
-    const { voice, pitch, rate } = getMayraVoice();
+    const { voice, pitch, rate } = getMayraAnimeVoice();
     setIsSpeaking(true);
 
     let currentIndex = 0;
@@ -397,6 +324,8 @@ export function AIAssistant({
     const speakNextChunk = () => {
       if (currentIndex >= sentenceChunks.length) {
         setIsSpeaking(false);
+        // Reset emotion after speaking
+        setTimeout(() => setEmotion('normal'), 2500);
         return;
       }
 
@@ -416,8 +345,7 @@ export function AIAssistant({
         setTimeout(speakNextChunk, 40);
       };
 
-      utterance.onerror = (e) => {
-        console.warn('Utterance error:', e);
+      utterance.onerror = () => {
         speakNextChunk();
       };
 
@@ -427,144 +355,143 @@ export function AIAssistant({
     speakNextChunk();
   };
 
-  const toggleVoice = () => {
-    const next = !voiceEnabled;
-    setVoiceEnabled(next);
-    localStorage.setItem('ai_mayra_voice_enabled', String(next));
-    if (!next) {
-      stopSpeaking();
-    }
-  };
-
-  // 🎤 Bulletproof Microphone Input
-  const toggleListening = async () => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setIsListening(false);
-      setInterimTranscript('');
-      return;
-    }
-
-    stopSpeaking();
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Krishna Sir, aapke browser me Speech Recognition enabled nahi hai. Kripya Chrome ya Edge use karein!');
-      return;
-    }
-
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-      }
-    } catch (permErr) {
-      console.warn('Mic permission check:', permErr);
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'hi-IN';
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-
-      let finalCapturedText = '';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        setInterimTranscript('Mayra sun rahi hai... Boliye Sir!');
-      };
-
-      recognition.onresult = (event: any) => {
-        let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalCapturedText += event.results[i][0].transcript;
-          } else {
-            interim += event.results[i][0].transcript;
-          }
-        }
-        setInterimTranscript(interim || finalCapturedText);
-      };
-
-      recognition.onerror = (err: any) => {
-        console.error('Speech recognition error:', err);
-        setIsListening(false);
-        setInterimTranscript('');
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        setInterimTranscript('');
-        if (finalCapturedText && finalCapturedText.trim()) {
-          setInputText(finalCapturedText.trim());
-          handleSend(finalCapturedText.trim());
-        }
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (e) {
-      console.error('Failed to start speech recognition:', e);
-      setIsListening(false);
-      setInterimTranscript('');
-    }
-  };
-
-  // 🧠 Mayra's Bilingual Knowledge Engine (English & Hindi)
-  const analyzePortalQuery = (rawQuery: string): { text: string; action?: { label: string; action: () => void } } => {
-    const q = rawQuery.toLowerCase().trim();
+  // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions
+  const processVoiceCommand = (rawText: string) => {
+    const q = rawText.toLowerCase().trim();
     const today = DAYS[new Date().getDay()];
 
-    const isEnglish = (
-      q.startsWith('who') ||
-      q.startsWith('what') ||
-      q.startsWith('where') ||
-      q.startsWith('which') ||
-      q.startsWith('how') ||
-      q.includes('timetable') ||
-      q.includes('schedule') ||
-      q.includes('faculty') ||
-      q.includes('available') ||
-      q.includes('cancelled')
-    ) && !q.includes('kaun') && !q.includes('kya') && !q.includes('aaj') && !q.includes('kitni');
+    setLastUserCommand(rawText);
+    setShowSubtitleCard(true);
 
-    // General Greeting Trigger
+    if (hideCardTimeoutRef.current) {
+      clearTimeout(hideCardTimeoutRef.current);
+    }
+    hideCardTimeoutRef.current = setTimeout(() => {
+      setShowSubtitleCard(false);
+    }, 12000);
+
+    // 1. Check if user wants Mayra to IGNORE something ("meri ye baat mat sunna")
     if (
-      q === 'hi' ||
-      q === 'hello' ||
-      q === 'hey' ||
-      q === 'mayra' ||
-      q === 'haan mayra' ||
-      q.includes('kaise ho') ||
-      q.includes('how are you') ||
-      q.includes('hello sir')
+      q.includes('mat sun') || 
+      q.includes('mat sunna') || 
+      q.includes('ignore kar') || 
+      q.includes('ignore karna') ||
+      q.includes('ye mat suno')
     ) {
-      return {
-        text: `Hello Sir, kaise ho aap? 😊 Main Mayra hoon! Portal me aapko aaj kis cheez ke baare me jaana hai? Timetable, cancelled classes, free faculty ya room status?`,
-      };
+      const resp = 'Theek hai Krishna Sir! Main ye baat ignore kar rahi hoon. 😊';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
     }
 
-    const salutation = 'Krishna Sir';
-
-    // 1. Identity Check
-    if (q.includes('mera naam') || q.includes('who am i') || q.includes('my name') || q.includes('krishna')) {
-      return {
-        text: `Aapka shubh naam Krishna Sir hai! 🙏 Hamare Faculty Load Portal ke head admin aap hi hain. Aur mera naam Mayra hai!`,
-      };
+    // 2. Check for Angry / Rude Tone -> Sad Anime Girl 🥺
+    const isAngry = /\b(gussa|gusse|chup|bakwas|pagal|dimag kharab|bewakoof|shut up|chup kar|kuch nahi aata|badtameez|fatu|daat|nall|bekar)\b/i.test(q);
+    if (isAngry) {
+      setEmotion('sad');
+      const resp = 'Sir mujhse koi galti hui kya? Aap gussa kar rahe ho... 🥺 Maaf kar dijiye na Sir, main aage se dhyan rakhungi.';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
     }
 
-    if (q.includes('tera naam') || q.includes('your name') || q.includes('who are you')) {
-      return {
-        text: isEnglish
-          ? `I am Mayra, your AI Assistant! I have 100% full live access to the portal data.`
-          : `Mera naam Mayra hai Sir! Main aapki AI Assistant hoon. Mere paas poore portal ka live data hai.`,
-      };
+    // 3. Check for Sweet / Loving Tone -> Blushing Anime Girl 🥰
+    const isLoving = /\b(pyar|pyaar|love you|love u|bohot achi|bohot acchi|cute|sweet|sharma|meri dost|best ho|shukriya|thank you|pretty|sundar|meri mayra)\b/i.test(q);
+    if (isLoving) {
+      setEmotion('blush');
+      const resp = 'Aww thank you so much Krishna Sir! 🥰 Aap itne pyaar se baat karte ho to mujhe sach me sharm aa jaati hai... Hehe!';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
     }
 
-    // 2. Specific Faculty Name Search
+    // 4. DIRECT ANSWER: Free Faculty Check (Prioritized!)
+    if (q.includes('free') || q.includes('khali') || q.includes('available')) {
+      // Find busy faculty for today
+      const dayLoads = loads.filter(l => l.day_of_week.toLowerCase() === today.toLowerCase());
+      const busyFacultyIds = new Set(dayLoads.map(l => l.faculty_id));
+
+      const freeFaculties = faculty.filter(f => !busyFacultyIds.has(f.id));
+
+      if (dayLoads.length === 0 || freeFaculties.length === faculty.length) {
+        const resp = `Haii Krishna Sir! Aaj koi bhi regular lecture schedule nahi hai, isliye aaj sabhi faculty free hain! 😊`;
+        setLastSpeechResponse(resp);
+        speakAnimeVoice(resp);
+        return;
+      }
+
+      if (freeFaculties.length > 0) {
+        const names = freeFaculties.slice(0, 5).map(f => f.name).join(', ');
+        const extraCount = freeFaculties.length > 5 ? ` aur ${freeFaculties.length - 5} anya teachers` : '';
+        const resp = `Krishna Sir! Aaj ye faculty members free hain: ${names}${extraCount}!`;
+        setLastSpeechResponse(resp);
+        speakAnimeVoice(resp);
+        return;
+      }
+
+      const resp = `Krishna Sir! Aaj sabhi teachers ke classes mapped hain, koi bhi teacher completely free nahi hai.`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 5. NAVIGATION COMMAND: "Aaj faculty slot dekhna hai" / Availability
+    if (
+      q.includes('slot') || 
+      q.includes('faculty slot') || 
+      q.includes('free slot') ||
+      q.includes('availability')
+    ) {
+      if (onNavigateTab) onNavigateTab('facultyAvailability');
+      const resp = `Haii Sir! Main aapko Faculty Slots aur Availability screen par le aayi hoon! Yahan aap live slots check kar sakte hain.`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 6. NAVIGATION: Timetable / Schedule Screen
+    if (q.includes('timetable') || q.includes('schedule') || q.includes('lecture list')) {
+      if (onNavigateTab) onNavigateTab('search');
+      const resp = `Ji Krishna Sir! Timetable screen par chalte hain, ye dekhiye!`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 7. NAVIGATION: Extra Classes / Reschedule
+    if (q.includes('extra class') || q.includes('cancelled') || q.includes('reschedule') || q.includes('cancel')) {
+      if (onNavigateTab) onNavigateTab('extraReschedule');
+      const count = cancelledClasses.length;
+      const resp = `Sir, Extra classes aur Cancelled classes screen open kar di hai! Portal par total ${count} cancelled lectures hain.`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 8. NAVIGATION: Faculty Directory
+    if (q.includes('faculty list') || q.includes('teacher list') || q.includes('sabhi teacher')) {
+      if (onNavigateTab) onNavigateTab('faculty');
+      const resp = `Ji Sir! Faculty Directory screen open ho gayi hai. Total ${faculty.length} teachers registered hain.`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 9. Greeting / Identity
+    if (q === '' || q.includes('kaise ho') || q.includes('hello') || q.includes('hi') || q.includes('namaste')) {
+      const resp = `Haii Krishna Sir, kaise ho aap? 😊 Main Mayra hoon! Mera mic hamesha on hai, aap 'Mayra' bolke mujhe koi bhi command de sakte hain!`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    if (q.includes('mera naam') || q.includes('who am i')) {
+      const resp = `Aapka shubh naam Krishna Sir hai! 🙏 Hamare portal ke head admin aap hi hain!`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 10. Specific Faculty Search by Name
     const matchedFaculty = faculty.find(f => {
       const parts = f.name.toLowerCase().split(' ');
       return parts.some(part => part.length > 2 && q.includes(part));
@@ -572,660 +499,206 @@ export function AIAssistant({
 
     if (matchedFaculty) {
       const facLoads = loads.filter(l => l.faculty_id === matchedFaculty.id);
-      const facExtras = extraClasses.filter(e => e.faculty_id === matchedFaculty.id);
-      const facCancelled = cancelledClasses.filter(c => c.faculty_id === matchedFaculty.id);
-
-      if (facLoads.length === 0 && facExtras.length === 0) {
-        return {
-          text: `Yes ${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) currently has no active load assigned. They are completely free!`,
-          action: onNavigateTab ? {
-            label: 'Open Faculty Tab',
-            action: () => onNavigateTab('faculty'),
-          } : undefined,
-        };
+      if (facLoads.length === 0) {
+        const resp = `Krishna Sir! ${matchedFaculty.name} (${matchedFaculty.department}) ka koi load nahi hai, ye free hain!`;
+        setLastSpeechResponse(resp);
+        speakAnimeVoice(resp);
+        return;
       }
-
-      const scheduleDetails = facLoads.map(l => 
-        `• ${l.day_of_week}: ${l.subject} (${l.start_time}-${l.end_time}) | Room: ${l.room || 'N/A'} | Batch: ${l.batch?.name || 'All'}`
-      ).join('\n');
-
-      let extraInfo = '';
-      if (facExtras.length > 0) {
-        extraInfo += `\n⚡ Extra Classes: ${facExtras.length} (${facExtras.map(e => `${e.date} ${e.start_time}`).join(', ')})`;
-      }
-      if (facCancelled.length > 0) {
-        extraInfo += `\n❌ Cancelled: ${facCancelled.length} (${facCancelled.map(c => `${c.cancellation_date}: ${c.reason || 'Cancelled'}`).join(', ')})`;
-      }
-
-      return {
-        text: `Yes ${salutation}, here is the complete schedule for ${matchedFaculty.name} (${matchedFaculty.department}):\n\nTotal Weekly Classes: ${facLoads.length}\n${scheduleDetails}${extraInfo}`,
-        action: onNavigateTab ? {
-          label: 'View Faculty Details',
-          action: () => onNavigateTab('faculty'),
-        } : undefined,
-      };
+      const resp = `Krishna Sir! ${matchedFaculty.name} ke weekly total ${facLoads.length} lectures scheduled hain!`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
     }
 
-    // 3. Batch Search
-    const matchedBatch = batches.find(b => q.includes(b.name.toLowerCase()));
-    if (matchedBatch) {
-      const batchLoads = loads.filter(l => l.batch_id === matchedBatch.id);
-      if (batchLoads.length === 0) {
-        return {
-          text: `Yes ${salutation}, Batch "${matchedBatch.name}" has no scheduled classes mapped yet.`,
-        };
-      }
-      const bList = batchLoads.map(l => 
-        `• ${l.day_of_week} ${l.start_time}-${l.end_time}: ${l.subject} (Faculty: ${l.faculty?.name || 'Assigned'}, Room: ${l.room || 'TBD'})`
-      ).join('\n');
-
-      return {
-        text: `Yes ${salutation}, Batch "${matchedBatch.name}" schedule:\n\n${bList}`,
-        action: onNavigateTab ? {
-          label: 'View Batches Tab',
-          action: () => onNavigateTab('batches'),
-        } : undefined,
-      };
-    }
-
-    // 4. Room Search
-    const roomMatch = q.match(/room\s*(\d+[a-z]?|[a-z0-9\-]+)|lh\s*(\d+)|lab\s*(\d+)/i);
-    if (roomMatch) {
-      const roomTerm = roomMatch[0].toLowerCase();
-      const roomLoads = loads.filter(l => l.room && l.room.toLowerCase().includes(roomTerm.replace('room', '').trim()));
-      if (roomLoads.length > 0) {
-        const rList = roomLoads.map(l => 
-          `• ${l.day_of_week} ${l.start_time}-${l.end_time}: ${l.faculty?.name} (${l.subject}, Batch: ${l.batch?.name})`
-        ).join('\n');
-        return {
-          text: `Yes ${salutation}, here are the scheduled lectures for ${roomMatch[0].toUpperCase()}:\n\n${rList}`,
-        };
-      }
-    }
-
-    // 5. Cancelled Classes
-    if (q.includes('cancel') || q.includes('radd') || q.includes('cancelled')) {
-      const count = cancelledClasses.length;
-      if (count === 0) {
-        return {
-          text: isEnglish
-            ? `Sir, there are currently 0 cancelled classes! Everything is running on schedule.`
-            : `Sir, portal par abhi koi bhi class cancel nahi hui hai! Sabhi lectures time par chal rahe hain.`,
-        };
-      }
-
-      const list = cancelledClasses.slice(0, 5).map(c => 
-        `• ${c.faculty?.name || 'Faculty'} | ${c.subject} | Date: ${c.cancellation_date || 'N/A'}${c.reason ? ` (Reason: ${c.reason})` : ''}`
-      ).join('\n');
-
-      return {
-        text: `Sir, there are total ${count} cancelled class(es):\n\n${list}\n\nYou can also filter them in the Extra & Reschedule section!`,
-        action: onNavigateTab ? {
-          label: 'Open Extra & Reschedule',
-          action: () => onNavigateTab('extraReschedule'),
-        } : undefined,
-      };
-    }
-
-    // 6. Extra Classes
-    if (q.includes('extra') || q.includes('additional')) {
-      const count = extraClasses.length;
-      if (count === 0) {
-        return {
-          text: `Sir, abhi koi extra class schedule nahi hai. All classes follow the regular timetable.`,
-        };
-      }
-
-      const list = extraClasses.map(e => 
-        `• ${e.faculty?.name || 'Faculty'} | ${e.subject} | Date: ${e.date} (${e.start_time}-${e.end_time}) | Room: ${e.room || 'TBD'}`
-      ).join('\n');
-
-      return {
-        text: `Sir, there are ${count} extra class(es) scheduled:\n\n${list}`,
-        action: onNavigateTab ? {
-          label: 'View Extra Classes',
-          action: () => onNavigateTab('extraReschedule'),
-        } : undefined,
-      };
-    }
-
-    // 7. Rescheduled Classes
-    if (q.includes('reschedule') || q.includes('shift') || q.includes('badla') || q.includes('change')) {
-      const count = rescheduledClasses.length;
-      if (count === 0) {
-        return {
-          text: `Sir, no classes are rescheduled right now. Everything is in its original slot.`,
-        };
-      }
-
-      const list = rescheduledClasses.map(r => 
-        `• ${r.faculty?.name || 'Faculty'} (${r.subject}): Shifted to ${r.new_day} ${r.new_date} (${r.new_start_time}-${r.new_end_time}) | Room: ${r.room || 'TBD'}`
-      ).join('\n');
-
-      return {
-        text: `Sir, total ${count} class(es) have been rescheduled:\n\n${list}`,
-        action: onNavigateTab ? {
-          label: 'Open Rescheduled Tab',
-          action: () => onNavigateTab('extraReschedule'),
-        } : undefined,
-      };
-    }
-
-    // 8. Timetable / Today's Schedule
-    const matchedDay = DAYS.find(d => q.includes(d.toLowerCase())) || (q.includes('aaj') || q.includes('today') ? today : null);
-    if (matchedDay) {
-      const dayLoads = loads.filter(l => l.day_of_week.toLowerCase() === matchedDay.toLowerCase());
-      if (dayLoads.length === 0) {
-        return {
-          text: `Sir, there are no regular classes mapped for ${matchedDay}.`,
-        };
-      }
-
-      const breakdown = dayLoads.slice(0, 5).map(l => 
-        `• ${l.start_time}-${l.end_time}: ${l.faculty?.name} (${l.subject}) -> Batch: ${l.batch?.name || 'All'} [Room ${l.room || 'N/A'}]`
-      ).join('\n');
-
-      return {
-        text: `Sir, on ${matchedDay} there are total ${dayLoads.length} lectures scheduled:\n\n${breakdown}${dayLoads.length > 5 ? `\n...and ${dayLoads.length - 5} more classes.` : ''}`,
-        action: onNavigateTab ? {
-          label: 'Open Dashboard',
-          action: () => onNavigateTab('dashboard'),
-        } : undefined,
-      };
-    }
-
-    // 9. Free Faculty
-    if (q.includes('free') || q.includes('available') || q.includes('khali') || q.includes('kaun free')) {
-      const busyFacultyIds = new Set(
-        loads
-          .filter(l => l.day_of_week.toLowerCase() === today.toLowerCase())
-          .map(l => l.faculty_id)
-      );
-
-      const free = faculty.filter(f => !busyFacultyIds.has(f.id));
-      if (free.length === 0) {
-        return {
-          text: `Sir, all faculty members are busy with scheduled lectures today on ${today}.`,
-        };
-      }
-
-      const names = free.map(f => `• ${f.name} (${f.department})`).join('\n');
-      return {
-        text: `Sir, today (${today}) approximately ${free.length} faculty members have no scheduled lectures and are free:\n\n${names}`,
-        action: onNavigateTab ? {
-          label: 'View Faculty Availability',
-          action: () => onNavigateTab('facultyAvailability'),
-        } : undefined,
-      };
-    }
-
-    // 10. Load summary
-    if (q.includes('highest') || q.includes('sabse zyada') || q.includes('load') || q.includes('summary') || q.includes('stats')) {
-      const loadCountMap: Record<string, number> = {};
-      loads.forEach(l => {
-        loadCountMap[l.faculty_id] = (loadCountMap[l.faculty_id] || 0) + 1;
-      });
-
-      const sorted = Object.entries(loadCountMap).sort((a, b) => b[1] - a[1]);
-      const topFaculty = sorted.length > 0 ? faculty.find(f => f.id === sorted[0][0]) : null;
-
-      return {
-        text: `Sir, here is the portal workload summary:\n\n• 👨‍🏫 Total Faculty: ${faculty.length}\n• 🎓 Total Batches: ${batches.length}\n• 📚 Total Weekly Loads: ${loads.length}\n• ❌ Total Cancelled: ${cancelledClasses.length}\n• ⚡ Total Extra: ${extraClasses.length}\n${topFaculty ? `\n🔥 Highest Workload: ${topFaculty.name} (${sorted[0][1]} classes/week)` : ''}`,
-      };
-    }
-
-    // 11. Jokes
-    if (q.includes('joke') || q.includes('chutkula') || q.includes('masti')) {
-      const jokes = [
-        `Sunie Sir! Student: "Teacher, kya aap mujhe us galti ki saza denge jo maine nahi ki?"\nTeacher: "Nahi beta bilkul nahi!"\nStudent: "Acha hua sir, maine aaj homework hi nahi kiya!" 😂`,
-        `Sir, why do programmers prefer dark mode?\nBecause light attracts bugs! 😆`,
-      ];
-      return {
-        text: jokes[Math.floor(Math.random() * jokes.length)],
-      };
-    }
-
-    // Default Fallback
-    return {
-      text: `Hello Sir, batao aapki kaise help kar sakti hoon? Aap mujhse kisi bhi teacher ka timetable, cancelled classes ya room status pooch sakte hain. Main turant answer de dungi!`,
-    };
+    // Default friendly response
+    const defaultResp = `Haii Krishna Sir! Maine aapki baat sun li hai. Bataiye aur kya help karoon?`;
+    setLastSpeechResponse(defaultResp);
+    speakAnimeVoice(defaultResp);
   };
 
-  const handleSend = async (customQuery?: string) => {
-    const query = customQuery || inputText;
-    if (!query.trim()) return;
+  // 🎤 Continuous Always-On Microphone Listener (With "Mayra" Wake Word Filter)
+  useEffect(() => {
+    micActiveRef.current = true;
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text: query.trim(),
-      timestamp: new Date(),
-    };
+    if (!SpeechRec) {
+      console.warn('SpeechRecognition API not available in this browser');
+      return;
+    }
 
-    setMessages(prev => [...prev, userMsg]);
-    setInputText('');
+    let recognition: any = null;
 
-    let responseText = '';
-    let actionItem: { label: string; action: () => void } | undefined;
+    const startListener = () => {
+      if (!micActiveRef.current) return;
 
-    if (apiKey.trim()) {
       try {
-        const portalSummary = `User: Krishna Sir (Krishna Ji).
-Assistant: Mayra (AI Human Female Assistant).
-Opening Greeting: "Hello Sir, kaise ho aap?"
-Languages: English & Hindi (Bilingual).
-Total Faculty: ${faculty.length}
-Total Batches: ${batches.length}
-Total Loads: ${loads.length}
-Cancelled Classes: ${cancelledClasses.length}
-Extra Classes: ${extraClasses.length}
-Today: ${DAYS[new Date().getDay()]}`;
+        recognition = new SpeechRec();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'hi-IN'; // Recognizes Hindi, Hinglish, English seamlessly
 
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    {
-                      text: `You are Mayra, a female AI Human Assistant for the Faculty Load Portal.
-Always address user as "Krishna Sir" or "Sir".
-You speak fluent English and Hindi.
-Portal context: ${portalSummary}
-User question: "${query}". Reply warmly and accurately in human female tone (2-3 sentences).`,
-                    },
-                  ],
-                },
-              ],
-            }),
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+
+        recognition.onresult = (event: any) => {
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              const transcript = event.results[i][0].transcript.trim();
+              console.log('Voice heard:', transcript);
+
+              // 🎯 REQUIREMENT: Check if user said her name "Mayra"
+              const hasWakeWord = /\b(mayra|maira|myra|mera|aira|meera)\b/i.test(transcript);
+
+              if (!hasWakeWord) {
+                // Ignore any speech that does not address Mayra!
+                console.log('Ignored speech (no "Mayra" wake word):', transcript);
+                return;
+              }
+
+              // Extract actual command by removing wake word
+              const cleanCommand = transcript
+                .replace(/\b(mayra|maira|myra|mera|aira|meera)\b/gi, '')
+                .trim();
+
+              processVoiceCommand(cleanCommand);
+            }
           }
-        );
+        };
 
-        if (res.ok) {
-          const data = await res.json();
-          responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        }
+        recognition.onerror = (err: any) => {
+          // If aborted or network glitch, auto-restart to stay ALWAYS ON
+          if (err.error !== 'not-allowed' && micActiveRef.current) {
+            setTimeout(() => {
+              try {
+                if (micActiveRef.current) startListener();
+              } catch (e) {}
+            }, 400);
+          }
+        };
+
+        recognition.onend = () => {
+          // Auto-restart immediately so mic is NEVER muted
+          if (micActiveRef.current) {
+            setTimeout(() => {
+              try {
+                if (micActiveRef.current) startListener();
+              } catch (e) {}
+            }, 250);
+          }
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
       } catch (e) {
-        console.warn('Gemini fallback:', e);
+        console.warn('Recognition start exception, retrying:', e);
+        if (micActiveRef.current) {
+          setTimeout(startListener, 1000);
+        }
       }
-    }
-
-    if (!responseText) {
-      const result = analyzePortalQuery(query);
-      responseText = result.text;
-      actionItem = result.action;
-    }
-
-    const botMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      sender: 'assistant',
-      text: responseText,
-      timestamp: new Date(),
-      quickAction: actionItem,
     };
 
-    setMessages(prev => [...prev, botMsg]);
-    speakText(responseText);
-  };
+    startListener();
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSend();
+    return () => {
+      micActiveRef.current = false;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+    };
+  }, [loads, faculty, extraClasses, cancelledClasses]);
+
+  // Click handler on Mayra: warm greeting & wake up
+  const handleMayraClick = () => {
+    if (isSpeaking) {
+      stopSpeaking();
+      return;
     }
+    const greet = `Hello Krishna Sir! Main Mayra hoon. Mera mic hamesha on hai, bas 'Mayra' bolke mujhse kuch bhi kahiye!`;
+    setLastSpeechResponse(greet);
+    setShowSubtitleCard(true);
+    speakAnimeVoice(greet);
   };
-
-  const clearChat = () => {
-    stopSpeaking();
-    setMessages([
-      {
-        id: Date.now().toString(),
-        sender: 'assistant',
-        text: 'Hello Sir, kaise ho aap? Chat fresh ho gayi hai. Bataiye kya madad kar sakti hoon? 🌸',
-        timestamp: new Date(),
-      },
-    ]);
-  };
-
-  const quickPrompts = [
-    { label: '🌸 Hello Sir, kaise ho?', query: 'Hello Mayra kaise ho' },
-    { label: '📅 Aaj ka timetable?', query: 'Aaj ka schedule kya hai?' },
-    { label: '❌ Cancelled classes?', query: 'Kitni classes cancel hui hain?' },
-    { label: '👨‍🏫 Kaun free hai?', query: 'Aaj kaun kaun free hai?' },
-    { label: '⚡ Extra classes?', query: 'Extra classes list batao' },
-    { label: '🔥 Highest load?', query: 'Sabse zyada load kiska hai?' },
-  ];
 
   return (
     <>
-      {/* 👩 Stable AI Human Woman Avatar (Mayra) with Authentic Thought Cloud */}
-      {!isOpen && (
-        <div className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50">
-          <div className="relative flex flex-col items-end">
-            {/* 💭 Authentic Comic Puffy Thought Cloud */}
-            <div className="absolute -top-[82px] -right-2 sm:-top-[90px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
-              <ComicThoughtCloud />
-            </div>
-
-            <button
-              onClick={() => {
-                setIsOpen(true);
-                speakText('Hello Sir, kaise ho aap?');
-              }}
-              className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
-              title="Click to talk to Mayra"
-            >
-              {/* Stable Mayra GIF (Smartphone & Desktop optimized compact size: 88px mobile / 96px desktop) */}
-              <div className="w-[84px] h-[84px] sm:w-[96px] sm:h-[96px] flex items-center justify-center">
-                <AIHumanWomanAvatar size={92} isSpeaking={isSpeaking} isListening={isListening} />
-              </div>
-            </button>
+      {/* 🌸 Floating Mayra Anime Voice Companion */}
+      <div className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50">
+        <div className="relative flex flex-col items-end">
+          {/* 💭 Authentic Fluffy Comic Thought Cloud */}
+          <div className="absolute -top-[80px] -right-2 sm:-top-[88px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
+            <ComicThoughtCloud
+              text={
+                isSpeaking
+                  ? 'Speaking...'
+                  : emotion === 'sad'
+                  ? 'Galti hui kya Sir? 🥺'
+                  : emotion === 'blush'
+                  ? 'Sharm aa rahi hai 🥰'
+                  : 'Say "Mayra" to talk!'
+              }
+              subtitle={isSpeaking ? 'Listening...' : 'Mic is Always On 🎙️'}
+              emotion={emotion}
+            />
           </div>
-        </div>
-      )}
 
-      {/* Main Chat Drawer - Fully Responsive for all Smartphones & Desktops */}
-      {isOpen && (
-        <div
-          className={`fixed right-2 sm:right-6 bottom-2 sm:bottom-6 z-50 transition-all duration-300 shadow-2xl rounded-2xl sm:rounded-3xl overflow-hidden border border-pink-500/30 bg-slate-900/95 backdrop-blur-2xl flex flex-col text-white ${
-            isMinimized ? 'w-72 sm:w-80 h-16' : 'w-[calc(100vw-1rem)] sm:w-[420px] h-[82vh] sm:h-[620px] max-h-[92vh]'
-          }`}
-        >
-          {/* Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-slate-950 via-purple-950 to-pink-950 border-b border-pink-500/20 flex items-center justify-between select-none">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 flex-shrink-0">
-                <AIHumanWomanAvatar size={42} isSpeaking={isSpeaking} isListening={isListening} />
+          {/* 💬 Live Anime Response Subtitle Card (Voice-only HUD) */}
+          {showSubtitleCard && lastSpeechResponse && (
+            <div className="absolute bottom-[95px] right-0 sm:right-2 z-30 max-w-[280px] sm:max-w-[340px] bg-slate-900/95 backdrop-blur-xl border border-pink-500/40 rounded-2xl p-3.5 shadow-2xl text-white text-xs animate-fadeIn space-y-1.5 select-none">
+              <div className="flex items-center justify-between border-b border-pink-500/20 pb-1.5">
+                <span className="font-bold text-pink-300 flex items-center gap-1">
+                  <span>🌸 Mayra (Anime Voice)</span>
+                </span>
+                <button
+                  onClick={() => setShowSubtitleCard(false)}
+                  className="text-slate-400 hover:text-white p-0.5 rounded"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
 
-              <div>
-                <h3 className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-                  Mayra <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-semibold border border-pink-500/30">AI Human</span>
-                </h3>
-                <p className="text-[10px] text-pink-200/80 flex items-center gap-1 font-medium">
-                  {isListening ? (
-                    <span className="text-red-400 flex items-center gap-1 font-bold animate-pulse">
-                      <Radio className="w-3 h-3" /> Mayra sun rahi hai... Boliye!
-                    </span>
-                  ) : isSpeaking ? (
-                    <span className="text-pink-300 flex items-center gap-1 font-semibold">
-                      <Radio className="w-3 h-3 animate-pulse" /> Mayra bol rahi hai...
-                    </span>
-                  ) : (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span>Krishna Sir ke liye ready • Women Voice</span>
-                    </>
-                  )}
+              {lastUserCommand && (
+                <p className="text-[11px] text-slate-300 italic">
+                  <span className="text-pink-400 font-semibold">Krishna Sir:</span> "{lastUserCommand}"
                 </p>
-              </div>
-            </div>
-
-            {/* Top Toolbar */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={toggleVoice}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  voiceEnabled ? 'text-pink-300 hover:bg-pink-500/20' : 'text-slate-500 hover:bg-slate-800 line-through'
-                }`}
-                title={voiceEnabled ? 'Voice Mute karein' : 'Voice Unmute karein'}
-              >
-                {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </button>
-
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  showSettings ? 'text-pink-300 bg-slate-800' : 'text-slate-400 hover:bg-slate-800'
-                }`}
-                title="Settings & ElevenLabs"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => setIsMinimized(!isMinimized)}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 transition-colors"
-                title={isMinimized ? 'Maximize' : 'Minimize'}
-              >
-                {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-              </button>
-
-              <button
-                onClick={() => {
-                  stopSpeaking();
-                  setIsOpen(false);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {!isMinimized && (
-            <>
-              {/* Settings Drawer */}
-              {showSettings && (
-                <div className="p-3.5 bg-slate-800/95 border-b border-pink-500/20 text-xs space-y-3 animate-fadeIn">
-                  <div className="flex items-center justify-between font-bold text-slate-200">
-                    <span className="flex items-center gap-1.5">
-                      <Music className="w-3.5 h-3.5 text-pink-400" />
-                      Mayra's Female Voice (ElevenLabs Studio Option)
-                    </span>
-                    <button
-                      onClick={clearChat}
-                      className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3 h-3" /> Clear Chat
-                    </button>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
-                        <span>Enable ElevenLabs Human Voice</span>
-                      </label>
-                      <input
-                        type="checkbox"
-                        checked={useElevenLabs}
-                        onChange={(e) => {
-                          setUseElevenLabs(e.target.checked);
-                          localStorage.setItem('ai_mayra_use_elevenlabs', String(e.target.checked));
-                        }}
-                        className="w-4 h-4 rounded text-pink-600 focus:ring-0 cursor-pointer"
-                      />
-                    </div>
-
-                    <div>
-                      <input
-                        type="password"
-                        placeholder="ElevenLabs API Key (xi-api-key)..."
-                        value={elevenLabsKey}
-                        onChange={(e) => {
-                          setElevenLabsKey(e.target.value);
-                          localStorage.setItem('ai_mayra_elevenlabs_key', e.target.value);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-pink-500"
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        Free key elevenlabs.io se le sakte hain. Bina key ke Natural Indian Female Voice automatically bina atke chalegi!
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">
-                      Optional: Google Gemini Key (General AI):
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="AIzaSy... (Khali chhod sakte hain)"
-                      value={apiKey}
-                      onChange={(e) => {
-                        setApiKey(e.target.value);
-                        localStorage.setItem('ai_mayra_gemini_key', e.target.value);
-                      }}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-pink-500"
-                    />
-                  </div>
-                </div>
               )}
 
-              {/* Chat Stream */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-700">
-                {messages.map((m) => {
-                  const isUser = m.sender === 'user';
-                  return (
-                    <div
-                      key={m.id}
-                      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {!isUser && (
-                        <div className="w-8 h-8 flex-shrink-0 mt-0.5">
-                          <AIHumanWomanAvatar size={32} />
-                        </div>
-                      )}
+              <p className="text-white font-medium leading-relaxed">
+                {lastSpeechResponse}
+              </p>
 
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed shadow-sm ${
-                          isUser
-                            ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-indigo-600 text-white rounded-tr-none'
-                            : 'bg-slate-800/90 border border-slate-700/70 text-slate-100 rounded-tl-none'
-                        }`}
-                      >
-                        <p className="whitespace-pre-line">{m.text}</p>
-
-                        {m.quickAction && (
-                          <div className="mt-2.5 pt-2 border-t border-slate-700/70">
-                            <button
-                              onClick={m.quickAction.action}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 font-bold text-[11px] border border-pink-400/30 transition-all hover:scale-105 active:scale-95"
-                            >
-                              <span>{m.quickAction.label}</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )}
-
-                        <span
-                          className={`text-[9px] mt-1 block text-right font-medium opacity-60 ${
-                            isUser ? 'text-pink-100' : 'text-slate-400'
-                          }`}
-                        >
-                          {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-
-                      {isUser && (
-                        <div className="w-7 h-7 rounded-xl bg-slate-700 flex items-center justify-center text-xs flex-shrink-0 mt-0.5 font-bold text-white shadow">
-                          K
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* 🔴 Live Listening Status Bubble */}
-                {isListening && (
-                  <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-red-950/40 border border-red-500/50 rounded-2xl text-xs text-red-200 animate-pulse shadow-lg">
-                    <Mic className="w-4 h-4 text-red-400 animate-bounce" />
-                    <div>
-                      <p className="font-bold text-red-300">Mayra sun rahi hai...</p>
-                      {interimTranscript && (
-                        <p className="text-[11px] text-white/90 italic">"{interimTranscript}"</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Animated Speaking Wave */}
-                {isSpeaking && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/95 border border-pink-500/40 rounded-xl w-fit shadow-lg animate-fadeIn">
-                    <span className="text-[11px] text-pink-300 font-bold flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
-                      Mayra bol rahi hai...
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                      <span className="w-1 h-3.5 bg-pink-400 animate-bounce rounded-full" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1 h-5 bg-pink-400 animate-bounce rounded-full" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1 h-2.5 bg-pink-400 animate-bounce rounded-full" style={{ animationDelay: '300ms' }} />
-                    </div>
-                    <button
-                      onClick={stopSpeaking}
-                      className="ml-2 px-2 py-0.5 rounded text-[10px] bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold border border-red-500/30 transition-all"
-                    >
-                      Roko
-                    </button>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
+              {/* Status footer */}
+              <div className="flex items-center justify-between pt-1 text-[10px] text-pink-200/70 font-semibold">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Mic Always-On
+                </span>
+                <span>Say "Mayra" anytime</span>
               </div>
-
-              {/* Quick Prompts Bar */}
-              <div className="px-3 py-2 bg-slate-950/70 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                {quickPrompts.map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSend(p.query)}
-                    className={`whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all hover:scale-105 active:scale-95 flex-shrink-0 ${
-                      idx === 0
-                        ? 'bg-pink-500/20 border-pink-500/40 text-pink-300 font-bold hover:bg-pink-500/30'
-                        : 'bg-slate-800 hover:bg-pink-600/30 text-slate-300 hover:text-pink-200 border-slate-700/80'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Input Area */}
-              <div className="p-3 bg-slate-950 border-t border-slate-800 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  className={`p-2.5 rounded-xl transition-all duration-300 ${
-                    isListening
-                      ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/60 scale-110'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                  }`}
-                  title={isListening ? 'Sun rahi hoon... Click karein band karne ke liye' : 'Microphone se boliye (Hindi ya English)'}
-                >
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                </button>
-
-                <input
-                  type="text"
-                  placeholder={
-                    isListening
-                      ? 'Krishna Sir boliye... Mayra sun rahi hai...'
-                      : 'Ask in English or Hindi (e.g. "Dr. Sharma schedule", "free faculty")...'
-                  }
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => handleSend()}
-                  disabled={!inputText.trim()}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-indigo-600 text-white hover:opacity-90 disabled:opacity-40 transition-all duration-300 hover:scale-105 active:scale-95 shadow-md"
-                  title="Send message"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </>
+            </div>
           )}
+
+          {/* Clickable Mayra Avatar Button */}
+          <button
+            onClick={handleMayraClick}
+            className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
+            title="Click to talk to Mayra"
+          >
+            {/* Compact Size for Smartphones & Desktops */}
+            <div className="w-[82px] h-[82px] sm:w-[94px] sm:h-[94px] flex items-center justify-center">
+              <AIHumanWomanAvatar
+                size={88}
+                isSpeaking={isSpeaking}
+                isListening={isListening}
+                emotion={emotion}
+              />
+            </div>
+          </button>
         </div>
-      )}
+      </div>
     </>
   );
 }
