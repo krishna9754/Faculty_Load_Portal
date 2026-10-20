@@ -187,6 +187,11 @@ export function AIAssistant({
     return saved !== null ? saved === 'true' : true;
   });
 
+  // 🎙️ Real-Time Hearing Feedback States (So Krishna Sir knows mic is receiving audio)
+  const [liveHeardText, setLiveHeardText] = useState<string>('');
+  const [isDetectingSpeech, setIsDetectingSpeech] = useState<boolean>(false);
+  const [wakeWordDetected, setWakeWordDetected] = useState<boolean>(false);
+
   const micActiveRef = useRef<boolean>(true);
   const recognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -228,11 +233,10 @@ export function AIAssistant({
     );
   };
 
-  // 🌸 Pick Cute Hindi/Indian Anime Girl Voice (Strictly NO Japanese / Foreign accents!)
+  // 🌸 Pick Cute Hindi/Indian Anime Girl Voice
   const getMayraAnimeVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
     if (!availableVoices.length) return { voice: null, pitch: 1.34, rate: 1.02 };
 
-    // STRICTLY EXCLUDE Japanese, Chinese, and non-Hindi/English foreign voices!
     const isExcluded = (v: SpeechSynthesisVoice) => {
       const n = v.name.toLowerCase();
       const l = v.lang.toLowerCase();
@@ -248,7 +252,6 @@ export function AIAssistant({
       );
     };
 
-    // 1. High Priority: Pure Hindi & Indian Female Voices (Sweet, clear Hindi)
     const hindiFemale = availableVoices.find(v => 
       !isExcluded(v) && (
         v.name.includes('Lekha') ||   // Apple Hindi Female
@@ -270,7 +273,6 @@ export function AIAssistant({
       return { voice: hindiFemale, pitch: 1.34, rate: 1.02 };
     }
 
-    // 2. High-Quality Natural English/Hindi Female Voices (Samantha / Victoria / Google Female)
     const naturalFemale = availableVoices.find(v => 
       !isExcluded(v) && (
         v.name.includes('Google UK English Female') ||
@@ -287,7 +289,6 @@ export function AIAssistant({
       return { voice: naturalFemale, pitch: 1.35, rate: 1.02 };
     }
 
-    // 3. Fallback
     const fallback = availableVoices.find(v => !isExcluded(v));
     return { voice: fallback || null, pitch: 1.36, rate: 1.02 };
   };
@@ -306,11 +307,11 @@ export function AIAssistant({
     setIsSpeaking(false);
   };
 
-  // 🎙️ Anime Girl Voice Synthesizer in Hindi
+  // 🎙️ Natural Human Anime Girl Voice (Real Human Studio Audio + Anime Cadence)
   const speakAnimeVoice = async (fullText: string) => {
     if (!voiceEnabled) return;
     stopSpeaking();
-    isStoppedRef.current = false; // Reset stop flag for new speech
+    isStoppedRef.current = false;
 
     const clean = fullText
       .replace(/[*_#`~•]/g, ' ')
@@ -322,67 +323,112 @@ export function AIAssistant({
 
     if (!clean) return;
 
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-
-    const sentenceChunks = clean
+    const sentences = clean
       .split(/(?<=[.?!।\n])\s+/)
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
-    if (sentenceChunks.length === 0) return;
+    if (sentences.length === 0) return;
 
-    const { voice, pitch, rate } = getMayraAnimeVoice();
     setIsSpeaking(true);
 
-    let currentIndex = 0;
+    // Play with Google Real Human Voice Audio first (Natural, non-robotic Human Studio Speech!)
+    let currentIdx = 0;
 
-    const speakNextChunk = () => {
-      // 🛑 If stopped by user, cancel everything immediately!
+    const playGoogleAudioChunk = () => {
       if (isStoppedRef.current) {
         setIsSpeaking(false);
         return;
       }
 
-      if (currentIndex >= sentenceChunks.length) {
+      if (currentIdx >= sentences.length) {
         setIsSpeaking(false);
         setTimeout(() => setEmotion('normal'), 2500);
         return;
       }
 
-      const chunk = sentenceChunks[currentIndex];
-      currentIndex++;
+      const sentence = sentences[currentIdx];
+      currentIdx++;
 
-      const utterance = new SpeechSynthesisUtterance(chunk);
-      if (voice) {
-        utterance.voice = voice;
-        utterance.lang = voice.lang && voice.lang.startsWith('hi') ? 'hi-IN' : 'en-IN';
-      } else {
-        utterance.lang = 'hi-IN';
-      }
-      utterance.pitch = pitch;
-      utterance.rate = rate;
-      utterance.volume = 1.0;
+      // Google Neural Real Human Studio Voice
+      const encoded = encodeURIComponent(sentence);
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=hi&client=tw-ob&q=${encoded}`;
 
-      utterance.onend = () => {
+      const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
+      audio.playbackRate = 1.14; // Sweet, cheerful Anime girl cadence
+
+      audio.onended = () => {
         if (isStoppedRef.current) {
           setIsSpeaking(false);
           return;
         }
-        setTimeout(speakNextChunk, 40);
+        setTimeout(playGoogleAudioChunk, 40);
       };
 
-      utterance.onerror = (e) => {
-        if (isStoppedRef.current) {
-          setIsSpeaking(false);
-          return;
-        }
-        speakNextChunk();
+      audio.onerror = () => {
+        // Fallback to browser synthesis
+        playBrowserSynthesis(sentences.slice(currentIdx - 1));
       };
 
-      window.speechSynthesis.speak(utterance);
+      audio.play().catch(() => {
+        playBrowserSynthesis(sentences.slice(currentIdx - 1));
+      });
     };
 
-    speakNextChunk();
+    const playBrowserSynthesis = (chunks: string[]) => {
+      if (typeof window === 'undefined' || !window.speechSynthesis) {
+        setIsSpeaking(false);
+        return;
+      }
+
+      const { voice, pitch, rate } = getMayraAnimeVoice();
+      let bIdx = 0;
+
+      const speakNext = () => {
+        if (isStoppedRef.current || bIdx >= chunks.length) {
+          setIsSpeaking(false);
+          setTimeout(() => setEmotion('normal'), 2500);
+          return;
+        }
+
+        const c = chunks[bIdx];
+        bIdx++;
+
+        const utterance = new SpeechSynthesisUtterance(c);
+        if (voice) {
+          utterance.voice = voice;
+          utterance.lang = voice.lang && voice.lang.startsWith('hi') ? 'hi-IN' : 'en-IN';
+        } else {
+          utterance.lang = 'hi-IN';
+        }
+        utterance.pitch = pitch;
+        utterance.rate = rate;
+        utterance.volume = 1.0;
+
+        utterance.onend = () => {
+          if (isStoppedRef.current) {
+            setIsSpeaking(false);
+            return;
+          }
+          setTimeout(speakNext, 40);
+        };
+
+        utterance.onerror = () => {
+          if (isStoppedRef.current) {
+            setIsSpeaking(false);
+            return;
+          }
+          speakNext();
+        };
+
+        window.speechSynthesis.speak(utterance);
+      };
+
+      speakNext();
+    };
+
+    playGoogleAudioChunk();
   };
 
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions
@@ -589,9 +635,29 @@ export function AIAssistant({
           setIsListening(true);
         };
 
+        recognition.onspeechstart = () => {
+          setIsDetectingSpeech(true);
+        };
+
+        recognition.onspeechend = () => {
+          setIsDetectingSpeech(false);
+        };
+
+        recognition.onsoundstart = () => {
+          setIsDetectingSpeech(true);
+        };
+
+        recognition.onsoundend = () => {
+          setIsDetectingSpeech(false);
+        };
+
         recognition.onresult = (event: any) => {
+          setIsDetectingSpeech(true);
+          let interim = '';
+
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             const currentTranscript = event.results[i][0].transcript.trim().toLowerCase();
+            interim = currentTranscript;
 
             // 🛑 INSTANT REAL-TIME STOP: Even during interim or final speech
             const hasStop = /\b(stop|chup|shant|ruko|ruk|quiet|bas)\b/i.test(currentTranscript);
@@ -603,12 +669,19 @@ export function AIAssistant({
               setEmotion('normal');
               setLastSpeechResponse('Ji Sir, chup ho gayi.');
               setShowSubtitleCard(false);
+              setLiveHeardText('');
+              setWakeWordDetected(false);
               return;
+            }
+
+            if (mentionsMayra) {
+              setWakeWordDetected(true);
             }
 
             if (event.results[i].isFinal) {
               const transcript = event.results[i][0].transcript.trim();
               console.log('Voice heard:', transcript);
+              setLiveHeardText(transcript);
 
               // 🎯 REQUIREMENT: Check if user said her name "Mayra"
               const hasWakeWord = /\b(mayra|maira|myra|mera|aira|meera)\b/i.test(transcript);
@@ -616,6 +689,10 @@ export function AIAssistant({
               if (!hasWakeWord) {
                 // Ignore any speech that does not address Mayra!
                 console.log('Ignored speech (no "Mayra" wake word):', transcript);
+                setTimeout(() => {
+                  setLiveHeardText('');
+                  setWakeWordDetected(false);
+                }, 2500);
                 return;
               }
 
@@ -624,7 +701,14 @@ export function AIAssistant({
                 .replace(/\b(mayra|maira|myra|mera|aira|meera)\b/gi, '')
                 .trim();
 
+              setTimeout(() => {
+                setLiveHeardText('');
+                setWakeWordDetected(false);
+              }, 3000);
+
               processVoiceCommand(cleanCommand);
+            } else {
+              setLiveHeardText(interim);
             }
           }
         };
@@ -690,6 +774,32 @@ export function AIAssistant({
       {/* 🌸 Floating Mayra Anime Voice Companion */}
       <div className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50">
         <div className="relative flex flex-col items-end">
+          {/* 🎙️ Real-time Audio Hearing Waveform & Transcript Badge */}
+          {(liveHeardText || isDetectingSpeech) && (
+            <div className="absolute -top-[124px] sm:-top-[132px] right-0 z-30 flex flex-col items-end pointer-events-none transition-all duration-200">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/95 border border-pink-400 shadow-2xl text-white text-[11px] font-bold backdrop-blur-md max-w-[280px] sm:max-w-[320px] truncate animate-fadeIn">
+                {/* Dancing Equalizer Soundbars */}
+                <span className="flex items-center gap-0.5 flex-shrink-0">
+                  <span className="w-1 h-3 bg-pink-400 rounded-full animate-bounce" />
+                  <span className="w-1 h-4 bg-emerald-400 rounded-full animate-bounce delay-100" />
+                  <span className="w-1 h-2.5 bg-pink-400 rounded-full animate-bounce delay-200" />
+                  <span className="w-1 h-3.5 bg-purple-400 rounded-full animate-bounce delay-75" />
+                </span>
+
+                {wakeWordDetected ? (
+                  <span className="text-emerald-300 font-extrabold flex items-center gap-1 truncate">
+                    <span>🎯 Mayra Activated!</span>
+                    <span className="text-pink-200 font-medium truncate">"{liveHeardText}"</span>
+                  </span>
+                ) : (
+                  <span className="text-pink-200 truncate">
+                    👂 Hearing: "{liveHeardText || 'Listening...'}"
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 💭 Authentic Fluffy Comic Thought Cloud */}
           <div className="absolute -top-[80px] -right-2 sm:-top-[88px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
             <ComicThoughtCloud
