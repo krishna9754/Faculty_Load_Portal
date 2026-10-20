@@ -23,6 +23,7 @@ import type {
 } from '@/lib/supabase';
 
 import mayraGif from '@/assets/mayra-avatar.gif';
+import greetingAudioSrc from '@/assets/audio/mayra-greeting.m4a';
 
 interface AIAssistantProps {
   faculty: Faculty[];
@@ -407,6 +408,36 @@ export function AIAssistant({
     speakNextSentence();
   };
 
+  // 🎵 Play Krishna Sir's Custom Studio Voice Recording
+  const playGreetingAudio = () => {
+    stopSpeaking();
+    isStoppedRef.current = false;
+    setIsSpeaking(true);
+    setEmotion('happy');
+    setLastSpeechResponse('Hello Krishna Sir, aap kaise ho? Main kya help kar sakti hoon?');
+    setShowSubtitleCard(true);
+
+    try {
+      const audio = new Audio(greetingAudioSrc);
+      currentAudioRef.current = audio;
+      audio.onended = () => {
+        setIsSpeaking(false);
+        currentAudioRef.current = null;
+        setTimeout(() => setEmotion('normal'), 2500);
+      };
+      audio.onerror = () => {
+        currentAudioRef.current = null;
+        speakAnimeVoice('Hello Krishna Sir, aap kaise ho? Main kya help kar sakti hoon?');
+      };
+      audio.play().catch(() => {
+        currentAudioRef.current = null;
+        speakAnimeVoice('Hello Krishna Sir, aap kaise ho? Main kya help kar sakti hoon?');
+      });
+    } catch (e) {
+      speakAnimeVoice('Hello Krishna Sir, aap kaise ho? Main kya help kar sakti hoon?');
+    }
+  };
+
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions
   const processVoiceCommand = (rawText: string) => {
     const q = rawText.toLowerCase().trim();
@@ -566,10 +597,8 @@ export function AIAssistant({
     }
 
     // 11. Greeting / Identity
-    if (q === '' || q.includes('kaise ho') || q.includes('hello') || q.includes('hi') || q.includes('namaste')) {
-      const resp = `Haii Krishna Sir, kaise ho aap? 😊 Main Mayra hoon! Mera mic on hai, aap direct mujhe koi bhi command de sakte hain!`;
-      setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+    if (q === '' || q === 'mayra' || q.includes('kaise ho') || q.includes('hello') || q.includes('hi') || q.includes('namaste')) {
+      playGreetingAudio();
       return;
     }
 
@@ -788,16 +817,13 @@ export function AIAssistant({
     }
   };
 
-  // Click handler on Mayra: warm greeting & wake up
+  // Click handler on Mayra: warm greeting & wake up with custom voice
   const handleMayraClick = () => {
     if (isSpeaking) {
       stopSpeaking();
       return;
     }
-    const greet = `Hello Krishna Sir! Main Mayra hoon. Mera mic on hai, aap mujhse direct kuch bhi pooch sakte hain!`;
-    setLastSpeechResponse(greet);
-    setShowSubtitleCard(true);
-    speakAnimeVoice(greet);
+    playGreetingAudio();
   };
 
   return (
