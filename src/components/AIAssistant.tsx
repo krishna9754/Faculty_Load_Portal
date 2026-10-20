@@ -25,6 +25,8 @@ import type {
   LoadBatchManager,
 } from '@/lib/supabase';
 
+import mayraGif from '@/assets/mayra-avatar.gif';
+
 interface AIAssistantProps {
   faculty: Faculty[];
   batches: Batch[];
@@ -52,7 +54,7 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 // ElevenLabs Voice ID for Mayra (Studio Human Female Voice)
 const ELEVENLABS_MAYRA_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel
 
-// 👩 Realistic, Elegant AI Human Woman Avatar (Mayra)
+// 👩 Animated AI Human Woman Avatar (Mayra GIF)
 function AIHumanWomanAvatar({
   size = 48,
   isSpeaking = false,
@@ -67,136 +69,49 @@ function AIHumanWomanAvatar({
       className="relative flex items-center justify-center select-none"
       style={{ width: size, height: size }}
     >
-      <svg
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={`w-full h-full rounded-full transition-transform duration-300 ${
-          isSpeaking ? 'scale-105' : 'hover:scale-110'
+      {/* Outer Pulse / Ping Glow Ring */}
+      <span
+        className={`absolute inset-0 rounded-full transition-all duration-300 pointer-events-none ${
+          isListening
+            ? 'border-2 border-red-500 animate-ping'
+            : isSpeaking
+            ? 'border-2 border-pink-400 animate-pulse ring-2 ring-pink-500/50'
+            : 'border border-pink-400/40'
         }`}
-      >
-        {/* Ambient Holographic AI Glow Ring */}
-        <circle
-          cx="50"
-          cy="50"
-          r="48"
-          fill="url(#aiGlowBg)"
-          stroke={isListening ? '#ef4444' : isSpeaking ? '#ec4899' : '#8b5cf6'}
-          strokeWidth="2.5"
-          className={isListening ? 'animate-ping' : isSpeaking ? 'animate-pulse' : ''}
-        />
+      />
 
-        {/* Back Hair */}
-        <path
-          d="M 22 45 C 18 68, 20 85, 30 92 C 38 95, 62 95, 70 92 C 80 85, 82 68, 78 45 C 75 22, 25 22, 22 45 Z"
-          fill="#1c1917"
-        />
+      {/* Animated Avatar GIF */}
+      <img
+        src={mayraGif}
+        alt="Mayra AI Assistant"
+        className={`w-full h-full rounded-full object-cover shadow-md transition-all duration-300 border-2 bg-gradient-to-tr from-pink-100 to-indigo-100 ${
+          isSpeaking
+            ? 'border-pink-400 scale-105 ring-2 ring-pink-400/60'
+            : isListening
+            ? 'border-red-400 scale-105 ring-2 ring-red-400/60'
+            : 'border-pink-300/80 hover:scale-105'
+        }`}
+        onError={(e) => {
+          const target = e.currentTarget;
+          if (target.src !== window.location.origin + '/mayra-avatar.gif') {
+            target.src = '/mayra-avatar.gif';
+          }
+        }}
+      />
 
-        {/* Neck & Shoulder */}
-        <path d="M 43 68 L 43 80 L 57 80 L 57 68 Z" fill="#fed7aa" />
-        <path d="M 43 72 Q 50 76 57 72" stroke="#fdba74" strokeWidth="1" fill="none" />
+      {/* Speaking Active Indicator Badge */}
+      {isSpeaking && (
+        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+          <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+        </span>
+      )}
 
-        {/* Smart Blazer / Attire */}
-        <path
-          d="M 28 98 C 30 84, 40 80, 50 82 C 60 80, 70 84, 72 98 Z"
-          fill="#1e1b4b"
-        />
-        {/* Inner Top Collar */}
-        <path d="M 42 80 L 50 92 L 58 80 Z" fill="#ffffff" />
-        <path d="M 36 82 L 48 98 L 50 98 L 64 82" stroke="#4338ca" strokeWidth="2" fill="none" />
-
-        {/* Human Face Contour */}
-        <path
-          d="M 31 44 C 31 30, 69 30, 69 44 C 69 62, 58 72, 50 72 C 42 72, 31 62, 31 44 Z"
-          fill="url(#skinGradient)"
-        />
-
-        {/* Rosy Cheeks */}
-        <circle cx="37" cy="54" r="5" fill="#f43f5e" opacity="0.35" filter="blur(1px)" />
-        <circle cx="63" cy="54" r="5" fill="#f43f5e" opacity="0.35" filter="blur(1px)" />
-
-        {/* Front Flowing Hair / Bangs */}
-        <path
-          d="M 28 38 C 32 25, 48 20, 68 25 C 74 34, 73 48, 72 56 C 68 45, 66 38, 56 34 C 44 30, 34 33, 28 38 Z"
-          fill="#292524"
-        />
-        <path
-          d="M 28 38 C 30 48, 29 58, 27 65 C 29 55, 34 46, 38 41 Z"
-          fill="#1c1917"
-        />
-
-        {/* Eyebrows */}
-        <path d="M 35 40 Q 40 38 44 40" stroke="#44403c" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-        <path d="M 56 40 Q 60 38 65 40" stroke="#44403c" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-
-        {/* Human Eyes with Eyelashes & Sparkling Pupils */}
-        {/* Left Eye */}
-        <ellipse cx="40" cy="45" rx="4.5" ry="3.5" fill="#ffffff" />
-        <circle cx="40" cy="45" r="2.8" fill="#451a03" />
-        <circle cx="40" cy="45" r="1.5" fill="#000000" />
-        <circle cx="41.2" cy="43.8" r="1" fill="#ffffff" />
-        <path d="M 34.5 44 Q 40 41 45.5 44" stroke="#1c1917" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        <path d="M 44.5 43 L 46.5 41" stroke="#1c1917" strokeWidth="1.2" strokeLinecap="round" />
-
-        {/* Right Eye */}
-        <ellipse cx="60" cy="45" rx="4.5" ry="3.5" fill="#ffffff" />
-        <circle cx="60" cy="45" r="2.8" fill="#451a03" />
-        <circle cx="60" cy="45" r="1.5" fill="#000000" />
-        <circle cx="61.2" cy="43.8" r="1" fill="#ffffff" />
-        <path d="M 54.5 44 Q 60 41 65.5 44" stroke="#1c1917" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        <path d="M 64.5 43 L 66.5 41" stroke="#1c1917" strokeWidth="1.2" strokeLinecap="round" />
-
-        {/* Cute Delicate Nose */}
-        <path d="M 50 48 L 49 53 Q 50 54 51.5 53" stroke="#fba779" strokeWidth="1.2" strokeLinecap="round" fill="none" />
-
-        {/* Smiling Lips (Animated when speaking) */}
-        {isSpeaking ? (
-          <path
-            d="M 44 60 Q 50 67 56 60 Q 50 63 44 60 Z"
-            fill="#e11d48"
-            stroke="#be123c"
-            strokeWidth="0.8"
-          />
-        ) : (
-          <path
-            d="M 44 60 Q 50 65 56 60 Q 50 62 44 60 Z"
-            fill="#fb7185"
-            stroke="#e11d48"
-            strokeWidth="0.6"
-          />
-        )}
-
-        {/* Minimalist AI Earpiece Communicator with LED */}
-        <ellipse cx="29" cy="48" rx="2.5" ry="4" fill="#6366f1" />
-        <circle
-          cx="29"
-          cy="48"
-          r="1.8"
-          fill={isListening ? '#ef4444' : isSpeaking ? '#22d3ee' : '#a855f7'}
-          className={isListening || isSpeaking ? 'animate-ping' : ''}
-        />
-        <circle
-          cx="29"
-          cy="48"
-          r="1.2"
-          fill="#ffffff"
-        />
-
-        {/* Gradients */}
-        <defs>
-          <linearGradient id="skinGradient" x1="50" y1="30" x2="50" y2="72" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#ffedd5" />
-            <stop offset="0.7" stopColor="#fed7aa" />
-            <stop offset="1" stopColor="#fbcfe8" />
-          </linearGradient>
-
-          <linearGradient id="aiGlowBg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#fdf2f8" />
-            <stop offset="0.5" stopColor="#f3e8ff" />
-            <stop offset="1" stopColor="#e0e7ff" />
-          </linearGradient>
-        </defs>
-      </svg>
+      {/* Listening Mic Indicator Badge */}
+      {isListening && (
+        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+          <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+        </span>
+      )}
     </div>
   );
 }
