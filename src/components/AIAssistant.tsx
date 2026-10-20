@@ -473,8 +473,10 @@ export function AIAssistant({
       return;
     }
 
-    // 4. DIRECT ANSWER: Free Faculty Check (Prioritized!)
+    // 4. DIRECT ANSWER: Free Faculty Check (Prioritized!) & Navigate to Section
     if (q.includes('free') || q.includes('khali') || q.includes('available')) {
+      if (onNavigateTab) onNavigateTab('facultyAvailability');
+
       // Find busy faculty for today
       const dayLoads = loads.filter(l => l.day_of_week.toLowerCase() === today.toLowerCase());
       const busyFacultyIds = new Set(dayLoads.map(l => l.faculty_id));
@@ -482,7 +484,7 @@ export function AIAssistant({
       const freeFaculties = faculty.filter(f => !busyFacultyIds.has(f.id));
 
       if (dayLoads.length === 0 || freeFaculties.length === faculty.length) {
-        const resp = `Haii Krishna Sir! Aaj koi bhi regular lecture schedule nahi hai, isliye aaj sabhi faculty free hain! 😊`;
+        const resp = `Haii Krishna Sir! Aaj koi bhi lecture schedule nahi hai, sabhi faculty free hain! Main aapko live availability screen par le aayi hoon. 😊`;
         setLastSpeechResponse(resp);
         speakAnimeVoice(resp);
         return;
@@ -491,19 +493,19 @@ export function AIAssistant({
       if (freeFaculties.length > 0) {
         const names = freeFaculties.slice(0, 5).map(f => f.name).join(', ');
         const extraCount = freeFaculties.length > 5 ? ` aur ${freeFaculties.length - 5} anya teachers` : '';
-        const resp = `Krishna Sir! Aaj ye faculty members free hain: ${names}${extraCount}!`;
+        const resp = `Krishna Sir! Aaj ye faculty free hain: ${names}${extraCount}! Main aapko availability screen par le aayi hoon.`;
         setLastSpeechResponse(resp);
         speakAnimeVoice(resp);
         return;
       }
 
-      const resp = `Krishna Sir! Aaj sabhi teachers ke classes mapped hain, koi bhi teacher completely free nahi hai.`;
+      const resp = `Krishna Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko availability screen par le aayi hoon.`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
     }
 
-    // 5. NAVIGATION COMMAND: "Aaj faculty slot dekhna hai" / Availability
+    // 5. NAVIGATION: Faculty Slots & Availability Screen
     if (
       q.includes('slot') || 
       q.includes('faculty slot') || 
@@ -518,9 +520,9 @@ export function AIAssistant({
     }
 
     // 6. NAVIGATION: Timetable / Schedule Screen
-    if (q.includes('timetable') || q.includes('schedule') || q.includes('lecture list')) {
+    if (q.includes('timetable') || q.includes('schedule') || q.includes('lecture') || q.includes('class') || q.includes('search')) {
       if (onNavigateTab) onNavigateTab('search');
-      const resp = `Ji Krishna Sir! Timetable screen par chalte hain, ye dekhiye!`;
+      const resp = `Ji Krishna Sir! Timetable aur Lectures screen open kar di hai!`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -537,7 +539,7 @@ export function AIAssistant({
     }
 
     // 8. NAVIGATION: Faculty Directory
-    if (q.includes('faculty list') || q.includes('teacher list') || q.includes('sabhi teacher')) {
+    if (q.includes('faculty list') || q.includes('teacher list') || q.includes('sabhi teacher') || q.includes('faculty')) {
       if (onNavigateTab) onNavigateTab('faculty');
       const resp = `Ji Sir! Faculty Directory screen open ho gayi hai. Total ${faculty.length} teachers registered hain.`;
       setLastSpeechResponse(resp);
@@ -545,7 +547,25 @@ export function AIAssistant({
       return;
     }
 
-    // 9. Greeting / Identity
+    // 9. NAVIGATION: Batches & Syllabus
+    if (q.includes('batch') || q.includes('syllabus')) {
+      if (onNavigateTab) onNavigateTab('batchSyllabus');
+      const resp = `Ji Krishna Sir! Batches aur Syllabus screen open kar di hai.`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 10. NAVIGATION: Dashboard / Home
+    if (q.includes('dashboard') || q.includes('home') || q.includes('main page')) {
+      if (onNavigateTab) onNavigateTab('dashboard');
+      const resp = `Ji Sir! Dashboard screen par le aayi hoon.`;
+      setLastSpeechResponse(resp);
+      speakAnimeVoice(resp);
+      return;
+    }
+
+    // 11. Greeting / Identity
     if (q === '' || q.includes('kaise ho') || q.includes('hello') || q.includes('hi') || q.includes('namaste')) {
       const resp = `Haii Krishna Sir, kaise ho aap? 😊 Main Mayra hoon! Mera mic on hai, aap direct mujhe koi bhi command de sakte hain!`;
       setLastSpeechResponse(resp);
@@ -560,16 +580,17 @@ export function AIAssistant({
       return;
     }
 
-    // 10. Specific Faculty Search by Name
+    // 12. Specific Faculty Search by Name
     const matchedFaculty = faculty.find(f => {
       const parts = f.name.toLowerCase().split(' ');
       return parts.some(part => part.length > 2 && q.includes(part));
     });
 
     if (matchedFaculty) {
+      if (onNavigateTab) onNavigateTab('facultyAvailability');
       const facLoads = loads.filter(l => l.faculty_id === matchedFaculty.id);
       if (facLoads.length === 0) {
-        const resp = `Krishna Sir! ${matchedFaculty.name} (${matchedFaculty.department}) ka koi load nahi hai, ye free hain!`;
+        const resp = `Krishna Sir! ${matchedFaculty.name} (${matchedFaculty.department}) ka aaj koi load nahi hai, ye free hain!`;
         setLastSpeechResponse(resp);
         speakAnimeVoice(resp);
         return;
@@ -666,6 +687,16 @@ export function AIAssistant({
               console.log('Voice heard:', transcript);
               setLiveHeardText(transcript);
 
+              // 🛑 AUTO-MUTE: Ek baar user ki command sunte hi mic ko turant Auto-Mute kar do!
+              // Isse screen change hote waqt ya Mayra ke answer bolte waqt mic me koi disturbance ya looping na ho.
+              setIsMicMuted(true);
+              micActiveRef.current = false;
+              setIsListening(false);
+              setIsDetectingSpeech(false);
+              if (recognitionRef.current) {
+                try { recognitionRef.current.stop(); } catch (e) {}
+              }
+
               // 🎯 Direct command execution: No mandatory wake-word!
               const cleanCommand = transcript
                 .replace(/\b(mayra|maira|myra|mera|aira|meera)\b/gi, '')
@@ -700,7 +731,7 @@ export function AIAssistant({
         };
 
         recognition.onend = () => {
-          // Auto-restart immediately so mic is NEVER muted
+          // Auto-restart if mic is still active
           if (micActiveRef.current) {
             setTimeout(() => {
               try {
@@ -745,15 +776,15 @@ export function AIAssistant({
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
       }
-      setLastSpeechResponse('Mic mute ho gaya hai Krishna Sir.');
+      setLastSpeechResponse('Mic mute kar diya hai Krishna Sir.');
       setShowSubtitleCard(true);
     } else {
+      stopSpeaking();
       setIsMicMuted(false);
       micActiveRef.current = true;
       setIsListening(true);
-      setLastSpeechResponse('Mic on ho gaya hai Sir! Mayra sun rahi hai.');
+      setLastSpeechResponse('Main sun rahi hoon Krishna Sir, boliye!');
       setShowSubtitleCard(true);
-      speakAnimeVoice('Mic on ho gaya hai Sir, main sun rahi hoon!');
     }
   };
 
@@ -798,17 +829,17 @@ export function AIAssistant({
           <div className="absolute -top-[80px] -right-2 sm:-top-[88px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
             <ComicThoughtCloud
               text={
-                isMicMuted
-                  ? 'Mic Muted hai 🔴'
-                  : isSpeaking
+                isSpeaking
                   ? 'Speaking...'
+                  : isMicMuted
+                  ? 'Boliye Sir! (Click Mic)'
                   : emotion === 'sad'
                   ? 'Galti hui kya Sir? 🥺'
                   : emotion === 'blush'
                   ? 'Sharm aa rahi hai 🥰'
-                  : 'Aap boliye Sir!'
+                  : 'Sun Rahi Hoon! Boliye 🎙️'
               }
-              subtitle={isMicMuted ? 'Click to UNMUTE 🎙️' : isSpeaking ? 'Listening...' : 'Sun Rahi Hoon 🟢'}
+              subtitle={isMicMuted ? 'Click Mic to Speak 🎙️' : isSpeaking ? 'Speaking...' : 'Listening... 🟢'}
               emotion={emotion}
             />
           </div>
@@ -844,7 +875,7 @@ export function AIAssistant({
                   <span className={`w-1.5 h-1.5 rounded-full ${isMicMuted ? 'bg-rose-400' : 'bg-emerald-400 animate-pulse'}`} />
                   {isMicMuted ? 'Mic Muted (OFF)' : 'Mic Live (ON)'}
                 </span>
-                <span>{isMicMuted ? 'Unmute to talk' : 'Direct bol sakte hain 🎙️'}</span>
+                <span>{isMicMuted ? 'Click Mic to Talk' : 'Listening...'}</span>
               </div>
             </div>
           )}
@@ -859,12 +890,12 @@ export function AIAssistant({
                   ? 'bg-rose-950/95 border-rose-500/80 text-rose-300 hover:bg-rose-900 shadow-rose-900/40 ring-1 ring-rose-500/50'
                   : 'bg-emerald-950/95 border-emerald-500/80 text-emerald-300 hover:bg-emerald-900 shadow-emerald-900/40 ring-1 ring-emerald-500/50'
               }`}
-              title={isMicMuted ? "Mayra abhi sun nahi rahi hai (Click to UNMUTE)" : "Mayra aapki baat sun rahi hai (Click to MUTE)"}
+              title={isMicMuted ? "Click karke boliye (Mic Muted)" : "Mayra sun rahi hai (Click to Mute)"}
             >
               {isMicMuted ? (
                 <>
                   <MicOff className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Mic Muted 🔴</span>
+                  <span>Mic Muted (Boliye 🎙️)</span>
                 </>
               ) : (
                 <>
