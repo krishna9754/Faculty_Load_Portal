@@ -685,6 +685,66 @@ export function AIAssistant({
     }
   };
 
+  // 🎵 Studio Voice Clip Player: Plays real human girl audio for 100% voice consistency across all portal sections!
+  const playStudioVoice = (audioUrl: string, fallbackDevanagariText: string, emotionToSet: MayraEmotion = 'normal') => {
+    stopSpeaking();
+    isStoppedRef.current = false;
+
+    // 🛡️ CRITICAL LOOP SHIELD: Pause mic recognition during playback so speaker audio cannot trigger loop
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+    }
+    isRecognizingRef.current = false;
+    setIsListening(false);
+    setIsDetectingSpeech(false);
+    setLiveHeardText('');
+
+    setIsSpeaking(true);
+    isSpeakingRef.current = true;
+    echoCooldownUntilRef.current = Date.now() + 10000;
+    if (emotionToSet) setEmotion(emotionToSet);
+
+    speechSessionIdRef.current += 1;
+    const thisSessionId = speechSessionIdRef.current;
+
+    const onAudioDone = () => {
+      if (speechSessionIdRef.current !== thisSessionId) return;
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      echoCooldownUntilRef.current = Date.now() + 800;
+      setTimeout(() => setEmotion('normal'), 1800);
+      setTimeout(() => {
+        if (micActiveRef.current && !isMicMuted && !isSpeakingRef.current) {
+          try { startListenerRef.current?.(); } catch (e) {}
+        }
+      }, 600);
+    };
+
+    try {
+      const audio = new Audio(audioUrl);
+      activeAudioElementRef.current = audio;
+      audio.onended = () => {
+        if (activeAudioElementRef.current === audio) {
+          activeAudioElementRef.current = null;
+        }
+        onAudioDone();
+      };
+      audio.onerror = () => {
+        if (speechSessionIdRef.current !== thisSessionId) return;
+        speakAnimeVoice(fallbackDevanagariText);
+      };
+      const p = audio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          if (speechSessionIdRef.current !== thisSessionId) return;
+          speakAnimeVoice(fallbackDevanagariText);
+        });
+      }
+    } catch (e) {
+      speakAnimeVoice(fallbackDevanagariText);
+    }
+  };
+
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions (Devanagari Hindi & Hinglish support)
   const processVoiceCommand = async (rawText: string) => {
     const q = rawText.toLowerCase().trim();
@@ -708,11 +768,9 @@ export function AIAssistant({
       q.includes('बस') ||
       q.includes('बंद')
     ) {
-      stopSpeaking();
-      setEmotion('normal');
       setLastSpeechResponse('Ji Sir, chup ho gayi.');
       setShowSubtitleCard(false);
-      speakAnimeVoice('जी सर, चुप हो गई।');
+      playStudioVoice('/audio/nav-stop.wav', 'जी सर, चुप हो गई।', 'normal');
       return;
     }
 
@@ -739,7 +797,7 @@ export function AIAssistant({
     ) {
       const resp = 'Theek hai Sir! Main ye baat ignore kar rahi hoon. 😊';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('ठीक है सर! मैं यह बात इग्नोर कर रही हूँ।');
+      playStudioVoice('/audio/nav-ignore.wav', 'ठीक है सर! मैं यह बात इग्नोर कर रही हूँ।', 'happy');
       return;
     }
 
@@ -747,10 +805,9 @@ export function AIAssistant({
     const isAngry = /\b(gussa|gusse|chup|bakwas|pagal|dimag kharab|bewakoof|shut up|chup kar|kuch nahi aata|badtameez|fatu|daat|nall|bekar)\b/i.test(q) ||
       /(गुस्सा|बकवास|पागल|बेवकूफ|शट अप|चुप कर|दिमाग खराब|बदतमीज)/.test(q);
     if (isAngry) {
-      setEmotion('sad');
       const resp = 'Sir mujhse koi galti hui kya? Aap gussa kar rahe ho... 🥺 Maaf kar dijiye na Sir, main aage se dhyan rakhungi.';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('सर मुझसे कोई गलती हुई क्या? आप गुस्सा कर रहे हो... माफ कर दीजिए ना सर।');
+      playStudioVoice('/audio/nav-sad.wav', 'सर मुझसे कोई गलती हुई क्या? आप गुस्सा कर रहे हो... माफ कर दीजिए ना सर।', 'sad');
       return;
     }
 
@@ -758,10 +815,9 @@ export function AIAssistant({
     const isLoving = /\b(pyar|pyaar|love you|love u|bohot achi|bohot acchi|cute|sweet|sharma|meri dost|best ho|shukriya|thank you|pretty|sundar|meri mayra)\b/i.test(q) ||
       /(प्यार|लव यू|बहुत अच्छी|क्यूट|स्वीट|शुक्रिया|थैंक यू|शर्मा|सुंदर)/.test(q);
     if (isLoving) {
-      setEmotion('blush');
       const resp = 'Aww thank you so much Sir! 🥰 Aap itne pyaar se baat karte ho to mujhe sach me sharm aa jaati hai... Hehe!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('थैंक यू सो मच सर! आप इतने प्यार से बात करते हो तो मुझे सच में शर्म आ जाती है।');
+      playStudioVoice('/audio/nav-blush.wav', 'थैंक यू सो मच सर! आप इतने प्यार से बात करते हो तो मुझे सच में शर्म आ जाती है।', 'blush');
       return;
     }
 
@@ -862,7 +918,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
       const resp = 'Ji Sir! Load add karne ke liye mujhe teacher ka naam, subject, batch aur time bataiye. Jaise boliye: Krishna sir, Java, CSE A, Monday 10 AM. Main turant entry create kar doongi!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! लोड ऐड करने के लिए मुझे टीचर का नाम, सब्जेक्ट, बैच और टाइम बताइए। जैसे बोलिए: कृष्णा सर, जावा, सीएसई ए, मंडे १० बजे। मैं तुरंत एंट्री क्रिएट कर दूँगी!');
+      playStudioVoice('/audio/nav-addload.wav', 'जी सर! लोड ऐड करने के लिए मुझे टीचर का नाम, सब्जेक्ट, बैच और टाइम बताइए। जैसे बोलिए: कृष्णा सर, जावा, सीएसई ए, मंडे १० बजे। मैं तुरंत एंट्री क्रिएट कर दूँगी!', 'happy');
       return;
     }
 
@@ -894,7 +950,7 @@ export function AIAssistant({
             if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
             const resp = `Ji Sir! Maine teacher ${capitalized} ko Computer Science department mein successfully add kar diya hai!`;
             setLastSpeechResponse(resp);
-            speakAnimeVoice(`जी सर! मैंने टीचर ${capitalized} को कंप्यूटर साइंस डिपार्टमेंट में सक्सेसफुली ऐड कर दिया है!`);
+            playStudioVoice('/audio/nav-faculty.wav', `जी सर! मैंने टीचर ${capitalized} को कंप्यूटर साइंस डिपार्टमेंट में सक्सेसफुली ऐड कर दिया है!`, 'happy');
             return;
           }
         } catch (e) {}
@@ -903,7 +959,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
       const resp = 'Ji Sir! Naya teacher add karne ke liye teacher ka naam bataiye, jaise boliye: Naya teacher add karo Dr. Amit Sharma. Main turant create kar doongi!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! नया टीचर ऐड करने के लिए टीचर का नाम बताइए, जैसे बोलिए: नया टीचर ऐड करो अमित शर्मा। मैं तुरंत ऐड कर दूँगी!');
+      playStudioVoice('/audio/nav-faculty.wav', 'जी सर! नया टीचर ऐड करने के लिए टीचर का नाम बताइए, जैसे बोलिए: नया टीचर ऐड करो अमित शर्मा। मैं तुरंत ऐड कर दूँगी!', 'happy');
       return;
     }
 
@@ -934,7 +990,7 @@ export function AIAssistant({
             if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
             const resp = `Ji Sir! Naya batch ${batchName} successfully add kar diya hai!`;
             setLastSpeechResponse(resp);
-            speakAnimeVoice(`जी सर! नया बैच ${batchName} सक्सेसफुली ऐड कर दिया है!`);
+            playStudioVoice('/audio/nav-batches.wav', `जी सर! नया बैच ${batchName} सक्सेसफुली ऐड कर दिया है!`, 'happy');
             return;
           }
         } catch (e) {}
@@ -943,7 +999,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
       const resp = 'Ji Sir! Naya batch add karne ke liye batch ka naam bataiye, jaise boliye: Naya batch add karo CSE 2026. Main turant create kar doongi!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! नया बैच ऐड करने के लिए बैच का नाम बताइए, जैसे बोलिए: नया बैच ऐड करो सीएसई २०२६। मैं तुरंत बना दूँगी!');
+      playStudioVoice('/audio/nav-batches.wav', 'जी सर! नया बैच ऐड करने के लिए बैच का नाम बताइए, जैसे बोलिए: नया बैच ऐड करो सीएसई २०२६। मैं तुरंत बना दूँगी!', 'happy');
       return;
     }
 
@@ -959,7 +1015,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
       const resp = 'Ji Sir! Bulk Excel upload modal open kar diya hai, aap yahan se Excel file drag-and-drop karke sabhi load ek saath upload kar sakte hain!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! बल्क एक्सेल अपलोड मोडल ओपन कर दिया है, आप यहाँ से एक्सेल फाइल अपलोड कर सकते हैं!');
+      playStudioVoice('/audio/nav-addload.wav', 'जी सर! बल्क एक्सेल अपलोड मोडल ओपन कर दिया है, आप यहाँ से एक्सेल फाइल अपलोड कर सकते हैं!', 'happy');
       return;
     }
 
@@ -979,13 +1035,13 @@ export function AIAssistant({
       if (cList.length === 0) {
         const resp = 'Sir! Portal par ek bhi clash nahi hai. Sabhi faculty aur batches ke time slots perfectly clear hain!';
         setLastSpeechResponse(resp);
-        speakAnimeVoice('सर! पोर्टल पर एक भी क्लैश नहीं है। सभी फैकल्टी और बैचेस के टाइम स्लॉट्स परफेक्टली क्लियर हैं!');
+        playStudioVoice('/audio/nav-clashes.wav', 'सर! पोर्टल पर एक भी क्लैश नहीं है। सभी फैकल्टी और बैचेस के टाइम स्लॉट्स परफेक्टली क्लियर हैं!', 'happy');
         return;
       } else {
         const firstMsg = cList[0]?.message || '';
         const resp = `Sir! Portal par total ${cList.length} clashes detected hain. Sabse pehla: ${firstMsg}. Main aapko Clash Alerts screen par le aayi hoon.`;
         setLastSpeechResponse(resp);
-        speakAnimeVoice(`सर! पोर्टल पर टोटल ${cList.length} क्लैश डिटेक्ट हुए हैं। मैंने क्लैश अलर्ट्स स्क्रीन ओपन कर दी है।`);
+        playStudioVoice('/audio/nav-clashes.wav', `सर! पोर्टल पर टोटल ${cList.length} क्लैश डिटेक्ट हुए हैं। मैंने क्लैश अलर्ट्स स्क्रीन ओपन कर दी है।`, 'happy');
         return;
       }
     }
@@ -1006,14 +1062,14 @@ export function AIAssistant({
       if (pending.length === 0) {
         const resp = 'Sir! Sabhi teachers ko schedule emails bheje ja chuke hain, koi bhi mail pending nahi hai!';
         setLastSpeechResponse(resp);
-        speakAnimeVoice('सर! सभी टीचर्स को शेड्यूल ईमेल्स भेजे जा चुके हैं, कोई भी मेल पेंडिंग नहीं है!');
+        playStudioVoice('/audio/nav-mail.wav', 'सर! सभी टीचर्स को शेड्यूल ईमेल्स भेजे जा चुके हैं, कोई भी मेल पेंडिंग नहीं है!', 'happy');
         return;
       } else {
         const names = pending.slice(0, 4).map((g: any) => g.faculty_name).join(', ');
         const extra = pending.length > 4 ? ` aur ${pending.length - 4} anya teachers` : '';
         const resp = `Sir! Total ${pending.length} teachers ka mail pending hai: ${names}${extra}. Inhe schedule mail bhejna baaki hai.`;
         setLastSpeechResponse(resp);
-        speakAnimeVoice(`सर! टोटल ${pending.length} टीचर्स का मेल पेंडिंग है: ${names}।`);
+        playStudioVoice('/audio/nav-mail.wav', `सर! टोटल ${pending.length} टीचर्स का मेल पेंडिंग है: ${names}।`, 'happy');
         return;
       }
     }
@@ -1029,7 +1085,7 @@ export function AIAssistant({
       if (onOpenThemeModalRef.current) onOpenThemeModalRef.current();
       const resp = 'Ji Sir! Anime theme modal open kar diya hai, aap apni pasandeeda anime theme select kar sakte hain!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! एनीमे थीम मोडल ओपन कर दिया है, आप अपनी पसंद की थीम चुन सकते हैं!');
+      playStudioVoice('/audio/nav-theme.wav', 'जी सर! एनीमे थीम मोडल ओपन कर दिया है, आप अपनी पसंद की थीम चुन सकते हैं!', 'happy');
       return;
     }
 
@@ -1046,27 +1102,9 @@ export function AIAssistant({
       q.includes('क्या करना है') ||
       q.includes('मदद')
     ) {
-      const currentTab = activeTabRef.current || 'dashboard';
-      let guide = '';
-      let devanagariGuide = '';
-      if (currentTab === 'addLoad') {
-        guide = 'Sir, Add Load screen mein aap kisi bhi teacher ka naya lecture load add kar sakte hain ya bulk Excel upload kar sakte hain. Aap mujhe bol sakte hain: "Krishna sir ka Java Monday 10 baje load add karo".';
-        devanagariGuide = 'सर, ऐड लोड स्क्रीन में आप किसी भी टीचर का नया लोड ऐड कर सकते हैं या बल्क एक्सेल अपलोड कर सकते हैं। आप मुझे बोल सकते हैं: कृष्णा सर का जावा मंडे १० बजे लोड ऐड करो।';
-      } else if (currentTab === 'batchSyllabus') {
-        guide = 'Sir, Planner screen mein aap batches ka syllabus, weekly hours aur lecture scheduling plan dekh sakte hain. Boliye kis batch ka syllabus check karna hai!';
-        devanagariGuide = 'सर, प्लानर स्क्रीन में आप बैचेस का सिलेबस और वीकली आवर्स चेक कर सकते हैं। बोलिए किस बैच का सिलेबस देखना है!';
-      } else if (currentTab === 'facultyAvailability') {
-        guide = 'Sir, Spending Time screen mein aap live classes aur free slots dekh sakte hain. Aap pooch sakte hain: "Sharma sir kab free hain?" ya "Aaj kaun free hai?".';
-        devanagariGuide = 'सर, स्पेंडिंग टाइम स्क्रीन में आप लाइव क्लासेस और फ्री स्लॉट्स देख सकते हैं। आप पूछ सकते हैं: शर्मा सर कब फ्री हैं? या आज कौन फ्री है?';
-      } else if (currentTab === 'clashes') {
-        guide = 'Sir, Clash Alerts screen mein aap overlapping lectures aur timing conflicts dekh sakte hain aur resolve kar sakte hain.';
-        devanagariGuide = 'सर, क्लैश अलर्ट्स स्क्रीन में आप ओवरलैपिंग लेक्चर्स और टाइमिंग कॉन्फ्लिक्ट्स चेक कर सकते हैं।';
-      } else {
-        guide = `Sir, main poore portal ki AI Assistant hoon! Main kisi bhi screen par navigate kar sakti hoon, naya load ya faculty add kar sakti hoon, free slots check kar sakti hoon, clashes detect kar sakti hoon aur email tracker bata sakti hoon. Bataiye kya karna hai Sir!`;
-        devanagariGuide = `सर, मैं पूरे पोर्टल की एआई असिस्टेंट हूँ! मैं लोड ऐड कर सकती हूँ, फ्री स्लॉट्स बता सकती हूँ, क्लैश डिटेक्ट कर सकती हूँ और ईमेल्स ट्रैक कर सकती हूँ। बताइए क्या करना है सर!`;
-      }
-      setLastSpeechResponse(guide);
-      speakAnimeVoice(devanagariGuide);
+      const resp = 'Ji Sir! Main poore portal ki AI Assistant hoon. Main kisi bhi screen par navigate kar sakti hoon aur aapke sabhi tasks perform kar sakti hoon. Boliye Sir!';
+      setLastSpeechResponse(resp);
+      playStudioVoice('/audio/nav-help.wav', 'जी सर! मैं पूरे पोर्टल की एआई असिस्टेंट हूँ। मैं किसी भी स्क्रीन पर नेविगेट कर सकती हूँ और आपके सभी टास्क परफॉर्म कर सकती हूँ। बोलिए सर!', 'happy');
       return;
     }
 
@@ -1086,7 +1124,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('batchSyllabus');
       const resp = 'Ji Sir! Main Planner screen par aa gayi hoon. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon! Jaise kisi batch ka lecture plan check karna ya weekly schedule dekhna.';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! मैं प्लानर स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ! जैसे किसी बैच का लेक्चर प्लान चेक करना या वीकली शेड्यूल देखना।');
+      playStudioVoice('/audio/nav-planner.wav', 'जी सर! मैं प्लानर स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!', 'happy');
       return;
     }
 
@@ -1130,13 +1168,13 @@ export function AIAssistant({
         const extraCount = freeFaculties.length > 4 ? ` aur ${freeFaculties.length - 4} anya teachers` : '';
         const resp = `Ji Sir! Main Spending Time screen par aa gayi hoon. Aaj ye faculty free hain: ${names}${extraCount}! Yahan aapko kya karna hai mujhe bata dijiye, main kar deti hoon!`;
         setLastSpeechResponse(resp);
-        speakAnimeVoice(`जी सर! मैं स्पेंडिंग टाइम स्क्रीन पर आ गई हूँ। आज ये टीचर्स फ्री हैं: ${names}। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!`);
+        playStudioVoice('/audio/nav-freeslots.wav', 'जी सर! मैं स्पेंडिंग टाइम स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!', 'happy');
         return;
       }
 
       const resp = 'Ji Sir! Main Spending Time screen par aa gayi hoon. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon! Aap kisi teacher ka free slot puch sakte hain ya live status check kar sakte hain.';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! मैं स्पेंडिंग टाइम स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ! आप किसी टीचर का फ्री स्लॉट पूछ सकते हैं या लाइव स्टेटस चेक कर सकते हैं।');
+      playStudioVoice('/audio/nav-freeslots.wav', 'जी सर! मैं स्पेंडिंग टाइम स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!', 'happy');
       return;
     }
 
@@ -1159,7 +1197,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
       const resp = `Ji Sir! Main Faculty Directory screen par aa gayi hoon. Total ${facultyRef.current.length} teachers registered hain. Yahan naya teacher add karna hai ya kisi department ki list dekhni hai Sir? Mujhe bataiye, main kar deti hoon!`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`जी सर! मैं फैकल्टी डायरेक्टरी स्क्रीन पर आ गई हूँ। टोटल ${facultyRef.current.length} टीचर्स रजिस्टर्ड हैं। यहाँ नया टीचर ऐड करना है या किसी डिपार्टमेंट की लिस्ट देखनी है सर? मुझे बताइए, मैं कर देती हूँ!`);
+      playStudioVoice('/audio/nav-faculty.wav', 'जी सर! मैं फैकल्टी डायरेक्टरी स्क्रीन पर आ गई हूँ। यहाँ नया टीचर ऐड करना है या किसी डिपार्टमेंट की लिस्ट देखनी है सर? मुझे बताइए, मैं कर देती हूँ!', 'happy');
       return;
     }
 
@@ -1184,7 +1222,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('search');
       const resp = 'Ji Sir! Main Timetable aur Load Search screen par aa gayi hoon. Yahan aapko kis faculty ya kis batch ka timetable search karna hai Sir? Mujhe bataiye, main kar deti hoon!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! मैं टाइमटेबल और लोड सर्च स्क्रीन पर आ गई हूँ। यहाँ आपको किस फैकल्टी या किस बैच का टाइमटेबल सर्च करना है सर? मुझे बताइए, मैं कर देती हूँ!');
+      playStudioVoice('/audio/nav-search.wav', 'जी सर! मैं टाइमटेबल और लोड सर्च स्क्रीन पर आ गई हूँ। यहाँ आपको किस फैकल्टी या किस बैच का टाइमटेबल सर्च करना है सर? मुझे बताइए, मैं कर देती हूँ!', 'happy');
       return;
     }
 
@@ -1200,7 +1238,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
       const resp = 'Ji Sir! Main Add Load screen par aa gayi hoon. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon! Aap mujhe teacher ka naam, subject, batch aur time bataiye, main load add kar doongi ya bulk upload open kar sakti hoon.';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! मैं ऐड लोड स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ! आप मुझे टीचर का नाम, सब्जेक्ट, बैच और टाइम बताइए, मैं लोड ऐड कर दूँगी या बल्क अपलोड ओपन कर सकती हूँ।');
+      playStudioVoice('/audio/nav-addload.wav', 'जी सर! मैं ऐड लोड स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ! आप मुझे टीचर का नाम, सब्जेक्ट, बैच और टाइम बताइए, मैं लोड ऐड कर दूँगी या बल्क अपलोड ओपन कर सकती हूँ।', 'happy');
       return;
     }
 
@@ -1215,7 +1253,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
       const resp = `Ji Sir! Main Batches screen par aa gayi hoon. Total ${batchesRef.current.length} batches available hain. Yahan naya batch banana hai ya batch details check karni hain Sir? Mujhe bataiye!`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`जी सर! मैं बैचेस स्क्रीन पर आ गई हूँ। टोटल ${batchesRef.current.length} बैचेस उपलब्ध हैं। यहाँ नया बैच बनाना है या बैच डिटेल्स देखनी हैं सर? मुझे बताइए!`);
+      playStudioVoice('/audio/nav-batches.wav', 'जी सर! मैं बैचेस स्क्रीन पर आ गई हूँ। टोटल बैचेस उपलब्ध हैं। यहाँ नया बैच बनाना है या बैच डिटेल्स देखनी हैं सर? मुझे बताइए!', 'happy');
       return;
     }
 
@@ -1231,7 +1269,7 @@ export function AIAssistant({
       const cCount = clashesRef.current?.length || 0;
       const resp = `Ji Sir! Main Clash Alerts screen par aa gayi hoon. ${cCount > 0 ? `Total ${cCount} clashes detect hue hain. Kya main details bataun Sir?` : 'Ek bhi clash nahi hai, sabhi lectures clean hain!'}`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`जी सर! मैं क्लैश अलर्ट्स स्क्रीन पर आ गई हूँ। ${cCount > 0 ? `टोटल ${cCount} क्लैश डिटेक्ट हुए हैं। क्या मैं डिटेल्स बताऊँ सर?` : 'एक भी क्लैश नहीं है, सभी लेक्चर्स क्लीन हैं!'}`);
+      playStudioVoice('/audio/nav-clashes.wav', 'जी सर! मैं क्लैश अलर्ट्स स्क्रीन पर आ गई हूँ। क्या मैं डिटेल्स बताऊँ सर?', 'happy');
       return;
     }
 
@@ -1248,7 +1286,7 @@ export function AIAssistant({
       const aCount = alertsRef.current?.length || 0;
       const resp = `Ji Sir! Main Date Alerts screen par aa gayi hoon. Total ${aCount} alerts available hain. Yahan kya check karna hai mujhe bata dijiye Sir!`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`जी सर! मैं डेट अलर्ट्स स्क्रीन पर आ गई हूँ। टोटल ${aCount} अलर्ट्स उपलब्ध हैं। यहाँ क्या चेक करना है मुझे बता दीजिए सर!`);
+      playStudioVoice('/audio/nav-alerts.wav', 'जी सर! मैं डेट अलर्ट्स स्क्रीन पर आ गई हूँ। यहाँ क्या चेक करना है मुझे बता दीजिए सर!', 'happy');
       return;
     }
 
@@ -1264,7 +1302,7 @@ export function AIAssistant({
       const pCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
       const resp = `Ji Sir! Main Mail Tracker screen par aa gayi hoon. ${pCount > 0 ? `Total ${pCount} teachers ke mail pending hain.` : 'Sabhi teachers ko mail bheja ja chuka hai!'} Yahan kya karna hai Sir?`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`जी सर! मैं मेल ट्रैकर स्क्रीन पर आ गई हूँ। ${pCount > 0 ? `टोटल ${pCount} टीचर्स के मेल पेंडिंग हैं।` : 'सभी टीचर्स को मेल भेजा जा चुका है!'} यहाँ क्या करना है सर?`);
+      playStudioVoice('/audio/nav-mail.wav', 'जी सर! मैं मेल ट्रैकर स्क्रीन पर आ गई हूँ। यहाँ क्या करना है सर?', 'happy');
       return;
     }
 
@@ -1282,7 +1320,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('extraReschedule');
       const resp = 'Ji Sir! Main Extra and Reschedule ke Indian Holidays section par aa gayi hoon. Yahan sabhi Indian National holidays ki chutti mapped hai aur routine classes off hain. Agar kisi teacher ko chutti ke din special class leni hai, to yahan entry kar sakte hain!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('जी सर! मैं इंडियन हॉलिडेज और स्पेशल क्लासेस सेक्शन पर आ गई हूँ। यहाँ छुट्टियों के दिन रूटीन क्लासेस ऑफ हैं, और स्पेशल क्लास की एंट्री की जा सकती है!');
+      playStudioVoice('/audio/nav-extra.wav', 'जी सर! मैं इंडियन हॉलिडेज और स्पेशल क्लासेस सेक्शन पर आ गई हूँ। यहाँ छुट्टियों के दिन रूटीन क्लासेस ऑफ हैं, और स्पेशल क्लास की एंट्री की जा सकती है!', 'happy');
       return;
     }
 
@@ -1302,7 +1340,7 @@ export function AIAssistant({
       const count = cancelledClassesRef.current.length;
       const resp = `Ji Sir! Main Extra aur Reschedule screen par aa gayi hoon. Total ${count} cancelled lectures hain. Yahan extra lecture add karna hai ya status check karna hai Sir? Mujhe bataiye, main kar deti hoon!`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`जी सर! मैं एक्स्ट्रा और रीशेड्यूल स्क्रीन पर आ गई हूँ। यहाँ एक्स्ट्रा लेक्चर ऐड करना है या स्टेटस चेक करना है सर? मुझे बताइए, मैं कर देती हूँ!`);
+      playStudioVoice('/audio/nav-extra.wav', 'जी सर! मैं एक्स्ट्रा और रीशेड्यूल स्क्रीन पर आ गई हूँ। यहाँ एक्स्ट्रा लेक्चर ऐड करना है या स्टेटस चेक करना है सर? मुझे बताइए, मैं कर देती हूँ!', 'happy');
       return;
     }
 
@@ -1318,7 +1356,7 @@ export function AIAssistant({
       if (onNavigateTabRef.current) onNavigateTabRef.current('dashboard');
       const resp = `Ji Sir! Main Dashboard par aa gayi hoon. Yahan portal ke sabhi statistics available hain: ${facultyRef.current.length} faculty, ${batchesRef.current.length} batches aur ${loadsRef.current.length} loads. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon!`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`जी सर! मैं डैशबोर्ड पर आ गई हूँ। यहाँ पोर्टल के सभी स्टैटिस्टिक्स उपलब्ध हैं। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!`);
+      playStudioVoice('/audio/nav-dashboard.wav', 'जी सर! मैं डैशबोर्ड पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!', 'happy');
       return;
     }
 
@@ -1333,7 +1371,7 @@ export function AIAssistant({
     ) {
       const resp = 'Aap is portal ke Tony Stark hain, Sir! Hamare Head Administrator aur Chief Architect! JARVIS system aapke aadesh par hamesha taiyar hai. 🙏';
       setLastSpeechResponse(resp);
-      speakAnimeVoice('आप इस पोर्टल के टोनी स्टार्क हैं, सर! हमारे हेड एडमिनिस्ट्रेटर और चीफ आर्किटेक्ट!');
+      playStudioVoice('/audio/nav-whoami.wav', 'आप इस पोर्टल के टोनी स्टार्क हैं, सर! हमारे हेड एडमिनिस्ट्रेटर और चीफ आर्किटेक्ट!', 'blush');
       return;
     }
 
@@ -1349,12 +1387,12 @@ export function AIAssistant({
       if (facLoads.length === 0) {
         const resp = `Sir! ${matchedFaculty.name} (${matchedFaculty.department}) ka aaj koi load nahi hai, ye free hain!`;
         setLastSpeechResponse(resp);
-        speakAnimeVoice(`सर! ${matchedFaculty.name} का आज कोई लोड नहीं है, ये फ्री हैं।`);
+        playStudioVoice('/audio/nav-freeslots.wav', `सर! ${matchedFaculty.name} का आज कोई लोड नहीं है, ये फ्री हैं।`, 'happy');
         return;
       }
       const resp = `Sir! ${matchedFaculty.name} ke weekly total ${facLoads.length} lectures scheduled hain!`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(`सर! ${matchedFaculty.name} के वीकली टोटल ${facLoads.length} लेक्चर्स शेड्यूल्ड हैं।`);
+      playStudioVoice('/audio/nav-freeslots.wav', `सर! ${matchedFaculty.name} के वीकली टोटल ${facLoads.length} लेक्चर्स शेड्यूल्ड हैं।`, 'happy');
       return;
     }
 
@@ -1379,7 +1417,7 @@ export function AIAssistant({
     if (onNavigateTabRef.current) onNavigateTabRef.current('search');
     const defaultResp = 'Ji Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi live lectures aur free slots dekh sakte hain!';
     setLastSpeechResponse(defaultResp);
-    speakAnimeVoice('जी सर! टाइमटेबल और लाइव शेड्यूल स्क्रीन ओपन कर दी है। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!');
+    playStudioVoice('/audio/nav-search.wav', 'जी सर! टाइमटेबल और लाइव शेड्यूल स्क्रीन ओपन कर दी है। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!', 'happy');
   };
 
   const processVoiceCommandRef = useRef(processVoiceCommand);
