@@ -40,9 +40,9 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 
 type MayraEmotion = 'normal' | 'sad' | 'blush' | 'happy' | 'speaking';
 
-// 👩 Animated Mayra Avatar with Emotion Badges & Clean Transparent Frame
-function AIHumanWomanAvatar({
-  size = 88,
+// ⚡ Iron Man JARVIS Arc Reactor & Holographic Mayra Avatar
+function JarvisArcReactorAvatar({
+  size = 96,
   isSpeaking = false,
   isListening = false,
   emotion = 'normal',
@@ -54,121 +54,162 @@ function AIHumanWomanAvatar({
 }) {
   return (
     <div
-      className="relative flex items-center justify-center select-none bg-transparent"
+      className="relative flex items-center justify-center select-none"
       style={{ width: size, height: size }}
     >
-      {/* Animated Avatar GIF */}
-      <img
-        src={mayraGif}
-        alt="Mayra Anime Companion"
-        className={`w-full h-full object-contain filter drop-shadow-md transition-transform duration-200 ${
-          isSpeaking ? 'scale-105' : 'hover:scale-105'
+      {/* 1. Outer Arc Reactor Rotating Calibration Ring */}
+      <svg
+        className={`absolute inset-0 w-full h-full pointer-events-none transition-all duration-700 ${
+          isSpeaking ? 'animate-spin-slow' : isListening ? 'animate-spin-slow' : 'opacity-40'
         }`}
-        onError={(e) => {
-          const target = e.currentTarget;
-          if (target.src !== window.location.origin + '/mayra-avatar.gif') {
-            target.src = '/mayra-avatar.gif';
-          }
-        }}
-      />
+        viewBox="0 0 100 100"
+      >
+        {/* Segmented HUD Ring with Tech Ticks */}
+        <circle
+          cx="50"
+          cy="50"
+          r="47"
+          fill="none"
+          stroke={isSpeaking ? '#fbbf24' : isListening ? '#00f0ff' : '#64748b'}
+          strokeWidth="1.5"
+          strokeDasharray="4 6"
+          strokeOpacity="0.85"
+        />
+        {/* 4 Cardinal Reticle Tech Markers */}
+        <line x1="50" y1="0" x2="50" y2="7" stroke={isSpeaking ? '#fbbf24' : '#00f0ff'} strokeWidth="2" />
+        <line x1="50" y1="93" x2="50" y2="100" stroke={isSpeaking ? '#fbbf24' : '#00f0ff'} strokeWidth="2" />
+        <line x1="0" y1="50" x2="7" y2="50" stroke={isSpeaking ? '#fbbf24' : '#00f0ff'} strokeWidth="2" />
+        <line x1="93" y1="50" x2="100" y2="50" stroke={isSpeaking ? '#fbbf24' : '#00f0ff'} strokeWidth="2" />
+      </svg>
+
+      {/* 2. Counter-Rotating Inner Reactor Coils */}
+      <svg
+        className={`absolute inset-1.5 w-[calc(100%-12px)] h-[calc(100%-12px)] pointer-events-none transition-all duration-500 ${
+          isSpeaking ? 'animate-spin-reverse' : isListening ? 'animate-spin-reverse' : 'opacity-35'
+        }`}
+        viewBox="0 0 100 100"
+      >
+        <circle
+          cx="50"
+          cy="50"
+          r="44"
+          fill="none"
+          stroke={isSpeaking ? '#f59e0b' : '#38bdf8'}
+          strokeWidth="1"
+          strokeDasharray="16 8 4 8"
+          strokeOpacity="0.75"
+        />
+        {/* 8 Arc Reactor Power Nodes */}
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
+          const rad = (angle * Math.PI) / 180;
+          const cx = 50 + 38 * Math.cos(rad);
+          const cy = 50 + 38 * Math.sin(rad);
+          return (
+            <circle
+              key={i}
+              cx={cx}
+              cy={cy}
+              r="2.2"
+              fill={isSpeaking ? '#fbbf24' : isListening ? '#00f0ff' : '#94a3b8'}
+              className={isListening || isSpeaking ? 'animate-pulse' : ''}
+            />
+          );
+        })}
+      </svg>
+
+      {/* 3. Pulsing Arc Reactor Glow Core */}
+      <div
+        className={`absolute inset-2.5 rounded-full transition-all duration-500 backdrop-blur-md flex items-center justify-center overflow-hidden border ${
+          isSpeaking
+            ? 'bg-amber-950/50 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.8)] animate-arc-pulse'
+            : isListening
+            ? 'bg-slate-950/80 border-cyan-400 shadow-[0_0_30px_rgba(0,240,255,0.8)] animate-arc-pulse'
+            : 'bg-slate-950/85 border-slate-700 shadow-[0_0_12px_rgba(100,116,139,0.3)]'
+        }`}
+      >
+        {/* Holographic Scanline Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/15 to-transparent pointer-events-none opacity-70" />
+
+        {/* Mayra Holographic Avatar floating in Core */}
+        <img
+          src={mayraGif}
+          alt="Mayra JARVIS AI"
+          className={`w-[80%] h-[80%] object-contain filter drop-shadow-lg transition-transform duration-300 ${
+            isSpeaking ? 'scale-110 brightness-110' : isListening ? 'scale-105' : 'opacity-85'
+          }`}
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (target.src !== window.location.origin + '/mayra-avatar.gif') {
+              target.src = '/mayra-avatar.gif';
+            }
+          }}
+        />
+
+        {/* Holographic Concentric Grid Lines */}
+        <div className="absolute inset-0 rounded-full border border-cyan-400/25 pointer-events-none" />
+      </div>
+
+      {/* 4. Sleek Stark AI Micro HUD Tag */}
+      <div className="absolute -bottom-2 z-10 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-950/95 border border-cyan-500/70 shadow-[0_0_15px_rgba(6,182,212,0.6)] text-[9px] font-mono tracking-wider font-extrabold text-cyan-300 uppercase pointer-events-none">
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${
+            isSpeaking
+              ? 'bg-amber-400 animate-ping'
+              : isListening
+              ? 'bg-cyan-400 animate-pulse'
+              : 'bg-rose-500'
+          }`}
+        />
+        <span>{isSpeaking ? 'TRANSMITTING' : isListening ? 'JARVIS ONLINE' : 'STANDBY'}</span>
+      </div>
 
       {/* Emotion Overlay Emoji */}
       {emotion === 'sad' && (
-        <span className="absolute -top-1 -right-1 text-base animate-bounce" title="Mayra is sad 🥺">
-          🥺
-        </span>
+        <span className="absolute -top-1 -right-1 text-base animate-bounce z-20">🥺</span>
       )}
       {emotion === 'blush' && (
-        <span className="absolute -top-1 -right-1 text-base animate-pulse" title="Mayra is blushing 🥰">
-          🥰
-        </span>
-      )}
-
-      {/* Speaking Indicator Badge */}
-      {isSpeaking && (
-        <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
-          <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
-        </span>
-      )}
-
-      {/* Listening Indicator Badge */}
-      {isListening && !isSpeaking && (
-        <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm" title="Mic Always-On">
-          <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
-        </span>
-      )}
-
-      {/* Muted Indicator Badge */}
-      {!isListening && (
-        <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm" title="Mic Muted (Off)">
-          <span className="w-1.5 h-1.5 bg-white rounded-full" />
-        </span>
+        <span className="absolute -top-1 -right-1 text-base animate-pulse z-20">🥰</span>
       )}
     </div>
   );
 }
 
-// 💭 Authentic Comic Puffy Thought Cloud with Lobes & Trail Dots
-function ComicThoughtCloud({
+// 💠 Iron Man Stark HUD Hologram Readout (Floating above the Arc Reactor)
+function JarvisHologramHud({
   text,
   subtitle,
-  emotion = 'normal',
+  isListening = false,
+  isSpeaking = false,
 }: {
   text: string;
   subtitle?: string;
-  emotion?: MayraEmotion;
+  isListening?: boolean;
+  isSpeaking?: boolean;
 }) {
   return (
-    <div className="relative inline-flex items-center justify-center select-none pointer-events-none drop-shadow-md">
-      <svg
-        viewBox="0 0 240 120"
-        className="w-44 sm:w-52 h-auto"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <g fill="#ffffff" stroke={emotion === 'sad' ? '#93c5fd' : emotion === 'blush' ? '#f43f5e' : '#f472b6'} strokeWidth="2" strokeLinejoin="round">
-          {/* Main solid center body */}
-          <ellipse cx="118" cy="50" rx="84" ry="28" fill="#ffffff" stroke="none" />
-
-          {/* Outer Cloud Puffs / Lobes */}
-          <circle cx="48" cy="50" r="26" />
-          <circle cx="76" cy="28" r="24" />
-          <circle cx="118" cy="22" r="26" />
-          <circle cx="160" cy="28" r="24" />
-          <circle cx="188" cy="50" r="26" />
-          <circle cx="164" cy="72" r="22" />
-          <circle cx="118" cy="76" r="24" />
-          <circle cx="72" cy="72" r="22" />
-
-          {/* Clean pure white center fill to cover internal overlapping lines */}
-          <ellipse cx="118" cy="50" rx="82" ry="26" fill="#ffffff" stroke="none" />
-          <circle cx="76" cy="32" r="20" fill="#ffffff" stroke="none" />
-          <circle cx="118" cy="26" r="22" fill="#ffffff" stroke="none" />
-          <circle cx="160" cy="32" r="20" fill="#ffffff" stroke="none" />
-          <circle cx="48" cy="50" r="22" fill="#ffffff" stroke="none" />
-          <circle cx="188" cy="50" r="22" fill="#ffffff" stroke="none" />
-          <circle cx="164" cy="68" r="18" fill="#ffffff" stroke="none" />
-          <circle cx="118" cy="72" r="20" fill="#ffffff" stroke="none" />
-          <circle cx="72" cy="68" r="18" fill="#ffffff" stroke="none" />
-
-          {/* Comic Thought Trail Dots leading down to Mayra */}
-          <circle cx="176" cy="95" r="5.5" />
-          <circle cx="184" cy="108" r="3.5" />
-        </g>
-      </svg>
-
-      {/* Text inside the Cloud */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pb-5 px-5 text-center pointer-events-none">
-        <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-800 leading-tight flex items-center gap-1 max-w-[170px] truncate">
-          {emotion === 'sad' ? '🥺' : emotion === 'blush' ? '🥰' : '✨'}
-          <span>{text}</span>
+    <div className="relative inline-flex flex-col items-end select-none pointer-events-none animate-fadeIn">
+      {/* Sci-Fi Hologram Header Tag */}
+      <div className="flex items-center gap-1.5 px-3 py-1 rounded-t-lg bg-slate-950/95 border-t border-x border-cyan-500/70 shadow-[0_0_15px_rgba(6,182,212,0.4)] backdrop-blur-md">
+        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+        <span className="text-[10px] font-mono font-bold tracking-widest text-cyan-400 uppercase">
+          STARK A.I. // JARVIS
         </span>
+      </div>
+
+      {/* Main Holographic HUD Panel */}
+      <div className="px-3.5 py-2 rounded-b-xl rounded-tl-xl bg-slate-950/95 border border-cyan-500/70 shadow-[0_0_22px_rgba(6,182,212,0.5)] backdrop-blur-xl text-right max-w-[260px] space-y-0.5">
+        <div className="text-[11px] font-mono font-semibold text-cyan-100 tracking-wide truncate">
+          {text}
+        </div>
         {subtitle && (
-          <span className="text-[9px] sm:text-[10px] font-bold text-pink-600 leading-tight mt-0.5 max-w-[170px] truncate">
+          <div className="text-[9px] font-mono text-cyan-400/80 tracking-wider uppercase truncate">
             {subtitle}
-          </span>
+          </div>
         )}
       </div>
+
+      {/* Cyber Reticle Line Pointer pointing down to Arc Reactor */}
+      <div className="w-0.5 h-3 bg-gradient-to-b from-cyan-400 to-transparent mr-8" />
     </div>
   );
 }
@@ -743,7 +784,7 @@ export function AIAssistant({
       q.includes('मैं कौन हूं') ||
       q.includes('कृष्णा')
     ) {
-      const resp = `Aapka shubh naam Krishna Sir hai! 🙏 Hamare portal ke head admin aap hi hain!`;
+      const resp = `Aap is portal ke Tony Stark hain, Krishna Sir! Hamare Head Administrator aur Chief Architect! JARVIS system aapke aadesh par hamesha taiyar hai. 🙏`;
       setLastSpeechResponse(resp);
       speakAnimeVoice(resp);
       return;
@@ -772,13 +813,14 @@ export function AIAssistant({
 
     // 14. GREETING / HELLO / KAISE HO (Plays Krishna Sir's Custom Studio Voice Recording!)
     const cleanQ = q
-      .replace(/\b(mayra|maira|myra|aira|meera)\b/gi, '')
-      .replace(/(मायरा|मैरा|मीरा)/gi, '')
+      .replace(/\b(mayra|maira|myra|aira|meera|jarvis)\b/gi, '')
+      .replace(/(मायरा|मैरा|मीरा|जार्विस)/gi, '')
       .trim();
 
     if (
       cleanQ === '' || 
       cleanQ === 'mayra' || 
+      cleanQ === 'jarvis' ||
       /\b(hello|hi|hey|namaste|pranam|kaise ho|kaisi ho|kya hal|hal chal|help)\b/i.test(cleanQ) ||
       /(हैलो|हेलो|हाय|हे|नमस्ते|प्रणाम|कैसे हो|कैसी हो|क्या हाल|हाल चाल|मदद)/i.test(cleanQ)
     ) {
@@ -786,9 +828,9 @@ export function AIAssistant({
       return;
     }
 
-    // 15. Intelligent Default: Live Timetable / Search navigation (Replaces repetitive "Maine aapki baat sun li hai")
+    // 15. Intelligent Default: Live Timetable / Search navigation (Tony Stark JARVIS style)
     if (onNavigateTab) onNavigateTab('search');
-    const defaultResp = `Krishna Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi lectures aur free slots dekh sakte hain!`;
+    const defaultResp = `Krishna Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi live lectures aur free slots dekh sakte hain!`;
     setLastSpeechResponse(defaultResp);
     speakAnimeVoice(defaultResp);
   };
@@ -874,20 +916,12 @@ export function AIAssistant({
               console.log('Voice heard:', transcript);
               setLiveHeardText(transcript);
 
-              // 🛑 AUTO-MUTE: Ek baar user ki command sunte hi mic ko turant Auto-Mute kar do!
-              // Isse screen change hote waqt ya Mayra ke answer bolte waqt mic me koi disturbance ya looping na ho.
-              setIsMicMuted(true);
-              micActiveRef.current = false;
-              setIsListening(false);
               setIsDetectingSpeech(false);
-              if (recognitionRef.current) {
-                try { recognitionRef.current.stop(); } catch (e) {}
-              }
 
-              // 🎯 Direct command execution: No mandatory wake-word!
+              // 🎯 Direct command execution: No mandatory wake-word (Recognizes both JARVIS & Mayra)!
               const cleanCommand = transcript
-                .replace(/\b(mayra|maira|myra|aira|meera)\b/gi, '')
-                .replace(/(मायरा|मैरा|मीरा)/gi, '')
+                .replace(/\b(mayra|maira|myra|aira|meera|jarvis)\b/gi, '')
+                .replace(/(मायरा|मैरा|मीरा|जार्विस)/gi, '')
                 .trim();
 
               setTimeout(() => {
@@ -896,8 +930,8 @@ export function AIAssistant({
               }, 3000);
 
               if (!cleanCommand) {
-                // If user called only "Mayra" / "मायरा", greet directly
-                processVoiceCommand('mayra');
+                // If user called "JARVIS" or "Mayra", greet directly
+                processVoiceCommand('jarvis');
               } else {
                 processVoiceCommand(cleanCommand);
               }
@@ -1015,127 +1049,102 @@ export function AIAssistant({
         }}
       />
 
-      {/* 🌸 Floating Mayra Anime Voice Companion */}
-      <div className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50">
+      {/* ⚡ Iron Man JARVIS Floating Arc Reactor AI Companion */}
+      <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50">
         <div className="relative flex flex-col items-end">
-          {/* 🎙️ Real-time Audio Hearing Waveform & Transcript Badge */}
+          {/* 📡 Real-time Stark HUD Audio Telemetry & Waveform */}
           {(liveHeardText || isDetectingSpeech) && (
             <div className="absolute -top-[124px] sm:-top-[132px] right-0 z-30 flex flex-col items-end pointer-events-none transition-all duration-200">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/95 border border-pink-400 shadow-2xl text-white text-[11px] font-bold backdrop-blur-md max-w-[280px] sm:max-w-[320px] truncate animate-fadeIn">
-                {/* Dancing Equalizer Soundbars */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/95 border border-cyan-400/80 shadow-[0_0_20px_rgba(6,182,212,0.5)] text-white text-[11px] font-mono font-bold backdrop-blur-xl max-w-[280px] sm:max-w-[340px] truncate animate-fadeIn">
+                {/* JARVIS Sound Frequency Equalizer */}
                 <span className="flex items-center gap-0.5 flex-shrink-0">
-                  <span className="w-1 h-3 bg-pink-400 rounded-full animate-bounce" />
-                  <span className="w-1 h-4 bg-emerald-400 rounded-full animate-bounce delay-100" />
-                  <span className="w-1 h-2.5 bg-pink-400 rounded-full animate-bounce delay-200" />
-                  <span className="w-1 h-3.5 bg-purple-400 rounded-full animate-bounce delay-75" />
+                  <span className="w-1 h-3 bg-cyan-400 rounded-full animate-bounce" />
+                  <span className="w-1 h-4 bg-sky-300 rounded-full animate-bounce delay-100" />
+                  <span className="w-1 h-2 bg-amber-400 rounded-full animate-bounce delay-200" />
+                  <span className="w-1 h-3.5 bg-cyan-400 rounded-full animate-bounce delay-75" />
                 </span>
 
-                <span className="text-emerald-300 font-extrabold flex items-center gap-1 truncate">
-                  <span>👂 Sun Rahi Hoon:</span>
-                  <span className="text-pink-200 font-medium truncate">"{liveHeardText || 'Listening...'}"</span>
+                <span className="text-cyan-300 font-mono flex items-center gap-1 truncate">
+                  <span className="text-[10px] text-cyan-400 uppercase tracking-wider font-extrabold">HUD // AUDIO:</span>
+                  <span className="text-white font-medium truncate">"{liveHeardText || 'Listening...'}"</span>
                 </span>
               </div>
             </div>
           )}
 
-          {/* 💭 Authentic Fluffy Comic Thought Cloud */}
-          <div className="absolute -top-[80px] -right-2 sm:-top-[88px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
-            <ComicThoughtCloud
+          {/* 💠 Holographic JARVIS HUD Readout */}
+          <div className="absolute -top-[82px] -right-1 sm:-top-[90px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
+            <JarvisHologramHud
               text={
                 isSpeaking
-                  ? 'Speaking...'
+                  ? 'TRANSMITTING VOICE...'
                   : isMicMuted
-                  ? 'Boliye Sir! (Click Mic)'
+                  ? 'STANDBY // TAP ARC REACTOR'
                   : emotion === 'sad'
-                  ? 'Galti hui kya Sir? 🥺'
+                  ? 'RECALIBRATING TONE...'
                   : emotion === 'blush'
-                  ? 'Sharm aa rahi hai 🥰'
-                  : 'Sun Rahi Hoon! Boliye 🎙️'
+                  ? 'SYSTEM RUNNING OPTIMAL 🥰'
+                  : 'ALL SYSTEMS ONLINE 🎙️'
               }
-              subtitle={isMicMuted ? 'Click Mic to Speak 🎙️' : isSpeaking ? 'Speaking...' : 'Listening... 🟢'}
-              emotion={emotion}
+              subtitle={isMicMuted ? 'AUDIO PAUSED // CLICK TO TALK' : isSpeaking ? 'OUTPUT ACTIVE' : 'AWAITING DIRECTIVE, SIR'}
+              isListening={!isMicMuted}
+              isSpeaking={isSpeaking}
             />
           </div>
 
-          {/* 💬 Live Anime Response Subtitle Card (Voice-only HUD) */}
+          {/* 💬 Stark Industries JARVIS HUD Response Card */}
           {showSubtitleCard && lastSpeechResponse && (
-            <div className="absolute bottom-[95px] right-0 sm:right-2 z-30 max-w-[280px] sm:max-w-[340px] bg-slate-900/95 backdrop-blur-xl border border-pink-500/40 rounded-2xl p-3.5 shadow-2xl text-white text-xs animate-fadeIn space-y-1.5 select-none">
-              <div className="flex items-center justify-between border-b border-pink-500/20 pb-1.5">
-                <span className="font-bold text-pink-300 flex items-center gap-1">
-                  <span>🌸 Mayra (Anime Voice)</span>
+            <div className="absolute bottom-[108px] right-0 sm:right-2 z-30 max-w-[290px] sm:max-w-[360px] bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/60 rounded-2xl p-4 shadow-[0_0_30px_rgba(6,182,212,0.35)] text-white text-xs animate-fadeIn space-y-2 select-none">
+              {/* Card Header with Corner Tech Marks */}
+              <div className="flex items-center justify-between border-b border-cyan-500/30 pb-2">
+                <span className="font-mono font-bold text-cyan-400 flex items-center gap-1.5 text-[11px] tracking-wider uppercase">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span>STARK A.I. // JARVIS PROTOCOL</span>
                 </span>
                 <button
                   onClick={() => setShowSubtitleCard(false)}
-                  className="text-slate-400 hover:text-white p-0.5 rounded"
+                  className="text-cyan-400/70 hover:text-cyan-200 p-0.5 rounded transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               {lastUserCommand && (
-                <p className="text-[11px] text-slate-300 italic">
-                  <span className="text-pink-400 font-semibold">Krishna Sir:</span> "{lastUserCommand}"
-                </p>
+                <div className="text-[11px] font-mono text-slate-300 bg-cyan-950/30 px-2.5 py-1 rounded-md border border-cyan-500/20">
+                  <span className="text-amber-400 font-bold uppercase tracking-wider">CMD // KRISHNA SIR:</span> "{lastUserCommand}"
+                </div>
               )}
 
-              <p className="text-white font-medium leading-relaxed">
+              <p className="text-cyan-50 font-medium leading-relaxed font-sans text-xs">
                 {lastSpeechResponse}
               </p>
 
               {/* Status footer */}
-              <div className="flex items-center justify-between pt-1 text-[10px] text-pink-200/70 font-semibold">
-                <span className={`flex items-center gap-1 ${isMicMuted ? 'text-rose-400' : 'text-emerald-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isMicMuted ? 'bg-rose-400' : 'bg-emerald-400 animate-pulse'}`} />
-                  {isMicMuted ? 'Mic Muted (OFF)' : 'Mic Live (ON)'}
+              <div className="flex items-center justify-between pt-1.5 text-[10px] font-mono border-t border-cyan-500/20">
+                <span className="flex items-center gap-1 text-cyan-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>STATUS: {isSpeaking ? 'OUTPUT ACTIVE' : 'ONLINE // 100%'}</span>
                 </span>
-                <span>{isMicMuted ? 'Click Mic to Talk' : 'Listening...'}</span>
+                <span className="text-slate-400">MARK-50 CORE</span>
               </div>
             </div>
           )}
 
-          {/* Mayra & Interactive Mute/Unmute Control Bar */}
-          <div className="flex items-center gap-2">
-            {/* 🎙️ Dedicated MUTE / UNMUTE Interactive Pill Button */}
-            <button
-              onClick={toggleMicMute}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-extrabold shadow-xl transition-all duration-300 border backdrop-blur-md cursor-pointer select-none active:scale-95 ${
-                isMicMuted
-                  ? 'bg-rose-950/95 border-rose-500/80 text-rose-300 hover:bg-rose-900 shadow-rose-900/40 ring-1 ring-rose-500/50'
-                  : 'bg-emerald-950/95 border-emerald-500/80 text-emerald-300 hover:bg-emerald-900 shadow-emerald-900/40 ring-1 ring-emerald-500/50'
-              }`}
-              title={isMicMuted ? "Click karke boliye (Mic Muted)" : "Mayra sun rahi hai (Click to Mute)"}
-            >
-              {isMicMuted ? (
-                <>
-                  <MicOff className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Mic Muted (Boliye 🎙️)</span>
-                </>
-              ) : (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <Mic className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Sun Rahi Hai 🟢</span>
-                </>
-              )}
-            </button>
-
-            {/* Clickable Mayra Avatar Button */}
-            <button
-              onClick={handleMayraClick}
-              className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
-              title="Click to talk to Mayra"
-            >
-              {/* Compact Size for Smartphones & Desktops */}
-              <div className="w-[82px] h-[82px] sm:w-[94px] sm:h-[94px] flex items-center justify-center">
-                <AIHumanWomanAvatar
-                  size={88}
-                  isSpeaking={isSpeaking}
-                  isListening={!isMicMuted}
-                  emotion={emotion}
-                />
-              </div>
-            </button>
-          </div>
+          {/* ⚡ Iron Man JARVIS Arc Reactor Core Button (Click to talk / wake up) */}
+          <button
+            onClick={handleMayraClick}
+            className="group relative cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center mt-1"
+            title="STARK A.I. JARVIS (Click to Talk / Wake Up)"
+          >
+            <div className="w-[96px] h-[96px] sm:w-[104px] sm:h-[104px] flex items-center justify-center">
+              <JarvisArcReactorAvatar
+                size={100}
+                isSpeaking={isSpeaking}
+                isListening={!isMicMuted}
+                emotion={emotion}
+              />
+            </div>
+          </button>
         </div>
       </div>
     </>
