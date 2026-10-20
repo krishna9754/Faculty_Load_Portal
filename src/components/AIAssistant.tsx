@@ -204,8 +204,36 @@ export function AIAssistant({
   const micActiveRef = useRef<boolean>(true);
   const recognitionRef = useRef<any>(null);
   const customAudioElementRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
   const hideCardTimeoutRef = useRef<any>(null);
   const isStoppedRef = useRef<boolean>(false);
+
+  // 🎵 Preload and decode custom studio voice into Web Audio buffer for instant, unblocked mobile playback
+  useEffect(() => {
+    let active = true;
+    const preloadCustomAudio = async () => {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        audioCtxRef.current = ctx;
+
+        const res = await fetch(greetingAudioSrc);
+        const arrayBuf = await res.arrayBuffer();
+        const decoded = await ctx.decodeAudioData(arrayBuf);
+        if (active) {
+          audioBufferRef.current = decoded;
+          console.log('✅ Mayra custom studio voice decoded in memory buffer!');
+        }
+      } catch (err) {
+        console.warn('Audio pre-decode note:', err);
+      }
+    };
+
+    preloadCustomAudio();
+    return () => { active = false; };
+  }, []);
 
   // Load browser voices
   useEffect(() => {
@@ -419,6 +447,29 @@ export function AIAssistant({
     setLastSpeechResponse(greetingText);
     setShowSubtitleCard(true);
 
+    // 1. Try Web Audio buffer first (instant, guaranteed on mobile/desktop without media lockups)
+    if (audioCtxRef.current && audioBufferRef.current) {
+      try {
+        if (audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
+        const source = audioCtxRef.current.createBufferSource();
+        source.buffer = audioBufferRef.current;
+        source.connect(audioCtxRef.current.destination);
+        source.onended = () => {
+          setIsSpeaking(false);
+          setEmotion('normal');
+          if (hideCardTimeoutRef.current) clearTimeout(hideCardTimeoutRef.current);
+          hideCardTimeoutRef.current = setTimeout(() => setShowSubtitleCard(false), 5000);
+        };
+        source.start(0);
+        return;
+      } catch (e) {
+        console.warn('Web Audio buffer playback fallback to HTMLAudio:', e);
+      }
+    }
+
+    // 2. Fallback to HTMLAudio element
     if (customAudioElementRef.current) {
       try {
         customAudioElementRef.current.currentTime = 0;
@@ -498,37 +549,7 @@ export function AIAssistant({
       return;
     }
 
-    // 2. GREETING / HELLO / KAISE HO (Plays Krishna Sir's Custom Studio Voice Recording!)
-    if (
-      q === '' || 
-      q === 'mayra' || 
-      q.includes('mayra') ||
-      q.includes('मायरा') ||
-      q.includes('मैरा') ||
-      q.includes('मीरा') ||
-      q.includes('kaise ho') || 
-      q.includes('kaisi ho') ||
-      q.includes('kya hal') ||
-      q.includes('hello') || 
-      q.includes('hi') || 
-      q.includes('namaste') ||
-      q.includes('pranam') ||
-      q.includes('help') ||
-      q.includes('kya help') ||
-      q.includes('हैलो') ||
-      q.includes('हेलो') ||
-      q.includes('हाय') ||
-      q.includes('कैसे हो') ||
-      q.includes('कैसी हो') ||
-      q.includes('नमस्ते') ||
-      q.includes('प्रणाम') ||
-      q.includes('मदद')
-    ) {
-      playGreetingAudio();
-      return;
-    }
-
-    // 3. Check for Angry / Rude Tone -> Sad Anime Girl 🥺
+    // 2. Check for Angry / Rude Tone -> Sad Anime Girl 🥺
     const isAngry = /\b(gussa|gusse|chup|bakwas|pagal|dimag kharab|bewakoof|shut up|chup kar|kuch nahi aata|badtameez|fatu|daat|nall|bekar)\b/i.test(q) ||
       /(गुस्सा|बकवास|पागल|बेवकूफ|शट अप|चुप कर|दिमाग खराब|बदतमीज)/.test(q);
     if (isAngry) {
@@ -539,7 +560,7 @@ export function AIAssistant({
       return;
     }
 
-    // 4. Check for Sweet / Loving Tone -> Blushing Anime Girl 🥰
+    // 3. Check for Sweet / Loving Tone -> Blushing Anime Girl 🥰
     const isLoving = /\b(pyar|pyaar|love you|love u|bohot achi|bohot acchi|cute|sweet|sharma|meri dost|best ho|shukriya|thank you|pretty|sundar|meri mayra)\b/i.test(q) ||
       /(प्यार|लव यू|बहुत अच्छी|क्यूट|स्वीट|शुक्रिया|थैंक यू|शर्मा|सुंदर)/.test(q);
     if (isLoving) {
@@ -749,8 +770,25 @@ export function AIAssistant({
       return;
     }
 
-    // Default friendly response
-    const defaultResp = `Haii Krishna Sir! Maine aapki baat sun li hai. Bataiye aur kya help karoon?`;
+    // 14. GREETING / HELLO / KAISE HO (Plays Krishna Sir's Custom Studio Voice Recording!)
+    const cleanQ = q
+      .replace(/\b(mayra|maira|myra|aira|meera)\b/gi, '')
+      .replace(/(मायरा|मैरा|मीरा)/gi, '')
+      .trim();
+
+    if (
+      cleanQ === '' || 
+      cleanQ === 'mayra' || 
+      /\b(hello|hi|hey|namaste|pranam|kaise ho|kaisi ho|kya hal|hal chal|help)\b/i.test(cleanQ) ||
+      /(हैलो|हेलो|हाय|हे|नमस्ते|प्रणाम|कैसे हो|कैसी हो|क्या हाल|हाल चाल|मदद)/i.test(cleanQ)
+    ) {
+      playGreetingAudio();
+      return;
+    }
+
+    // 15. Intelligent Default: Live Timetable / Search navigation (Replaces repetitive "Maine aapki baat sun li hai")
+    if (onNavigateTab) onNavigateTab('search');
+    const defaultResp = `Krishna Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi lectures aur free slots dekh sakte hain!`;
     setLastSpeechResponse(defaultResp);
     speakAnimeVoice(defaultResp);
   };
@@ -848,7 +886,8 @@ export function AIAssistant({
 
               // 🎯 Direct command execution: No mandatory wake-word!
               const cleanCommand = transcript
-                .replace(/\b(mayra|maira|myra|mera|aira|meera)\b/gi, '')
+                .replace(/\b(mayra|maira|myra|aira|meera)\b/gi, '')
+                .replace(/(मायरा|मैरा|मीरा)/gi, '')
                 .trim();
 
               setTimeout(() => {
@@ -857,7 +896,7 @@ export function AIAssistant({
               }, 3000);
 
               if (!cleanCommand) {
-                // If user called "Mayra", greet directly
+                // If user called only "Mayra" / "मायरा", greet directly
                 processVoiceCommand('mayra');
               } else {
                 processVoiceCommand(cleanCommand);
@@ -914,7 +953,10 @@ export function AIAssistant({
 
   // 🎙️ Toggle Mute / Unmute for Mayra Microphone (Never interrupts speaking!)
   const toggleMicMute = () => {
-    // Unlock custom studio voice audio on user interaction
+    // Unlock custom studio voice audio & AudioContext on user interaction
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
     if (customAudioElementRef.current) {
       try {
         customAudioElementRef.current.load();
@@ -944,6 +986,9 @@ export function AIAssistant({
 
   // Click handler on Mayra: warm greeting & wake up with custom voice
   const handleMayraClick = () => {
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
     if (isSpeaking) {
       stopSpeaking();
       return;
