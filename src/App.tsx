@@ -435,7 +435,14 @@ export default function App() {
               )}
               {activeTab === 'faculty' && (
                 <TabErrorBoundary fallbackTitle="Faculty Section">
-                  <FacultyManager faculty={faculty} loads={loads} onChange={fetchAll} />
+                  <FacultyManager
+                    faculty={faculty}
+                    loads={loads}
+                    extraClasses={extraClasses}
+                    rescheduledClasses={rescheduledClasses}
+                    cancelledClasses={cancelledClasses}
+                    onChange={fetchAll}
+                  />
                 </TabErrorBoundary>
               )}
               {activeTab === 'batches' && (
@@ -1262,10 +1269,16 @@ function MultiSelect({
 function FacultyManager({
   faculty = [],
   loads = [],
+  extraClasses = [],
+  rescheduledClasses = [],
+  cancelledClasses = [],
   onChange,
 }: {
   faculty?: Faculty[];
   loads?: FacultyLoadWithDetails[];
+  extraClasses?: ExtraClassWithDetails[];
+  rescheduledClasses?: RescheduledClassWithDetails[];
+  cancelledClasses?: CancelledClassWithDetails[];
   onChange: () => void;
 }) {
   const [name, setName] = useState('');
