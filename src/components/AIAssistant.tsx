@@ -49,11 +49,11 @@ interface Message {
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// ElevenLabs Voice ID for Mayra (Warm, expressive natural female voice)
+// ElevenLabs Voice ID for Mayra (Studio Human Female Voice)
 const ELEVENLABS_MAYRA_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel
 
-// 🌸 Adorable Girl Robot SVG Component
-function GirlRobotSVG({
+// 👩 Realistic, Elegant AI Human Woman Avatar (Mayra)
+function AIHumanWomanAvatar({
   size = 48,
   isSpeaking = false,
   isListening = false,
@@ -71,135 +71,129 @@ function GirlRobotSVG({
         viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className={`w-full h-full transition-transform duration-300 ${
+        className={`w-full h-full rounded-full transition-transform duration-300 ${
           isSpeaking ? 'scale-105' : 'hover:scale-110'
         }`}
       >
-        {/* Antenna with Heart or Glowing Star */}
-        <line x1="50" y1="20" x2="50" y2="8" stroke="#ec4899" strokeWidth="3" strokeLinecap="round" />
+        {/* Ambient Holographic AI Glow Ring */}
         <circle
           cx="50"
-          cy="8"
-          r={isListening ? 6 : 5}
-          fill={isListening ? '#ef4444' : '#f43f5e'}
+          cy="50"
+          r="48"
+          fill="url(#aiGlowBg)"
+          stroke={isListening ? '#ef4444' : isSpeaking ? '#ec4899' : '#8b5cf6'}
+          strokeWidth="2.5"
           className={isListening ? 'animate-ping' : isSpeaking ? 'animate-pulse' : ''}
         />
-        <circle cx="50" cy="8" r="4" fill="#fb7185" />
 
-        {/* Cute Headband / Ribbon */}
-        <path d="M 20 38 A 32 32 0 0 1 80 38" stroke="#f472b6" strokeWidth="5" fill="none" strokeLinecap="round" />
-        <ellipse cx="50" cy="18" rx="8" ry="4" fill="#fb7185" />
-
-        {/* Headphones / Ear Cups */}
-        <rect x="12" y="38" width="8" height="22" rx="4" fill="#ec4899" />
-        <rect x="80" y="38" width="8" height="22" rx="4" fill="#ec4899" />
-        <circle cx="16" cy="49" r="2.5" fill="#fdf2f8" />
-        <circle cx="84" cy="49" r="2.5" fill="#fdf2f8" />
-
-        {/* Outer Head Body (Soft sleek pearlescent pink/white) */}
-        <rect
-          x="18"
-          y="22"
-          width="64"
-          height="54"
-          rx="24"
-          fill="url(#girlRobotGradient)"
-          stroke="#f472b6"
-          strokeWidth="2.5"
-        />
-
-        {/* Glossy Dark Screen Face */}
-        <rect
-          x="25"
-          y="30"
-          width="50"
-          height="38"
-          rx="15"
-          fill="#0f172a"
-          stroke="#1e293b"
-          strokeWidth="2"
-        />
-
-        {/* Glass Screen Reflection */}
+        {/* Back Hair */}
         <path
-          d="M 28 34 Q 50 31 72 34"
-          stroke="rgba(255,255,255,0.25)"
-          strokeWidth="2"
-          strokeLinecap="round"
+          d="M 22 45 C 18 68, 20 85, 30 92 C 38 95, 62 95, 70 92 C 80 85, 82 68, 78 45 C 75 22, 25 22, 22 45 Z"
+          fill="#1c1917"
         />
 
-        {/* Expressive Girl Robot Eyes with Eyelashes */}
-        {isListening ? (
-          <>
-            <circle cx="39" cy="46" r="6" fill="#ef4444" className="animate-pulse" />
-            <circle cx="61" cy="46" r="6" fill="#ef4444" className="animate-pulse" />
-            <circle cx="41" cy="44" r="2" fill="#ffffff" />
-            <circle cx="63" cy="44" r="2" fill="#ffffff" />
-          </>
-        ) : (
-          <>
-            {/* Left Eye & Lashes */}
-            <path d="M 33 39 L 31 36" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M 38 38 L 38 35" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
-            <rect
-              x="33"
-              y="40"
-              width="13"
-              height="12"
-              rx="6"
-              fill={isSpeaking ? '#38bdf8' : '#22d3ee'}
-              className={isSpeaking ? 'animate-pulse' : ''}
-            />
-            <circle cx="36" cy="43" r="2.5" fill="#ffffff" />
-            <circle cx="41" cy="47" r="1.2" fill="#ffffff" />
+        {/* Neck & Shoulder */}
+        <path d="M 43 68 L 43 80 L 57 80 L 57 68 Z" fill="#fed7aa" />
+        <path d="M 43 72 Q 50 76 57 72" stroke="#fdba74" strokeWidth="1" fill="none" />
 
-            {/* Right Eye & Lashes */}
-            <path d="M 67 39 L 69 36" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M 62 38 L 62 35" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
-            <rect
-              x="54"
-              y="40"
-              width="13"
-              height="12"
-              rx="6"
-              fill={isSpeaking ? '#38bdf8' : '#22d3ee'}
-              className={isSpeaking ? 'animate-pulse' : ''}
-            />
-            <circle cx="57" cy="43" r="2.5" fill="#ffffff" />
-            <circle cx="62" cy="47" r="1.2" fill="#ffffff" />
-          </>
-        )}
+        {/* Smart Blazer / Attire */}
+        <path
+          d="M 28 98 C 30 84, 40 80, 50 82 C 60 80, 70 84, 72 98 Z"
+          fill="#1e1b4b"
+        />
+        {/* Inner Top Collar */}
+        <path d="M 42 80 L 50 92 L 58 80 Z" fill="#ffffff" />
+        <path d="M 36 82 L 48 98 L 50 98 L 64 82" stroke="#4338ca" strokeWidth="2" fill="none" />
 
-        {/* Rosy Blush Cheeks */}
-        <circle cx="30" cy="56" r="3.5" fill="#fb7185" opacity="0.8" />
-        <circle cx="70" cy="56" r="3.5" fill="#fb7185" opacity="0.8" />
+        {/* Human Face Contour */}
+        <path
+          d="M 31 44 C 31 30, 69 30, 69 44 C 69 62, 58 72, 50 72 C 42 72, 31 62, 31 44 Z"
+          fill="url(#skinGradient)"
+        />
 
-        {/* Cute Smile / Speaking Mouth */}
+        {/* Rosy Cheeks */}
+        <circle cx="37" cy="54" r="5" fill="#f43f5e" opacity="0.35" filter="blur(1px)" />
+        <circle cx="63" cy="54" r="5" fill="#f43f5e" opacity="0.35" filter="blur(1px)" />
+
+        {/* Front Flowing Hair / Bangs */}
+        <path
+          d="M 28 38 C 32 25, 48 20, 68 25 C 74 34, 73 48, 72 56 C 68 45, 66 38, 56 34 C 44 30, 34 33, 28 38 Z"
+          fill="#292524"
+        />
+        <path
+          d="M 28 38 C 30 48, 29 58, 27 65 C 29 55, 34 46, 38 41 Z"
+          fill="#1c1917"
+        />
+
+        {/* Eyebrows */}
+        <path d="M 35 40 Q 40 38 44 40" stroke="#44403c" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+        <path d="M 56 40 Q 60 38 65 40" stroke="#44403c" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+
+        {/* Human Eyes with Eyelashes & Sparkling Pupils */}
+        {/* Left Eye */}
+        <ellipse cx="40" cy="45" rx="4.5" ry="3.5" fill="#ffffff" />
+        <circle cx="40" cy="45" r="2.8" fill="#451a03" />
+        <circle cx="40" cy="45" r="1.5" fill="#000000" />
+        <circle cx="41.2" cy="43.8" r="1" fill="#ffffff" />
+        <path d="M 34.5 44 Q 40 41 45.5 44" stroke="#1c1917" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        <path d="M 44.5 43 L 46.5 41" stroke="#1c1917" strokeWidth="1.2" strokeLinecap="round" />
+
+        {/* Right Eye */}
+        <ellipse cx="60" cy="45" rx="4.5" ry="3.5" fill="#ffffff" />
+        <circle cx="60" cy="45" r="2.8" fill="#451a03" />
+        <circle cx="60" cy="45" r="1.5" fill="#000000" />
+        <circle cx="61.2" cy="43.8" r="1" fill="#ffffff" />
+        <path d="M 54.5 44 Q 60 41 65.5 44" stroke="#1c1917" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        <path d="M 64.5 43 L 66.5 41" stroke="#1c1917" strokeWidth="1.2" strokeLinecap="round" />
+
+        {/* Cute Delicate Nose */}
+        <path d="M 50 48 L 49 53 Q 50 54 51.5 53" stroke="#fba779" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+
+        {/* Smiling Lips (Animated when speaking) */}
         {isSpeaking ? (
           <path
-            d="M 40 57 Q 50 66 60 57"
-            stroke="#f472b6"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            fill="none"
+            d="M 44 60 Q 50 67 56 60 Q 50 63 44 60 Z"
+            fill="#e11d48"
+            stroke="#be123c"
+            strokeWidth="0.8"
           />
-        ) : isListening ? (
-          <circle cx="50" cy="59" r="3.5" fill="#ef4444" />
         ) : (
           <path
-            d="M 42 57 Q 50 63 58 57"
-            stroke="#fb7185"
-            strokeWidth="3"
-            strokeLinecap="round"
-            fill="none"
+            d="M 44 60 Q 50 65 56 60 Q 50 62 44 60 Z"
+            fill="#fb7185"
+            stroke="#e11d48"
+            strokeWidth="0.6"
           />
         )}
 
+        {/* Minimalist AI Earpiece Communicator with LED */}
+        <ellipse cx="29" cy="48" rx="2.5" ry="4" fill="#6366f1" />
+        <circle
+          cx="29"
+          cy="48"
+          r="1.8"
+          fill={isListening ? '#ef4444' : isSpeaking ? '#22d3ee' : '#a855f7'}
+          className={isListening || isSpeaking ? 'animate-ping' : ''}
+        />
+        <circle
+          cx="29"
+          cy="48"
+          r="1.2"
+          fill="#ffffff"
+        />
+
+        {/* Gradients */}
         <defs>
-          <linearGradient id="girlRobotGradient" x1="18" y1="22" x2="82" y2="76" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#fdf2f8" />
-            <stop offset="0.5" stopColor="#fce7f3" />
+          <linearGradient id="skinGradient" x1="50" y1="30" x2="50" y2="72" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#ffedd5" />
+            <stop offset="0.7" stopColor="#fed7aa" />
             <stop offset="1" stopColor="#fbcfe8" />
+          </linearGradient>
+
+          <linearGradient id="aiGlowBg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#fdf2f8" />
+            <stop offset="0.5" stopColor="#f3e8ff" />
+            <stop offset="1" stopColor="#e0e7ff" />
           </linearGradient>
         </defs>
       </svg>
@@ -226,7 +220,7 @@ export function AIAssistant({
       {
         id: '1',
         sender: 'assistant',
-        text: 'Hello Sir, kaise ho aap? 😊\n\nMain Mayra hoon, aapki AI Portal Assistant! Mere paas poore portal ka 100% access hai. Aap Hindi ya English me mujhse kisi bhi teacher ka schedule, room status, cancelled classes ya timetable pooch sakte hain. How can I help you today?',
+        text: 'Hello Sir, kaise ho aap? 😊\n\nMain Mayra hoon, aapki AI Assistant! Mere paas poore portal ka 100% access hai. Aap Hindi ya English me mujhse kisi bhi teacher ka timetable, room status, cancelled classes ya free teachers pooch sakte hain. How can I help you today?',
         timestamp: new Date(),
       },
     ];
@@ -239,7 +233,7 @@ export function AIAssistant({
     return saved !== null ? saved === 'true' : true;
   });
 
-  // Speech Recognition with live real-time speech display
+  // Speech Recognition with live real-time speech feedback
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -289,7 +283,7 @@ export function AIAssistant({
 
   // Pick smooth, natural female voice for Mayra
   const getMayraVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
-    if (!availableVoices.length) return { voice: null, pitch: 1.15, rate: 0.98 };
+    if (!availableVoices.length) return { voice: null, pitch: 1.12, rate: 0.98 };
 
     // Find Indian Female / Natural Female voice
     const indianFemale = availableVoices.find(v => 
@@ -302,7 +296,7 @@ export function AIAssistant({
       v.name.includes('Samantha') || v.name.includes('Victoria') || v.name.toLowerCase().includes('female')
     ) || availableVoices[0];
 
-    return { voice: indianFemale || null, pitch: 1.15, rate: 0.98 };
+    return { voice: indianFemale || null, pitch: 1.12, rate: 0.98 };
   };
 
   const stopSpeaking = () => {
@@ -317,7 +311,7 @@ export function AIAssistant({
     setIsSpeaking(false);
   };
 
-  // Smooth chunked speech for Mayra (No stuttering / Bina atke)
+  // Smooth chunked speech for Mayra (Women voice, no stuttering)
   const speakText = async (fullText: string) => {
     if (!voiceEnabled) return;
     stopSpeaking();
@@ -332,7 +326,7 @@ export function AIAssistant({
 
     if (!clean) return;
 
-    // ElevenLabs Studio Voice for Mayra
+    // ElevenLabs Studio Human Voice
     if (useElevenLabs && elevenLabsKey.trim()) {
       try {
         setIsSpeaking(true);
@@ -463,7 +457,7 @@ export function AIAssistant({
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'hi-IN'; // Recognizes Hindi, Hinglish, English seamlessly
+      recognition.lang = 'hi-IN';
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
@@ -511,12 +505,11 @@ export function AIAssistant({
     }
   };
 
-  // 🧠 Mayra's Bilingual Knowledge Engine (Hindi + English)
+  // 🧠 Mayra's Bilingual Knowledge Engine (English & Hindi)
   const analyzePortalQuery = (rawQuery: string): { text: string; action?: { label: string; action: () => void } } => {
     const q = rawQuery.toLowerCase().trim();
     const today = DAYS[new Date().getDay()];
 
-    // Detect if user asked in English or Hindi
     const isEnglish = (
       q.startsWith('who') ||
       q.startsWith('what') ||
@@ -558,8 +551,8 @@ export function AIAssistant({
     if (q.includes('tera naam') || q.includes('your name') || q.includes('who are you')) {
       return {
         text: isEnglish
-          ? `I am Mayra, your AI Portal Assistant! I have 100% full live access to the portal data.`
-          : `Mera naam Mayra hai Sir! Main aapki AI Portal Assistant hoon. Mere paas poore portal ka live data hai.`,
+          ? `I am Mayra, your AI Assistant! I have 100% full live access to the portal data.`
+          : `Mera naam Mayra hai Sir! Main aapki AI Assistant hoon. Mere paas poore portal ka live data hai.`,
       };
     }
 
@@ -810,7 +803,7 @@ export function AIAssistant({
     if (apiKey.trim()) {
       try {
         const portalSummary = `User: Krishna Sir (Krishna Ji).
-Assistant: Mayra (AI Portal Assistant).
+Assistant: Mayra (AI Human Female Assistant).
 Opening Greeting: "Hello Sir, kaise ho aap?"
 Languages: English & Hindi (Bilingual).
 Total Faculty: ${faculty.length}
@@ -831,11 +824,11 @@ Today: ${DAYS[new Date().getDay()]}`;
                   role: 'user',
                   parts: [
                     {
-                      text: `You are Mayra, a female AI Assistant for the Faculty Load Portal.
+                      text: `You are Mayra, a female AI Human Assistant for the Faculty Load Portal.
 Always address user as "Krishna Sir" or "Sir".
 You speak fluent English and Hindi.
 Portal context: ${portalSummary}
-User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
+User question: "${query}". Reply warmly and accurately in human female tone (2-3 sentences).`,
                     },
                   ],
                 },
@@ -900,7 +893,7 @@ User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
 
   return (
     <>
-      {/* 🌸 Clean Circular Floating Girl Robot Button (No text pill) */}
+      {/* 👩 Elegant Circular Floating AI Human Woman Avatar (Mayra) */}
       {!isOpen && (
         <div className="fixed bottom-6 right-6 z-50">
           <button
@@ -908,8 +901,8 @@ User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
               setIsOpen(true);
               speakText('Hello Sir, kaise ho aap?');
             }}
-            className="group relative w-16 h-16 rounded-full bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-1 shadow-2xl hover:shadow-pink-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-white/50 flex items-center justify-center cursor-pointer"
-            title="Click to talk to Mayra (Girl Robot)"
+            className="group relative w-16 h-16 rounded-full bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-1 shadow-2xl hover:shadow-pink-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-white/60 flex items-center justify-center cursor-pointer overflow-visible"
+            title="Click to talk to Mayra (AI Human Assistant)"
           >
             {/* Live Online Ping Dot */}
             <span className="absolute top-0 right-0 flex h-4 w-4">
@@ -917,9 +910,9 @@ User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
               <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-white"></span>
             </span>
 
-            {/* Girl Robot Icon with Float Animation */}
+            {/* AI Human Woman Avatar with Floating/Bobbing Effect */}
             <div className="w-full h-full flex items-center justify-center animate-bounce duration-1000">
-              <GirlRobotSVG size={46} isSpeaking={isSpeaking} isListening={isListening} />
+              <AIHumanWomanAvatar size={48} isSpeaking={isSpeaking} isListening={isListening} />
             </div>
           </button>
         </div>
@@ -936,12 +929,12 @@ User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
           <div className="px-4 py-3 bg-gradient-to-r from-slate-950 via-purple-950 to-pink-950 border-b border-pink-500/20 flex items-center justify-between select-none">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 flex-shrink-0">
-                <GirlRobotSVG size={42} isSpeaking={isSpeaking} isListening={isListening} />
+                <AIHumanWomanAvatar size={42} isSpeaking={isSpeaking} isListening={isListening} />
               </div>
 
               <div>
                 <h3 className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-                  Mayra <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-semibold border border-pink-500/30">AI Assistant</span>
+                  Mayra <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-semibold border border-pink-500/30">AI Human</span>
                 </h3>
                 <p className="text-[10px] text-pink-200/80 flex items-center gap-1 font-medium">
                   {isListening ? (
@@ -955,7 +948,7 @@ User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
                   ) : (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span>Krishna Sir ke liye ready • Hindi & English</span>
+                      <span>Krishna Sir ke liye ready • Women Voice</span>
                     </>
                   )}
                 </p>
@@ -1013,7 +1006,7 @@ User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
                   <div className="flex items-center justify-between font-bold text-slate-200">
                     <span className="flex items-center gap-1.5">
                       <Music className="w-3.5 h-3.5 text-pink-400" />
-                      Mayra's Voice Settings (ElevenLabs Option)
+                      Mayra's Female Voice (ElevenLabs Studio Option)
                     </span>
                     <button
                       onClick={clearChat}
@@ -1085,7 +1078,7 @@ User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
                     >
                       {!isUser && (
                         <div className="w-8 h-8 flex-shrink-0 mt-0.5">
-                          <GirlRobotSVG size={32} />
+                          <AIHumanWomanAvatar size={32} />
                         </div>
                       )}
 
