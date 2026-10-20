@@ -14,10 +14,7 @@ import {
   Radio,
   ExternalLink,
   Settings,
-  Flame,
-  Check,
   Music,
-  AlertCircle,
 } from 'lucide-react';
 import type {
   Faculty,
@@ -58,13 +55,13 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 
 // ElevenLabs Voice IDs
 const ELEVENLABS_VOICES = {
-  dost: 'IKne3meq5aSn9XLyUdCD', // Charlie (Casual conversational buddy)
+  dost: 'IKne3meq5aSn9XLyUdCD', // Charlie (Casual conversational)
   man: 'pNInz6obpgDQGcFmaJgB',  // Adam (Deep masculine)
   woman: '21m00Tcm4TlvDq8ikWAM', // Rachel (Warm feminine)
-  child: 'AZnzlk1XvdvUeBnXmlld', // Domi (Young & energetic)
+  child: 'AZnzlk1XvdvUeBnXmlld', // Domi (Energetic child)
 };
 
-// 🤖 Cartoon Robot SVG Component with expressive animations
+// 🤖 Cute Animated Cartoon Robot
 function CartoonRobotSVG({
   size = 40,
   isSpeaking = false,
@@ -142,7 +139,6 @@ function CartoonRobotSVG({
 
         {/* Glowing Eyes */}
         {isListening ? (
-          // Listening eyes (focused waves)
           <>
             <circle cx="39" cy="46" r="6" fill="#ef4444" className="animate-pulse" />
             <circle cx="61" cy="46" r="6" fill="#ef4444" className="animate-pulse" />
@@ -150,7 +146,6 @@ function CartoonRobotSVG({
             <circle cx="63" cy="44" r="2" fill="#ffffff" />
           </>
         ) : (
-          // Friendly glowing eyes
           <>
             <rect
               x="33"
@@ -176,13 +171,12 @@ function CartoonRobotSVG({
           </>
         )}
 
-        {/* Cute Cheeks */}
+        {/* Cheeks */}
         <circle cx="31" cy="56" r="3" fill="#f43f5e" opacity="0.6" />
         <circle cx="69" cy="56" r="3" fill="#f43f5e" opacity="0.6" />
 
-        {/* Animated Mouth */}
+        {/* Mouth */}
         {isSpeaking ? (
-          // Speaking wave mouth
           <path
             d="M 40 58 Q 50 66 60 58"
             stroke="#22d3ee"
@@ -191,10 +185,8 @@ function CartoonRobotSVG({
             fill="none"
           />
         ) : isListening ? (
-          // Focused O mouth
           <circle cx="50" cy="59" r="3.5" fill="#ef4444" />
         ) : (
-          // Happy smiling mouth
           <path
             d="M 41 57 Q 50 63 59 57"
             stroke="#38bdf8"
@@ -204,7 +196,6 @@ function CartoonRobotSVG({
           />
         )}
 
-        {/* Gradients */}
         <defs>
           <linearGradient id="robotGradient" x1="18" y1="22" x2="82" y2="76" gradientUnits="userSpaceOnUse">
             <stop stopColor="#e0e7ff" />
@@ -233,12 +224,13 @@ export function AIAssistant({
     return (localStorage.getItem('ai_buddy_persona') as VoicePersona) || 'dost';
   });
 
+  // Default opening message as requested: "ha sir btao aapki kaise help kr skta hu apko aaj kis chiz k bre m jaana h"
   const [messages, setMessages] = useState<Message[]>(() => {
     return [
       {
         id: '1',
         sender: 'assistant',
-        text: 'Aur bhai kaisa hai! 👋 Main tera Robot AI Dost hoon.\n\nKrishna Ji, mujhe poore portal ka live data pata hai—timetable, cancelled classes, faculty schedule, free teachers ya rooms. Kuch bhi poochiye ya mic daba kar baat kijiye!',
+        text: 'Haan Sir, batao aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? 😊\n\nKrishna Sir, main Nic hoon! Mere paas poore portal ka 100% live access hai—timetable, cancelled classes, faculty load, rooms ya free teachers. Aap jo bhi poochenge, main turant answer dunga!',
         timestamp: new Date(),
         personaUsed: 'dost',
       },
@@ -252,13 +244,13 @@ export function AIAssistant({
     return saved !== null ? saved === 'true' : true;
   });
 
-  // Speech Recognition state with live interim speech feedback
+  // Microphone state with live real-time speech feedback
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
-  // ElevenLabs Studio Voice API Key
+  // ElevenLabs Key
   const [elevenLabsKey, setElevenLabsKey] = useState<string>(() => {
     return localStorage.getItem('ai_buddy_elevenlabs_key') || '';
   });
@@ -274,7 +266,6 @@ export function AIAssistant({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const speechQueueRef = useRef<SpeechSynthesisUtterance[]>([]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -286,7 +277,7 @@ export function AIAssistant({
     }
   }, [messages, isOpen, isMinimized, interimTranscript]);
 
-  // Load and categorize voices
+  // Load voices
   useEffect(() => {
     const updateVoices = () => {
       if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -301,19 +292,15 @@ export function AIAssistant({
     }
   }, []);
 
-  // Pick the smoothest, most natural human Indian voice without robotic stutter
+  // Pick smooth natural voice
   const getSmoothVoice = (p: VoicePersona): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
     if (!availableVoices.length) return { voice: null, pitch: 1.0, rate: 0.96 };
 
-    // Priority 1: Google Hindi (native human recording)
     const googleHindi = availableVoices.find(v => v.name.includes('Google हिन्दी') || (v.lang === 'hi-IN' && v.name.includes('Google')));
-    
-    // Priority 2: Indian English natural voices (Rishi on Mac / Microsoft Hemant on Edge)
     const indianMale = availableVoices.find(v => 
       (v.name.includes('Rishi') || v.name.includes('Hemant') || v.name.includes('Prabhat')) &&
       !v.name.toLowerCase().includes('female')
     );
-
     const indianFemale = availableVoices.find(v => 
       (v.name.includes('Lekha') || v.name.includes('Swara') || v.name.includes('Neerja'))
     );
@@ -328,32 +315,27 @@ export function AIAssistant({
       return { voice: selected || null, pitch: 1.08, rate: 1.0 };
     }
 
-    // Child
     const childBase = availableVoices.find(v => v.name.includes('Junior') || v.name.includes('Albert') || v.name.includes('Rishi')) || availableVoices[0];
     return { voice: childBase || null, pitch: 1.35, rate: 1.05 };
   };
 
   const stopSpeaking = () => {
-    // Stop ElevenLabs audio if playing
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
       currentAudioRef.current = null;
     }
-    // Stop Web Speech & clear queue
-    speechQueueRef.current = [];
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
   };
 
-  // Speaks smoothly without stuttering ("Bina atke human voice")
+  // Smooth human speech synthesis (Chunked to prevent Chrome freeze/stutter)
   const speakText = async (fullText: string, currentPersona: VoicePersona = persona) => {
     if (!voiceEnabled) return;
     stopSpeaking();
 
-    // Clean text: remove markdown symbols, bullet points, brackets, emojis
     const clean = fullText
       .replace(/[*_#`~•]/g, ' ')
       .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
@@ -364,7 +346,7 @@ export function AIAssistant({
 
     if (!clean) return;
 
-    // 1. ElevenLabs Studio Quality Human Voice (if enabled)
+    // ElevenLabs Studio Voice if enabled
     if (useElevenLabs && elevenLabsKey.trim()) {
       try {
         setIsSpeaking(true);
@@ -410,11 +392,9 @@ export function AIAssistant({
       }
     }
 
-    // 2. Smooth Chunked Synthesis (Solves the browser pause & stutter bug!)
+    // Smooth Chunked Stream (bina atke speech)
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
-    // Split text into natural, bite-sized conversational sentences (max 10-15 words per chunk)
-    // This prevents Chrome from buffering and freezing mid-speech!
     const sentenceChunks = clean
       .split(/(?<=[.?!।\n])\s+/)
       .map(s => s.trim())
@@ -423,7 +403,6 @@ export function AIAssistant({
     if (sentenceChunks.length === 0) return;
 
     const { voice, pitch, rate } = getSmoothVoice(currentPersona);
-
     setIsSpeaking(true);
 
     let currentIndex = 0;
@@ -447,7 +426,6 @@ export function AIAssistant({
       utterance.volume = 1.0;
 
       utterance.onend = () => {
-        // Natural 40ms human breathing pause between sentences
         setTimeout(speakNextChunk, 40);
       };
 
@@ -467,16 +445,8 @@ export function AIAssistant({
     localStorage.setItem('ai_buddy_persona', newPersona);
     stopSpeaking();
 
-    let sampleText = '';
-    if (newPersona === 'dost') {
-      sampleText = 'Aur bhai kaisa hai! Flash bhai, tera dost ready hai. Bol kya chal raha hai!';
-    } else if (newPersona === 'man') {
-      sampleText = 'Pranaam Krishna Ji! Kabir حاضر hai. Smooth masculine voice on ho gayi hai.';
-    } else if (newPersona === 'woman') {
-      sampleText = 'Namaste Krishna Ji! Main Ananya hoon. Smooth female voice set ho gayi hai.';
-    } else {
-      sampleText = 'Pranaam Krishna Bhaiya! Main Chhotu hoon! Cute child voice on hai!';
-    }
+    // Opening response
+    let sampleText = 'Haan Sir batao, main Nic hoon! Aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?';
 
     const greetingMsg: Message = {
       id: Date.now().toString(),
@@ -498,7 +468,7 @@ export function AIAssistant({
     }
   };
 
-  // 🎤 Bulletproof Microphone Input with Real-time Speech-to-Text
+  // 🎤 Bulletproof Microphone Input
   const toggleListening = async () => {
     if (isListening) {
       if (recognitionRef.current) {
@@ -509,37 +479,34 @@ export function AIAssistant({
       return;
     }
 
-    // Stop speaking so assistant doesn't hear itself
     stopSpeaking();
 
-    // Check browser speech recognition
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert('Krishna Ji, aapke browser me Speech Recognition enabled nahi hai. Kripya Chrome ya Edge browser use karein!');
       return;
     }
 
-    // Explicitly request microphone permission first if needed
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         await navigator.mediaDevices.getUserMedia({ audio: true });
       }
     } catch (permErr) {
-      console.warn('Microphone permission warning:', permErr);
+      console.warn('Mic permission check:', permErr);
     }
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'hi-IN'; // Recognizes Hindi, Hinglish, English words seamlessly
+      recognition.lang = 'hi-IN';
       recognition.continuous = false;
-      recognition.interimResults = true; // Show text as user speaks!
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
       let finalCapturedText = '';
 
       recognition.onstart = () => {
         setIsListening(true);
-        setInterimTranscript('Aap boliye, main sun raha hoon...');
+        setInterimTranscript('Nic sun raha hai... Boliye Sir!');
       };
 
       recognition.onresult = (event: any) => {
@@ -578,47 +545,48 @@ export function AIAssistant({
     }
   };
 
-  // Full Portal Knowledge Base & Query Analysis
+  // 🧠 Deep Full Portal Knowledge Engine - Instant Direct Answers
   const analyzePortalQuery = (rawQuery: string): { text: string; action?: { label: string; action: () => void } } => {
     const q = rawQuery.toLowerCase().trim();
     const today = DAYS[new Date().getDay()];
 
-    // "Aur bhai kaisa hai" trigger
-    if (q.includes('aur bhai kaisa') || q.includes('or bhai kaisa') || q.includes('or bta bhai') || q.includes('kaisa hai bhai') || q.includes('kya haal hai bhai')) {
+    // Opening greeting trigger
+    const isGeneralGreeting = (
+      q === 'hi' ||
+      q === 'hello' ||
+      q === 'hey' ||
+      q === 'nic' ||
+      q === 'haan nic' ||
+      q.includes('haan sir') ||
+      q.includes('batao') ||
+      q.includes('help') ||
+      q.includes('kya haal') ||
+      q.includes('aur bhai kaisa') ||
+      q.includes('kaisa hai')
+    );
+
+    if (isGeneralGreeting && !q.includes('class') && !q.includes('schedule') && !q.includes('faculty') && !q.includes('room') && !q.includes('batch')) {
       return {
-        text: `Arre Flash mere bhai! Ekdum zordar, first class! 🔥 Tu bata kaisa hai? Sab badhiya na?\n\nKrishna Ji, portal par sab control me hai! Aaj ka timetable dekhna hai ya kisi teacher ka load check karna hai? Bol apne bhai ko!`,
+        text: `Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? 😊\n\n(Krishna Sir, aap kisi bhi teacher ka schedule, cancelled classes, aaj ka timetable ya free faculty pooch sakte hain!)`,
       };
     }
 
-    const isCasualChitChat = (
-      persona === 'dost' ||
-      q.includes('flash') ||
-      q.includes('joke') ||
-      q.includes('chutkula') ||
-      q.includes('kya haal') ||
-      q.includes('kaise ho') ||
-      q.includes('kuch suna') ||
-      q.includes('bore') ||
-      q.includes('chai') ||
-      q.includes('dost') ||
-      q.includes('masti') ||
-      q.includes('gaana') ||
-      q.includes('aur bata') ||
-      q.includes('chill')
-    );
-
-    const salutation = isCasualChitChat 
-      ? 'Flash bhai' 
-      : (persona === 'child' ? 'Krishna Bhaiya' : 'Krishna Ji');
+    const salutation = 'Krishna Sir';
 
     // 1. Identity Check
     if (q.includes('mera naam') || q.includes('who am i') || q.includes('kaun hu main') || q.includes('krishna')) {
       return {
-        text: `Aapka shubh naam Krishna Ji hai! 🙏 Hamare Faculty Load Portal ke head admin aap hi hain. Aur dosti me hum aapko pyaar se Flash bhai bolte hain!`,
+        text: `Aapka shubh naam Krishna Sir (Krishna Ji) hai! 🙏 Hamare Faculty Load Portal ke head admin aap hi hain. Aur mera naam Nic hai!`,
       };
     }
 
-    // 2. Specific Faculty Name Search
+    if (q.includes('tera naam') || q.includes('your name') || q.includes('kaun ho tum')) {
+      return {
+        text: `Mera naam Nic hai Sir! Main aapka personal AI Portal Assistant hoon. Mere paas poore portal ka 100% access hai.`,
+      };
+    }
+
+    // 2. Specific Faculty Name Search across portal
     const matchedFaculty = faculty.find(f => {
       const parts = f.name.toLowerCase().split(' ');
       return parts.some(part => part.length > 2 && q.includes(part));
@@ -631,7 +599,7 @@ export function AIAssistant({
 
       if (facLoads.length === 0 && facExtras.length === 0) {
         return {
-          text: `${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) ko abhi koi load assigned nahi hai. Wo free hain!`,
+          text: `Haan ${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) ko abhi koi class load assigned nahi hai. Wo poori tarah free hain!`,
           action: onNavigateTab ? {
             label: 'Open Faculty Tab',
             action: () => onNavigateTab('faculty'),
@@ -652,7 +620,7 @@ export function AIAssistant({
       }
 
       return {
-        text: `${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) ka schedule:\n\nWeekly Loads: ${facLoads.length}\n${scheduleDetails}${extraInfo}`,
+        text: `Haan ${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) ka complete schedule ye raha:\n\nWeekly Loads: ${facLoads.length}\n${scheduleDetails}${extraInfo}`,
         action: onNavigateTab ? {
           label: 'View Faculty Details',
           action: () => onNavigateTab('faculty'),
@@ -666,7 +634,7 @@ export function AIAssistant({
       const batchLoads = loads.filter(l => l.batch_id === matchedBatch.id);
       if (batchLoads.length === 0) {
         return {
-          text: `${salutation}, Batch "${matchedBatch.name}" me abhi koi classes mapped nahi hain.`,
+          text: `Haan ${salutation}, Batch "${matchedBatch.name}" me abhi koi classes mapped nahi hain.`,
         };
       }
       const bList = batchLoads.map(l => 
@@ -674,7 +642,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `${salutation}, Batch "${matchedBatch.name}" ka schedule ye raha:\n\n${bList}`,
+        text: `Haan ${salutation}, Batch "${matchedBatch.name}" ka schedule:\n\n${bList}`,
         action: onNavigateTab ? {
           label: 'View Batches Tab',
           action: () => onNavigateTab('batches'),
@@ -692,7 +660,7 @@ export function AIAssistant({
           `• ${l.day_of_week} ${l.start_time}-${l.end_time}: ${l.faculty?.name} (${l.subject}, Batch: ${l.batch?.name})`
         ).join('\n');
         return {
-          text: `${salutation}, ${roomMatch[0].toUpperCase()} me ye lectures schedule hain:\n\n${rList}`,
+          text: `Haan ${salutation}, ${roomMatch[0].toUpperCase()} me ye lectures schedule hain:\n\n${rList}`,
         };
       }
     }
@@ -702,7 +670,7 @@ export function AIAssistant({
       const count = cancelledClasses.length;
       if (count === 0) {
         return {
-          text: `${salutation}, abhi poore portal me koi bhi class cancel nahi hui hai! Sab time par chal raha hai.`,
+          text: `Haan ${salutation}, abhi poore portal me koi bhi class cancel nahi hui hai! Sab time par chal raha hai.`,
         };
       }
 
@@ -711,7 +679,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `${salutation}, portal par total ${count} class cancel hain:\n\n${list}\n\nAap Extra & Reschedule section me jakar filter bhi laga sakte hain!`,
+        text: `Haan ${salutation}, portal par total ${count} class cancel hain:\n\n${list}\n\nAap Extra & Reschedule section me jakar filter bhi laga sakte hain!`,
         action: onNavigateTab ? {
           label: 'Open Extra & Reschedule',
           action: () => onNavigateTab('extraReschedule'),
@@ -724,7 +692,7 @@ export function AIAssistant({
       const count = extraClasses.length;
       if (count === 0) {
         return {
-          text: `${salutation}, abhi koi extra class schedule nahi hai. Sab regular schedule par hai.`,
+          text: `Haan ${salutation}, abhi koi extra class schedule nahi hai. Sab normal timetable follow kar rahe hain.`,
         };
       }
 
@@ -733,7 +701,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `${salutation}, total ${count} extra class scheduled hain:\n\n${list}`,
+        text: `Haan ${salutation}, total ${count} extra class scheduled hain:\n\n${list}`,
         action: onNavigateTab ? {
           label: 'View Extra Classes',
           action: () => onNavigateTab('extraReschedule'),
@@ -746,7 +714,7 @@ export function AIAssistant({
       const count = rescheduledClasses.length;
       if (count === 0) {
         return {
-          text: `${salutation}, koi bhi class reschedule nahi hui hai. Sab regular timing par chal rahi hain.`,
+          text: `Haan ${salutation}, koi bhi class reschedule nahi hui hai. Sab regular timings par hain.`,
         };
       }
 
@@ -755,7 +723,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `${salutation}, total ${count} class reschedule hui hain:\n\n${list}`,
+        text: `Haan ${salutation}, total ${count} class reschedule hui hain:\n\n${list}`,
         action: onNavigateTab ? {
           label: 'Open Rescheduled Tab',
           action: () => onNavigateTab('extraReschedule'),
@@ -769,7 +737,7 @@ export function AIAssistant({
       const dayLoads = loads.filter(l => l.day_of_week.toLowerCase() === matchedDay.toLowerCase());
       if (dayLoads.length === 0) {
         return {
-          text: `${salutation}, ${matchedDay} ko portal par koi regular class mapped nahi hai.`,
+          text: `Haan ${salutation}, ${matchedDay} ko portal par koi regular class mapped nahi hai.`,
         };
       }
 
@@ -778,7 +746,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `${salutation}, ${matchedDay} ko total ${dayLoads.length} lectures scheduled hain:\n\n${breakdown}${dayLoads.length > 5 ? `\n...aur ${dayLoads.length - 5} aur classes hain.` : ''}`,
+        text: `Haan ${salutation}, ${matchedDay} ko total ${dayLoads.length} lectures scheduled hain:\n\n${breakdown}${dayLoads.length > 5 ? `\n...aur ${dayLoads.length - 5} aur classes hain.` : ''}`,
         action: onNavigateTab ? {
           label: 'Open Dashboard',
           action: () => onNavigateTab('dashboard'),
@@ -797,13 +765,13 @@ export function AIAssistant({
       const free = faculty.filter(f => !busyFacultyIds.has(f.id));
       if (free.length === 0) {
         return {
-          text: `${salutation}, aaj ${today} sabhi faculties busy hain! Sabka lecture scheduled hai.`,
+          text: `Haan ${salutation}, aaj ${today} sabhi faculties busy hain! Sabka lecture scheduled hai.`,
         };
       }
 
       const names = free.map(f => `• ${f.name} (${f.department})`).join('\n');
       return {
-        text: `${salutation}, aaj ${today} ${free.length} teachers free hain jinki koi class mapped nahi hai:\n\n${names}`,
+        text: `Haan ${salutation}, aaj ${today} ${free.length} teachers free hain jinki koi class mapped nahi hai:\n\n${names}`,
         action: onNavigateTab ? {
           label: 'View Faculty Availability',
           action: () => onNavigateTab('facultyAvailability'),
@@ -822,37 +790,24 @@ export function AIAssistant({
       const topFaculty = sorted.length > 0 ? faculty.find(f => f.id === sorted[0][0]) : null;
 
       return {
-        text: `${salutation}, portal ka summary ye raha:\n\n• 👨‍🏫 Total Faculty: ${faculty.length}\n• 🎓 Total Batches: ${batches.length}\n• 📚 Total Weekly Loads: ${loads.length}\n• ❌ Total Cancelled: ${cancelledClasses.length}\n• ⚡ Total Extra: ${extraClasses.length}\n${topFaculty ? `\n🔥 Highest Workload: ${topFaculty.name} (${sorted[0][1]} classes/week)` : ''}`,
+        text: `Haan ${salutation}, portal ka summary ye raha:\n\n• 👨‍🏫 Total Faculty: ${faculty.length}\n• 🎓 Total Batches: ${batches.length}\n• 📚 Total Weekly Loads: ${loads.length}\n• ❌ Total Cancelled: ${cancelledClasses.length}\n• ⚡ Total Extra: ${extraClasses.length}\n${topFaculty ? `\n🔥 Highest Workload: ${topFaculty.name} (${sorted[0][1]} classes/week)` : ''}`,
       };
     }
 
     // 11. Jokes
     if (q.includes('joke') || q.includes('chutkula') || q.includes('masti')) {
       const jokes = [
-        `Sun Flash bhai! Ek student ne exam me likha: "Bhagwan sab janta hai!"\nTeacher ne result me likha: "Bhagwan ko 100 me se 100, aur beta tumhein agle saal phir se!" 😂`,
-        `Flash mere yaar, ek coder ne doctor se kaha: "Doctor sahab, mera dimaag 404 Not Found error de raha hai!"\nDoctor: "Bhai coffee piyo aur cache clear karo!" 🤣`,
-        `Student: "Sir, exam me itne kathin questions kyu aate hain?"\nTeacher: "Taaki beta tumhein pata chale ki padhna kitna zaroori hai!" 😆`,
+        `Sun Flash Sir! Ek student ne exam me likha: "Bhagwan sab janta hai!"\nTeacher ne result me likha: "Bhagwan ko 100 me se 100, aur beta tumhein agle saal phir se!" 😂`,
+        `Sir, ek coder ne doctor se kaha: "Doctor sahab, mera dimaag 404 Not Found error de raha hai!"\nDoctor: "Bhai coffee piyo aur cache clear karo!" 🤣`,
       ];
       return {
         text: jokes[Math.floor(Math.random() * jokes.length)],
       };
     }
 
-    // 12. Casual replies
-    if (isCasualChitChat) {
-      const casualReplies = [
-        `Arre Flash mere bhai! Ekdum first class! Tu bata, chai-pani hua ya abhi coding aur portal manage karne me hi busy hai? 😎`,
-        `Flash bhai zindabad! Tera ye robot dost 24 ghante ready hai. Bata aaj kya dhasu plan hai?`,
-        `Chill kar Flash bhai! Jab tak tera ye AI dost yahan hai, tension lene ka nahi sirf tension dene ka! 😉`,
-      ];
-      return {
-        text: casualReplies[Math.floor(Math.random() * casualReplies.length)],
-      };
-    }
-
     // Default Fallback
     return {
-      text: `${salutation}, maine poora portal check kiya. Aap kisi bhi teacher ka schedule ("Dr. Sharma ki class"), batch schedule, room status ("Room 101"), cancelled classes ya free faculty pooch sakte hain!`,
+      text: `Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? Maine poora portal scan kar rakha hai!`,
     };
   };
 
@@ -875,7 +830,9 @@ export function AIAssistant({
 
     if (apiKey.trim()) {
       try {
-        const portalSummary = `User: Krishna Ji (casual: Flash / Flash bhai).
+        const portalSummary = `User: Krishna Sir (Krishna Ji).
+Assistant Name: Nic.
+Standard Opening Greeting: "Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?"
 Total Faculty: ${faculty.length}
 Total Batches: ${batches.length}
 Total Loads: ${loads.length}
@@ -894,12 +851,11 @@ Today: ${DAYS[new Date().getDay()]}`;
                   role: 'user',
                   parts: [
                     {
-                      text: `You are an AI Assistant for Faculty Load Portal.
-Persona mode: If query is portal/work related, address respectfully as "Krishna Ji" or "Krishna Sir".
-If casual/friendly, address as "Flash" or "Flash bhai".
-Voice persona style: ${persona}.
+                      text: `You are Nic, the AI Assistant for Faculty Load Portal.
+Always address user as "Krishna Sir" or "Sir".
+When greeted or asked general things, start with: "Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?".
 Portal context: ${portalSummary}
-User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentences max).`,
+User question: "${query}". Reply warmly and accurately in Hinglish with instant answers.`,
                     },
                   ],
                 },
@@ -948,7 +904,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
       {
         id: Date.now().toString(),
         sender: 'assistant',
-        text: 'Chat fresh ho gayi Krishna Ji! Aur bataiye, ab kya dekhna hai? 🚀',
+        text: 'Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? 🚀',
         timestamp: new Date(),
         personaUsed: persona,
       },
@@ -957,43 +913,46 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
 
   const personaConfig = {
     dost: {
-      name: 'Flash Buddy (Dost)',
+      name: 'Nic (Dost Mode)',
       role: 'Casual & Best Friend',
     },
     man: {
-      name: 'Kabir (Real Man)',
+      name: 'Nic (Real Man)',
       role: 'Deep Masculine',
     },
     woman: {
-      name: 'Ananya (Real Woman)',
+      name: 'Nic (Real Woman)',
       role: 'Warm Feminine',
     },
     child: {
-      name: 'Chhotu (Real Child)',
+      name: 'Nic (Real Child)',
       role: 'Cute & Playful',
     },
   };
 
   const quickPrompts = [
-    { label: '👋 Aur bhai kaisa hai?', query: 'Aur bhai kaisa hai?' },
+    { label: '👋 Haan Sir batao...', query: 'Haan Nic batao' },
     { label: 'Aaj ka timetable? 📅', query: 'Aaj ka schedule kya hai?' },
     { label: 'Cancelled classes? ❌', query: 'Kitni classes cancel hui hain?' },
     { label: 'Kaun faculty free hai? 👨‍🏫', query: 'Aaj kaun kaun free hai?' },
     { label: 'Extra classes? ⚡', query: 'Extra classes list batao' },
     { label: 'Highest workload? 🔥', query: 'Sabse zyada load kiska hai?' },
-    { label: 'Ek joke sunao! 😂', query: 'Flash bhai ek badhiya joke sunao' },
+    { label: 'Ek joke sunao! 😂', query: 'Nic ek badhiya joke sunao' },
   ];
 
   return (
     <>
-      {/* 🤖 Floating Cartoon Robot Trigger Button */}
+      {/* 🤖 Floating Cartoon Robot with "Nic AI" Label */}
       {!isOpen && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
           {/* Main Cartoon Robot Button */}
           <div
-            onClick={() => setIsOpen(true)}
+            onClick={() => {
+              setIsOpen(true);
+              speakText('Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?');
+            }}
             className="group relative flex items-center gap-3 pl-2 pr-4 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-full shadow-2xl hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 transition-all duration-300 border border-white/30 cursor-pointer"
-            title="Click to talk to AI Robot"
+            title="Click to talk to Nic AI"
           >
             {/* Live Indicator Pulse */}
             <span className="absolute -top-1 -right-1 flex h-4 w-4">
@@ -1008,15 +967,15 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
 
             <div className="text-left">
               <p className="text-xs font-black tracking-wide leading-tight flex items-center gap-1.5">
-                Krishna Ji's AI Robot <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 font-semibold">Online</span>
+                Nic AI <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 font-semibold">Online</span>
               </p>
               <p className="text-[11px] text-white/90 font-medium flex items-center gap-1">
-                Boliye: "Aur bhai kaisa hai"
+                Boliye: "Haan Nic..." 🎙️
               </p>
             </div>
           </div>
 
-          {/* Quick Mic Action directly on floating widget */}
+          {/* Direct One-Click Mic Button */}
           <button
             onClick={() => {
               setIsOpen(true);
@@ -1025,7 +984,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
               }, 200);
             }}
             className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border border-white/30"
-            title="Direct Voice Talk (Click & Speak)"
+            title="Direct Voice (Click & Speak to Nic)"
           >
             <Mic className="w-5 h-5 animate-pulse" />
           </button>
@@ -1042,28 +1001,27 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 border-b border-slate-800 flex items-center justify-between select-none">
             <div className="flex items-center gap-2.5">
-              {/* Cartoon Robot in Header */}
               <div className="w-10 h-10 flex-shrink-0">
                 <CartoonRobotSVG size={40} isSpeaking={isSpeaking} isListening={isListening} />
               </div>
 
               <div>
                 <h3 className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-                  {personaConfig[persona].name}
+                  Nic (Aapka AI Assistant)
                 </h3>
                 <p className="text-[10px] text-slate-300 flex items-center gap-1 font-medium">
                   {isListening ? (
                     <span className="text-red-400 flex items-center gap-1 font-bold animate-pulse">
-                      <Radio className="w-3 h-3" /> Sun raha hoon... Boliye!
+                      <Radio className="w-3 h-3" /> Nic sun raha hai... Boliye!
                     </span>
                   ) : isSpeaking ? (
                     <span className="text-cyan-400 flex items-center gap-1 font-semibold">
-                      <Radio className="w-3 h-3 animate-pulse" /> Bol raha hoon...
+                      <Radio className="w-3 h-3 animate-pulse" /> Nic bol raha hai...
                     </span>
                   ) : (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span>Krishna Ji ke sath live • Bina atke Voice</span>
+                      <span>Krishna Sir ke liye ready • 100% Portal Access</span>
                     </>
                   )}
                 </p>
@@ -1115,7 +1073,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
 
           {!isMinimized && (
             <>
-              {/* Persona Selector Bar (Dost / Man / Woman / Child) */}
+              {/* Persona Selector Bar */}
               <div className="px-3 py-2 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-xs">
                 <span className="text-[11px] text-slate-400 font-semibold">Voice Mode:</span>
                 <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
@@ -1286,12 +1244,12 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
                   );
                 })}
 
-                {/* 🔴 Live Listening Status Bubble with Real-time Speech Display */}
+                {/* 🔴 Live Listening Status Bubble */}
                 {isListening && (
                   <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-red-950/40 border border-red-500/50 rounded-2xl text-xs text-red-200 animate-pulse shadow-lg">
                     <Mic className="w-4 h-4 text-red-400 animate-bounce" />
                     <div>
-                      <p className="font-bold text-red-300">Krishna Ji, main sun raha hoon...</p>
+                      <p className="font-bold text-red-300">Nic sun raha hai...</p>
                       {interimTranscript && (
                         <p className="text-[11px] text-white/90 italic">"{interimTranscript}"</p>
                       )}
@@ -1304,7 +1262,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
                   <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/95 border border-cyan-500/40 rounded-xl w-fit shadow-lg animate-fadeIn">
                     <span className="text-[11px] text-cyan-300 font-bold flex items-center gap-1.5">
                       <Volume2 className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-                      Robot bol raha hai...
+                      Nic bol raha hai...
                     </span>
                     <div className="flex items-center gap-0.5">
                       <span className="w-1 h-3.5 bg-cyan-400 animate-bounce rounded-full" style={{ animationDelay: '0ms' }} />
@@ -1342,7 +1300,6 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
 
               {/* Input Area */}
               <div className="p-3 bg-slate-950 border-t border-slate-800 flex items-center gap-2">
-                {/* Microphone Button */}
                 <button
                   type="button"
                   onClick={toggleListening}
@@ -1351,7 +1308,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
                       ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/60 scale-110'
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                   }`}
-                  title={isListening ? 'Sun raha hoon... Click karein band karne ke liye' : 'Microphone se boliye (Krishna Ji / Flash)'}
+                  title={isListening ? 'Sun raha hoon... Click karein band karne ke liye' : 'Microphone se boliye (Krishna Sir)'}
                 >
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
@@ -1360,8 +1317,8 @@ User question: "${query}". Reply warmly and accurately in Hinglish (2-4 sentence
                   type="text"
                   placeholder={
                     isListening
-                      ? 'Krishna Ji boliye... main sun raha hoon...'
-                      : 'Poochiye ya boliye "Aur bhai kaisa hai"...'
+                      ? 'Krishna Sir boliye... Nic sun raha hai...'
+                      : 'Poochiye: "Haan Sir batao..." ya koi bhi timetable...'
                   }
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
