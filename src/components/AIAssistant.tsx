@@ -908,8 +908,13 @@ export function AIAssistant({
         };
 
         recognition.onerror = (err: any) => {
-          // If aborted or network glitch, auto-restart to stay ALWAYS ON
-          if (err.error !== 'not-allowed' && micActiveRef.current) {
+          console.warn('SpeechRecognition error:', err?.error);
+          if (err.error === 'not-allowed') {
+            setIsMicMuted(true);
+            micActiveRef.current = false;
+            setIsListening(false);
+            setIsDetectingSpeech(false);
+          } else if (micActiveRef.current) {
             setTimeout(() => {
               try {
                 if (micActiveRef.current) startListener();
