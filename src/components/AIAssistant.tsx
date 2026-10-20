@@ -7,7 +7,6 @@ import {
   Volume2,
   VolumeX,
   Sparkles,
-  User,
   Trash2,
   Minimize2,
   Maximize2,
@@ -26,8 +25,6 @@ import type {
   LoadBatchManager,
 } from '@/lib/supabase';
 
-export type VoicePersona = 'dost' | 'man' | 'woman' | 'child';
-
 interface AIAssistantProps {
   faculty: Faculty[];
   batches: Batch[];
@@ -44,7 +41,6 @@ interface Message {
   sender: 'user' | 'assistant';
   text: string;
   timestamp: Date;
-  personaUsed?: VoicePersona;
   quickAction?: {
     label: string;
     action: () => void;
@@ -53,17 +49,12 @@ interface Message {
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// ElevenLabs Voice IDs
-const ELEVENLABS_VOICES = {
-  dost: 'IKne3meq5aSn9XLyUdCD', // Charlie (Casual conversational)
-  man: 'pNInz6obpgDQGcFmaJgB',  // Adam (Deep masculine)
-  woman: '21m00Tcm4TlvDq8ikWAM', // Rachel (Warm feminine)
-  child: 'AZnzlk1XvdvUeBnXmlld', // Domi (Energetic child)
-};
+// ElevenLabs Voice ID for Mayra (Warm, expressive natural female voice)
+const ELEVENLABS_MAYRA_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel
 
-// 🤖 Cute Animated Cartoon Robot
-function CartoonRobotSVG({
-  size = 40,
+// 🌸 Adorable Girl Robot SVG Component
+function GirlRobotSVG({
+  size = 48,
   isSpeaking = false,
   isListening = false,
 }: {
@@ -84,60 +75,60 @@ function CartoonRobotSVG({
           isSpeaking ? 'scale-105' : 'hover:scale-110'
         }`}
       >
-        {/* Antenna */}
-        <line x1="50" y1="20" x2="50" y2="7" stroke="#94a3b8" strokeWidth="4" strokeLinecap="round" />
+        {/* Antenna with Heart or Glowing Star */}
+        <line x1="50" y1="20" x2="50" y2="8" stroke="#ec4899" strokeWidth="3" strokeLinecap="round" />
         <circle
           cx="50"
-          cy="7"
+          cy="8"
           r={isListening ? 6 : 5}
-          fill={isListening ? '#ef4444' : isSpeaking ? '#22d3ee' : '#38bdf8'}
+          fill={isListening ? '#ef4444' : '#f43f5e'}
           className={isListening ? 'animate-ping' : isSpeaking ? 'animate-pulse' : ''}
         />
-        <circle
-          cx="50"
-          cy="7"
-          r="4"
-          fill={isListening ? '#ef4444' : isSpeaking ? '#22d3ee' : '#38bdf8'}
-        />
+        <circle cx="50" cy="8" r="4" fill="#fb7185" />
 
-        {/* Headphones / Ears */}
-        <rect x="12" y="38" width="8" height="24" rx="4" fill="#6366f1" />
-        <rect x="80" y="38" width="8" height="24" rx="4" fill="#6366f1" />
-        <path d="M 16 40 A 34 34 0 0 1 84 40" stroke="#818cf8" strokeWidth="5" fill="none" strokeLinecap="round" />
+        {/* Cute Headband / Ribbon */}
+        <path d="M 20 38 A 32 32 0 0 1 80 38" stroke="#f472b6" strokeWidth="5" fill="none" strokeLinecap="round" />
+        <ellipse cx="50" cy="18" rx="8" ry="4" fill="#fb7185" />
 
-        {/* Head Outer Metallic Body */}
+        {/* Headphones / Ear Cups */}
+        <rect x="12" y="38" width="8" height="22" rx="4" fill="#ec4899" />
+        <rect x="80" y="38" width="8" height="22" rx="4" fill="#ec4899" />
+        <circle cx="16" cy="49" r="2.5" fill="#fdf2f8" />
+        <circle cx="84" cy="49" r="2.5" fill="#fdf2f8" />
+
+        {/* Outer Head Body (Soft sleek pearlescent pink/white) */}
         <rect
           x="18"
           y="22"
           width="64"
           height="54"
-          rx="22"
-          fill="url(#robotGradient)"
-          stroke="#4f46e5"
+          rx="24"
+          fill="url(#girlRobotGradient)"
+          stroke="#f472b6"
           strokeWidth="2.5"
         />
 
-        {/* Glossy Screen Face */}
+        {/* Glossy Dark Screen Face */}
         <rect
           x="25"
           y="30"
           width="50"
           height="38"
-          rx="14"
+          rx="15"
           fill="#0f172a"
           stroke="#1e293b"
           strokeWidth="2"
         />
 
-        {/* Screen Shine */}
+        {/* Glass Screen Reflection */}
         <path
           d="M 28 34 Q 50 31 72 34"
-          stroke="rgba(255,255,255,0.2)"
+          stroke="rgba(255,255,255,0.25)"
           strokeWidth="2"
           strokeLinecap="round"
         />
 
-        {/* Glowing Eyes */}
+        {/* Expressive Girl Robot Eyes with Eyelashes */}
         {isListening ? (
           <>
             <circle cx="39" cy="46" r="6" fill="#ef4444" className="animate-pulse" />
@@ -147,39 +138,47 @@ function CartoonRobotSVG({
           </>
         ) : (
           <>
+            {/* Left Eye & Lashes */}
+            <path d="M 33 39 L 31 36" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M 38 38 L 38 35" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
             <rect
               x="33"
               y="40"
               width="13"
-              height="11"
-              rx="5"
-              fill={isSpeaking ? '#22d3ee' : '#38bdf8'}
+              height="12"
+              rx="6"
+              fill={isSpeaking ? '#38bdf8' : '#22d3ee'}
               className={isSpeaking ? 'animate-pulse' : ''}
             />
-            <circle cx="37" cy="43" r="2" fill="#ffffff" />
+            <circle cx="36" cy="43" r="2.5" fill="#ffffff" />
+            <circle cx="41" cy="47" r="1.2" fill="#ffffff" />
 
+            {/* Right Eye & Lashes */}
+            <path d="M 67 39 L 69 36" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M 62 38 L 62 35" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
             <rect
               x="54"
               y="40"
               width="13"
-              height="11"
-              rx="5"
-              fill={isSpeaking ? '#22d3ee' : '#38bdf8'}
+              height="12"
+              rx="6"
+              fill={isSpeaking ? '#38bdf8' : '#22d3ee'}
               className={isSpeaking ? 'animate-pulse' : ''}
             />
-            <circle cx="58" cy="43" r="2" fill="#ffffff" />
+            <circle cx="57" cy="43" r="2.5" fill="#ffffff" />
+            <circle cx="62" cy="47" r="1.2" fill="#ffffff" />
           </>
         )}
 
-        {/* Cheeks */}
-        <circle cx="31" cy="56" r="3" fill="#f43f5e" opacity="0.6" />
-        <circle cx="69" cy="56" r="3" fill="#f43f5e" opacity="0.6" />
+        {/* Rosy Blush Cheeks */}
+        <circle cx="30" cy="56" r="3.5" fill="#fb7185" opacity="0.8" />
+        <circle cx="70" cy="56" r="3.5" fill="#fb7185" opacity="0.8" />
 
-        {/* Mouth */}
+        {/* Cute Smile / Speaking Mouth */}
         {isSpeaking ? (
           <path
-            d="M 40 58 Q 50 66 60 58"
-            stroke="#22d3ee"
+            d="M 40 57 Q 50 66 60 57"
+            stroke="#f472b6"
             strokeWidth="3.5"
             strokeLinecap="round"
             fill="none"
@@ -188,8 +187,8 @@ function CartoonRobotSVG({
           <circle cx="50" cy="59" r="3.5" fill="#ef4444" />
         ) : (
           <path
-            d="M 41 57 Q 50 63 59 57"
-            stroke="#38bdf8"
+            d="M 42 57 Q 50 63 58 57"
+            stroke="#fb7185"
             strokeWidth="3"
             strokeLinecap="round"
             fill="none"
@@ -197,10 +196,10 @@ function CartoonRobotSVG({
         )}
 
         <defs>
-          <linearGradient id="robotGradient" x1="18" y1="22" x2="82" y2="76" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#e0e7ff" />
-            <stop offset="0.5" stopColor="#c7d2fe" />
-            <stop offset="1" stopColor="#a5b4fc" />
+          <linearGradient id="girlRobotGradient" x1="18" y1="22" x2="82" y2="76" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#fdf2f8" />
+            <stop offset="0.5" stopColor="#fce7f3" />
+            <stop offset="1" stopColor="#fbcfe8" />
           </linearGradient>
         </defs>
       </svg>
@@ -220,19 +219,15 @@ export function AIAssistant({
 }: AIAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [persona, setPersona] = useState<VoicePersona>(() => {
-    return (localStorage.getItem('ai_buddy_persona') as VoicePersona) || 'dost';
-  });
 
-  // Default opening message as requested: "ha sir btao aapki kaise help kr skta hu apko aaj kis chiz k bre m jaana h"
+  // Initial welcome message from Mayra
   const [messages, setMessages] = useState<Message[]>(() => {
     return [
       {
         id: '1',
         sender: 'assistant',
-        text: 'Haan Sir, batao aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? 😊\n\nKrishna Sir, main Nic hoon! Mere paas poore portal ka 100% live access hai—timetable, cancelled classes, faculty load, rooms ya free teachers. Aap jo bhi poochenge, main turant answer dunga!',
+        text: 'Hello Sir, kaise ho aap? 😊\n\nMain Mayra hoon, aapki AI Portal Assistant! Mere paas poore portal ka 100% access hai. Aap Hindi ya English me mujhse kisi bhi teacher ka schedule, room status, cancelled classes ya timetable pooch sakte hain. How can I help you today?',
         timestamp: new Date(),
-        personaUsed: 'dost',
       },
     ];
   });
@@ -240,27 +235,27 @@ export function AIAssistant({
   const [inputText, setInputText] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('ai_buddy_voice_enabled');
+    const saved = localStorage.getItem('ai_mayra_voice_enabled');
     return saved !== null ? saved === 'true' : true;
   });
 
-  // Microphone state with live real-time speech feedback
+  // Speech Recognition with live real-time speech display
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
-  // ElevenLabs Key
+  // ElevenLabs Key (Optional for Studio Voice)
   const [elevenLabsKey, setElevenLabsKey] = useState<string>(() => {
-    return localStorage.getItem('ai_buddy_elevenlabs_key') || '';
+    return localStorage.getItem('ai_mayra_elevenlabs_key') || '';
   });
   const [useElevenLabs, setUseElevenLabs] = useState<boolean>(() => {
-    return localStorage.getItem('ai_buddy_use_elevenlabs') === 'true';
+    return localStorage.getItem('ai_mayra_use_elevenlabs') === 'true';
   });
 
   // Optional Gemini API Key
   const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('ai_buddy_gemini_key') || '';
+    return localStorage.getItem('ai_mayra_gemini_key') || '';
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -292,31 +287,22 @@ export function AIAssistant({
     }
   }, []);
 
-  // Pick smooth natural voice
-  const getSmoothVoice = (p: VoicePersona): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
-    if (!availableVoices.length) return { voice: null, pitch: 1.0, rate: 0.96 };
+  // Pick smooth, natural female voice for Mayra
+  const getMayraVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
+    if (!availableVoices.length) return { voice: null, pitch: 1.15, rate: 0.98 };
 
-    const googleHindi = availableVoices.find(v => v.name.includes('Google हिन्दी') || (v.lang === 'hi-IN' && v.name.includes('Google')));
-    const indianMale = availableVoices.find(v => 
-      (v.name.includes('Rishi') || v.name.includes('Hemant') || v.name.includes('Prabhat')) &&
-      !v.name.toLowerCase().includes('female')
-    );
+    // Find Indian Female / Natural Female voice
     const indianFemale = availableVoices.find(v => 
       (v.name.includes('Lekha') || v.name.includes('Swara') || v.name.includes('Neerja'))
-    );
+    ) || availableVoices.find(v => 
+      (v.lang === 'hi-IN' || v.lang === 'en-IN') && v.name.toLowerCase().includes('female')
+    ) || availableVoices.find(v => 
+      v.name.includes('Google हिन्दी')
+    ) || availableVoices.find(v => 
+      v.name.includes('Samantha') || v.name.includes('Victoria') || v.name.toLowerCase().includes('female')
+    ) || availableVoices[0];
 
-    if (p === 'dost' || p === 'man') {
-      const selected = googleHindi || indianMale || availableVoices.find(v => v.lang === 'hi-IN' || v.lang === 'en-IN') || availableVoices[0];
-      return { voice: selected || null, pitch: 1.0, rate: 0.98 };
-    }
-
-    if (p === 'woman') {
-      const selected = googleHindi || indianFemale || availableVoices.find(v => v.lang === 'hi-IN' || v.name.toLowerCase().includes('female')) || availableVoices[0];
-      return { voice: selected || null, pitch: 1.08, rate: 1.0 };
-    }
-
-    const childBase = availableVoices.find(v => v.name.includes('Junior') || v.name.includes('Albert') || v.name.includes('Rishi')) || availableVoices[0];
-    return { voice: childBase || null, pitch: 1.35, rate: 1.05 };
+    return { voice: indianFemale || null, pitch: 1.15, rate: 0.98 };
   };
 
   const stopSpeaking = () => {
@@ -331,8 +317,8 @@ export function AIAssistant({
     setIsSpeaking(false);
   };
 
-  // Smooth human speech synthesis (Chunked to prevent Chrome freeze/stutter)
-  const speakText = async (fullText: string, currentPersona: VoicePersona = persona) => {
+  // Smooth chunked speech for Mayra (No stuttering / Bina atke)
+  const speakText = async (fullText: string) => {
     if (!voiceEnabled) return;
     stopSpeaking();
 
@@ -346,12 +332,11 @@ export function AIAssistant({
 
     if (!clean) return;
 
-    // ElevenLabs Studio Voice if enabled
+    // ElevenLabs Studio Voice for Mayra
     if (useElevenLabs && elevenLabsKey.trim()) {
       try {
         setIsSpeaking(true);
-        const voiceId = ELEVENLABS_VOICES[currentPersona] || ELEVENLABS_VOICES.dost;
-        const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_MAYRA_VOICE}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -363,7 +348,7 @@ export function AIAssistant({
             voice_settings: {
               stability: 0.5,
               similarity_boost: 0.8,
-              style: 0.3,
+              style: 0.35,
               use_speaker_boost: true,
             },
           }),
@@ -392,7 +377,7 @@ export function AIAssistant({
       }
     }
 
-    // Smooth Chunked Stream (bina atke speech)
+    // Natural Browser Female Speech (Smooth sentence queue)
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
     const sentenceChunks = clean
@@ -402,7 +387,7 @@ export function AIAssistant({
 
     if (sentenceChunks.length === 0) return;
 
-    const { voice, pitch, rate } = getSmoothVoice(currentPersona);
+    const { voice, pitch, rate } = getMayraVoice();
     setIsSpeaking(true);
 
     let currentIndex = 0;
@@ -440,29 +425,10 @@ export function AIAssistant({
     speakNextChunk();
   };
 
-  const handlePersonaChange = (newPersona: VoicePersona) => {
-    setPersona(newPersona);
-    localStorage.setItem('ai_buddy_persona', newPersona);
-    stopSpeaking();
-
-    // Opening response
-    let sampleText = 'Haan Sir batao, main Nic hoon! Aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?';
-
-    const greetingMsg: Message = {
-      id: Date.now().toString(),
-      sender: 'assistant',
-      text: sampleText,
-      timestamp: new Date(),
-      personaUsed: newPersona,
-    };
-    setMessages(prev => [...prev, greetingMsg]);
-    speakText(sampleText, newPersona);
-  };
-
   const toggleVoice = () => {
     const next = !voiceEnabled;
     setVoiceEnabled(next);
-    localStorage.setItem('ai_buddy_voice_enabled', String(next));
+    localStorage.setItem('ai_mayra_voice_enabled', String(next));
     if (!next) {
       stopSpeaking();
     }
@@ -483,7 +449,7 @@ export function AIAssistant({
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Krishna Ji, aapke browser me Speech Recognition enabled nahi hai. Kripya Chrome ya Edge browser use karein!');
+      alert('Krishna Sir, aapke browser me Speech Recognition enabled nahi hai. Kripya Chrome ya Edge use karein!');
       return;
     }
 
@@ -497,7 +463,7 @@ export function AIAssistant({
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'hi-IN';
+      recognition.lang = 'hi-IN'; // Recognizes Hindi, Hinglish, English seamlessly
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
@@ -506,7 +472,7 @@ export function AIAssistant({
 
       recognition.onstart = () => {
         setIsListening(true);
-        setInterimTranscript('Nic sun raha hai... Boliye Sir!');
+        setInterimTranscript('Mayra sun rahi hai... Boliye Sir!');
       };
 
       recognition.onresult = (event: any) => {
@@ -545,48 +511,59 @@ export function AIAssistant({
     }
   };
 
-  // 🧠 Deep Full Portal Knowledge Engine - Instant Direct Answers
+  // 🧠 Mayra's Bilingual Knowledge Engine (Hindi + English)
   const analyzePortalQuery = (rawQuery: string): { text: string; action?: { label: string; action: () => void } } => {
     const q = rawQuery.toLowerCase().trim();
     const today = DAYS[new Date().getDay()];
 
-    // Opening greeting trigger
-    const isGeneralGreeting = (
+    // Detect if user asked in English or Hindi
+    const isEnglish = (
+      q.startsWith('who') ||
+      q.startsWith('what') ||
+      q.startsWith('where') ||
+      q.startsWith('which') ||
+      q.startsWith('how') ||
+      q.includes('timetable') ||
+      q.includes('schedule') ||
+      q.includes('faculty') ||
+      q.includes('available') ||
+      q.includes('cancelled')
+    ) && !q.includes('kaun') && !q.includes('kya') && !q.includes('aaj') && !q.includes('kitni');
+
+    // General Greeting Trigger
+    if (
       q === 'hi' ||
       q === 'hello' ||
       q === 'hey' ||
-      q === 'nic' ||
-      q === 'haan nic' ||
-      q.includes('haan sir') ||
-      q.includes('batao') ||
-      q.includes('help') ||
-      q.includes('kya haal') ||
-      q.includes('aur bhai kaisa') ||
-      q.includes('kaisa hai')
-    );
-
-    if (isGeneralGreeting && !q.includes('class') && !q.includes('schedule') && !q.includes('faculty') && !q.includes('room') && !q.includes('batch')) {
+      q === 'mayra' ||
+      q === 'haan mayra' ||
+      q.includes('kaise ho') ||
+      q.includes('how are you') ||
+      q.includes('hello sir')
+    ) {
       return {
-        text: `Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? 😊\n\n(Krishna Sir, aap kisi bhi teacher ka schedule, cancelled classes, aaj ka timetable ya free faculty pooch sakte hain!)`,
+        text: `Hello Sir, kaise ho aap? 😊 Main Mayra hoon! Portal me aapko aaj kis cheez ke baare me jaana hai? Timetable, cancelled classes, free faculty ya room status?`,
       };
     }
 
     const salutation = 'Krishna Sir';
 
     // 1. Identity Check
-    if (q.includes('mera naam') || q.includes('who am i') || q.includes('kaun hu main') || q.includes('krishna')) {
+    if (q.includes('mera naam') || q.includes('who am i') || q.includes('my name') || q.includes('krishna')) {
       return {
-        text: `Aapka shubh naam Krishna Sir (Krishna Ji) hai! 🙏 Hamare Faculty Load Portal ke head admin aap hi hain. Aur mera naam Nic hai!`,
+        text: `Aapka shubh naam Krishna Sir hai! 🙏 Hamare Faculty Load Portal ke head admin aap hi hain. Aur mera naam Mayra hai!`,
       };
     }
 
-    if (q.includes('tera naam') || q.includes('your name') || q.includes('kaun ho tum')) {
+    if (q.includes('tera naam') || q.includes('your name') || q.includes('who are you')) {
       return {
-        text: `Mera naam Nic hai Sir! Main aapka personal AI Portal Assistant hoon. Mere paas poore portal ka 100% access hai.`,
+        text: isEnglish
+          ? `I am Mayra, your AI Portal Assistant! I have 100% full live access to the portal data.`
+          : `Mera naam Mayra hai Sir! Main aapki AI Portal Assistant hoon. Mere paas poore portal ka live data hai.`,
       };
     }
 
-    // 2. Specific Faculty Name Search across portal
+    // 2. Specific Faculty Name Search
     const matchedFaculty = faculty.find(f => {
       const parts = f.name.toLowerCase().split(' ');
       return parts.some(part => part.length > 2 && q.includes(part));
@@ -599,7 +576,7 @@ export function AIAssistant({
 
       if (facLoads.length === 0 && facExtras.length === 0) {
         return {
-          text: `Haan ${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) ko abhi koi class load assigned nahi hai. Wo poori tarah free hain!`,
+          text: `Yes ${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) currently has no active load assigned. They are completely free!`,
           action: onNavigateTab ? {
             label: 'Open Faculty Tab',
             action: () => onNavigateTab('faculty'),
@@ -620,7 +597,7 @@ export function AIAssistant({
       }
 
       return {
-        text: `Haan ${salutation}, ${matchedFaculty.name} (${matchedFaculty.department}) ka complete schedule ye raha:\n\nWeekly Loads: ${facLoads.length}\n${scheduleDetails}${extraInfo}`,
+        text: `Yes ${salutation}, here is the complete schedule for ${matchedFaculty.name} (${matchedFaculty.department}):\n\nTotal Weekly Classes: ${facLoads.length}\n${scheduleDetails}${extraInfo}`,
         action: onNavigateTab ? {
           label: 'View Faculty Details',
           action: () => onNavigateTab('faculty'),
@@ -634,7 +611,7 @@ export function AIAssistant({
       const batchLoads = loads.filter(l => l.batch_id === matchedBatch.id);
       if (batchLoads.length === 0) {
         return {
-          text: `Haan ${salutation}, Batch "${matchedBatch.name}" me abhi koi classes mapped nahi hain.`,
+          text: `Yes ${salutation}, Batch "${matchedBatch.name}" has no scheduled classes mapped yet.`,
         };
       }
       const bList = batchLoads.map(l => 
@@ -642,7 +619,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `Haan ${salutation}, Batch "${matchedBatch.name}" ka schedule:\n\n${bList}`,
+        text: `Yes ${salutation}, Batch "${matchedBatch.name}" schedule:\n\n${bList}`,
         action: onNavigateTab ? {
           label: 'View Batches Tab',
           action: () => onNavigateTab('batches'),
@@ -660,7 +637,7 @@ export function AIAssistant({
           `• ${l.day_of_week} ${l.start_time}-${l.end_time}: ${l.faculty?.name} (${l.subject}, Batch: ${l.batch?.name})`
         ).join('\n');
         return {
-          text: `Haan ${salutation}, ${roomMatch[0].toUpperCase()} me ye lectures schedule hain:\n\n${rList}`,
+          text: `Yes ${salutation}, here are the scheduled lectures for ${roomMatch[0].toUpperCase()}:\n\n${rList}`,
         };
       }
     }
@@ -670,16 +647,18 @@ export function AIAssistant({
       const count = cancelledClasses.length;
       if (count === 0) {
         return {
-          text: `Haan ${salutation}, abhi poore portal me koi bhi class cancel nahi hui hai! Sab time par chal raha hai.`,
+          text: isEnglish
+            ? `Sir, there are currently 0 cancelled classes! Everything is running on schedule.`
+            : `Sir, portal par abhi koi bhi class cancel nahi hui hai! Sabhi lectures time par chal rahe hain.`,
         };
       }
 
       const list = cancelledClasses.slice(0, 5).map(c => 
-        `• ${c.faculty?.name || 'Faculty'} | ${c.subject} | Date: ${c.cancellation_date || 'N/A'}${c.reason ? ` (Karan: ${c.reason})` : ''}`
+        `• ${c.faculty?.name || 'Faculty'} | ${c.subject} | Date: ${c.cancellation_date || 'N/A'}${c.reason ? ` (Reason: ${c.reason})` : ''}`
       ).join('\n');
 
       return {
-        text: `Haan ${salutation}, portal par total ${count} class cancel hain:\n\n${list}\n\nAap Extra & Reschedule section me jakar filter bhi laga sakte hain!`,
+        text: `Sir, there are total ${count} cancelled class(es):\n\n${list}\n\nYou can also filter them in the Extra & Reschedule section!`,
         action: onNavigateTab ? {
           label: 'Open Extra & Reschedule',
           action: () => onNavigateTab('extraReschedule'),
@@ -692,7 +671,7 @@ export function AIAssistant({
       const count = extraClasses.length;
       if (count === 0) {
         return {
-          text: `Haan ${salutation}, abhi koi extra class schedule nahi hai. Sab normal timetable follow kar rahe hain.`,
+          text: `Sir, abhi koi extra class schedule nahi hai. All classes follow the regular timetable.`,
         };
       }
 
@@ -701,7 +680,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `Haan ${salutation}, total ${count} extra class scheduled hain:\n\n${list}`,
+        text: `Sir, there are ${count} extra class(es) scheduled:\n\n${list}`,
         action: onNavigateTab ? {
           label: 'View Extra Classes',
           action: () => onNavigateTab('extraReschedule'),
@@ -714,7 +693,7 @@ export function AIAssistant({
       const count = rescheduledClasses.length;
       if (count === 0) {
         return {
-          text: `Haan ${salutation}, koi bhi class reschedule nahi hui hai. Sab regular timings par hain.`,
+          text: `Sir, no classes are rescheduled right now. Everything is in its original slot.`,
         };
       }
 
@@ -723,7 +702,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `Haan ${salutation}, total ${count} class reschedule hui hain:\n\n${list}`,
+        text: `Sir, total ${count} class(es) have been rescheduled:\n\n${list}`,
         action: onNavigateTab ? {
           label: 'Open Rescheduled Tab',
           action: () => onNavigateTab('extraReschedule'),
@@ -731,13 +710,13 @@ export function AIAssistant({
       };
     }
 
-    // 8. Timetable
+    // 8. Timetable / Today's Schedule
     const matchedDay = DAYS.find(d => q.includes(d.toLowerCase())) || (q.includes('aaj') || q.includes('today') ? today : null);
     if (matchedDay) {
       const dayLoads = loads.filter(l => l.day_of_week.toLowerCase() === matchedDay.toLowerCase());
       if (dayLoads.length === 0) {
         return {
-          text: `Haan ${salutation}, ${matchedDay} ko portal par koi regular class mapped nahi hai.`,
+          text: `Sir, there are no regular classes mapped for ${matchedDay}.`,
         };
       }
 
@@ -746,7 +725,7 @@ export function AIAssistant({
       ).join('\n');
 
       return {
-        text: `Haan ${salutation}, ${matchedDay} ko total ${dayLoads.length} lectures scheduled hain:\n\n${breakdown}${dayLoads.length > 5 ? `\n...aur ${dayLoads.length - 5} aur classes hain.` : ''}`,
+        text: `Sir, on ${matchedDay} there are total ${dayLoads.length} lectures scheduled:\n\n${breakdown}${dayLoads.length > 5 ? `\n...and ${dayLoads.length - 5} more classes.` : ''}`,
         action: onNavigateTab ? {
           label: 'Open Dashboard',
           action: () => onNavigateTab('dashboard'),
@@ -765,13 +744,13 @@ export function AIAssistant({
       const free = faculty.filter(f => !busyFacultyIds.has(f.id));
       if (free.length === 0) {
         return {
-          text: `Haan ${salutation}, aaj ${today} sabhi faculties busy hain! Sabka lecture scheduled hai.`,
+          text: `Sir, all faculty members are busy with scheduled lectures today on ${today}.`,
         };
       }
 
       const names = free.map(f => `• ${f.name} (${f.department})`).join('\n');
       return {
-        text: `Haan ${salutation}, aaj ${today} ${free.length} teachers free hain jinki koi class mapped nahi hai:\n\n${names}`,
+        text: `Sir, today (${today}) approximately ${free.length} faculty members have no scheduled lectures and are free:\n\n${names}`,
         action: onNavigateTab ? {
           label: 'View Faculty Availability',
           action: () => onNavigateTab('facultyAvailability'),
@@ -790,15 +769,15 @@ export function AIAssistant({
       const topFaculty = sorted.length > 0 ? faculty.find(f => f.id === sorted[0][0]) : null;
 
       return {
-        text: `Haan ${salutation}, portal ka summary ye raha:\n\n• 👨‍🏫 Total Faculty: ${faculty.length}\n• 🎓 Total Batches: ${batches.length}\n• 📚 Total Weekly Loads: ${loads.length}\n• ❌ Total Cancelled: ${cancelledClasses.length}\n• ⚡ Total Extra: ${extraClasses.length}\n${topFaculty ? `\n🔥 Highest Workload: ${topFaculty.name} (${sorted[0][1]} classes/week)` : ''}`,
+        text: `Sir, here is the portal workload summary:\n\n• 👨‍🏫 Total Faculty: ${faculty.length}\n• 🎓 Total Batches: ${batches.length}\n• 📚 Total Weekly Loads: ${loads.length}\n• ❌ Total Cancelled: ${cancelledClasses.length}\n• ⚡ Total Extra: ${extraClasses.length}\n${topFaculty ? `\n🔥 Highest Workload: ${topFaculty.name} (${sorted[0][1]} classes/week)` : ''}`,
       };
     }
 
     // 11. Jokes
     if (q.includes('joke') || q.includes('chutkula') || q.includes('masti')) {
       const jokes = [
-        `Sun Flash Sir! Ek student ne exam me likha: "Bhagwan sab janta hai!"\nTeacher ne result me likha: "Bhagwan ko 100 me se 100, aur beta tumhein agle saal phir se!" 😂`,
-        `Sir, ek coder ne doctor se kaha: "Doctor sahab, mera dimaag 404 Not Found error de raha hai!"\nDoctor: "Bhai coffee piyo aur cache clear karo!" 🤣`,
+        `Sunie Sir! Student: "Teacher, kya aap mujhe us galti ki saza denge jo maine nahi ki?"\nTeacher: "Nahi beta bilkul nahi!"\nStudent: "Acha hua sir, maine aaj homework hi nahi kiya!" 😂`,
+        `Sir, why do programmers prefer dark mode?\nBecause light attracts bugs! 😆`,
       ];
       return {
         text: jokes[Math.floor(Math.random() * jokes.length)],
@@ -807,7 +786,7 @@ export function AIAssistant({
 
     // Default Fallback
     return {
-      text: `Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? Maine poora portal scan kar rakha hai!`,
+      text: `Hello Sir, batao aapki kaise help kar sakti hoon? Aap mujhse kisi bhi teacher ka timetable, cancelled classes ya room status pooch sakte hain. Main turant answer de dungi!`,
     };
   };
 
@@ -831,8 +810,9 @@ export function AIAssistant({
     if (apiKey.trim()) {
       try {
         const portalSummary = `User: Krishna Sir (Krishna Ji).
-Assistant Name: Nic.
-Standard Opening Greeting: "Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?"
+Assistant: Mayra (AI Portal Assistant).
+Opening Greeting: "Hello Sir, kaise ho aap?"
+Languages: English & Hindi (Bilingual).
 Total Faculty: ${faculty.length}
 Total Batches: ${batches.length}
 Total Loads: ${loads.length}
@@ -851,11 +831,11 @@ Today: ${DAYS[new Date().getDay()]}`;
                   role: 'user',
                   parts: [
                     {
-                      text: `You are Nic, the AI Assistant for Faculty Load Portal.
+                      text: `You are Mayra, a female AI Assistant for the Faculty Load Portal.
 Always address user as "Krishna Sir" or "Sir".
-When greeted or asked general things, start with: "Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?".
+You speak fluent English and Hindi.
 Portal context: ${portalSummary}
-User question: "${query}". Reply warmly and accurately in Hinglish with instant answers.`,
+User question: "${query}". Reply warmly and accurately (2-3 sentences).`,
                     },
                   ],
                 },
@@ -869,7 +849,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
           responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         }
       } catch (e) {
-        console.warn('Gemini fallback to local intelligent search:', e);
+        console.warn('Gemini fallback:', e);
       }
     }
 
@@ -884,12 +864,11 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
       sender: 'assistant',
       text: responseText,
       timestamp: new Date(),
-      personaUsed: persona,
       quickAction: actionItem,
     };
 
     setMessages(prev => [...prev, botMsg]);
-    speakText(responseText, persona);
+    speakText(responseText);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -904,89 +883,44 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
       {
         id: Date.now().toString(),
         sender: 'assistant',
-        text: 'Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai? 🚀',
+        text: 'Hello Sir, kaise ho aap? Chat fresh ho gayi hai. Bataiye kya madad kar sakti hoon? 🌸',
         timestamp: new Date(),
-        personaUsed: persona,
       },
     ]);
   };
 
-  const personaConfig = {
-    dost: {
-      name: 'Nic (Dost Mode)',
-      role: 'Casual & Best Friend',
-    },
-    man: {
-      name: 'Nic (Real Man)',
-      role: 'Deep Masculine',
-    },
-    woman: {
-      name: 'Nic (Real Woman)',
-      role: 'Warm Feminine',
-    },
-    child: {
-      name: 'Nic (Real Child)',
-      role: 'Cute & Playful',
-    },
-  };
-
   const quickPrompts = [
-    { label: '👋 Haan Sir batao...', query: 'Haan Nic batao' },
-    { label: 'Aaj ka timetable? 📅', query: 'Aaj ka schedule kya hai?' },
-    { label: 'Cancelled classes? ❌', query: 'Kitni classes cancel hui hain?' },
-    { label: 'Kaun faculty free hai? 👨‍🏫', query: 'Aaj kaun kaun free hai?' },
-    { label: 'Extra classes? ⚡', query: 'Extra classes list batao' },
-    { label: 'Highest workload? 🔥', query: 'Sabse zyada load kiska hai?' },
-    { label: 'Ek joke sunao! 😂', query: 'Nic ek badhiya joke sunao' },
+    { label: '🌸 Hello Sir, kaise ho?', query: 'Hello Mayra kaise ho' },
+    { label: '📅 Aaj ka timetable?', query: 'Aaj ka schedule kya hai?' },
+    { label: '❌ Cancelled classes?', query: 'Kitni classes cancel hui hain?' },
+    { label: '👨‍🏫 Kaun free hai?', query: 'Aaj kaun kaun free hai?' },
+    { label: '⚡ Extra classes?', query: 'Extra classes list batao' },
+    { label: '🔥 Highest load?', query: 'Sabse zyada load kiska hai?' },
   ];
 
   return (
     <>
-      {/* 🤖 Floating Cartoon Robot with "Nic AI" Label */}
+      {/* 🌸 Clean Circular Floating Girl Robot Button (No text pill) */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
-          {/* Main Cartoon Robot Button */}
-          <div
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
             onClick={() => {
               setIsOpen(true);
-              speakText('Haan Sir batao, aapki kaise help kar sakta hoon? Aapko aaj kis cheez ke baare me jaana hai?');
+              speakText('Hello Sir, kaise ho aap?');
             }}
-            className="group relative flex items-center gap-3 pl-2 pr-4 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-full shadow-2xl hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 transition-all duration-300 border border-white/30 cursor-pointer"
-            title="Click to talk to Nic AI"
+            className="group relative w-16 h-16 rounded-full bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-1 shadow-2xl hover:shadow-pink-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-white/50 flex items-center justify-center cursor-pointer"
+            title="Click to talk to Mayra (Girl Robot)"
           >
-            {/* Live Indicator Pulse */}
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            {/* Live Online Ping Dot */}
+            <span className="absolute top-0 right-0 flex h-4 w-4">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-white"></span>
             </span>
 
-            {/* Cartoon Robot */}
-            <div className="w-11 h-11 flex-shrink-0 animate-bounce duration-1000">
-              <CartoonRobotSVG size={44} isSpeaking={isSpeaking} isListening={isListening} />
+            {/* Girl Robot Icon with Float Animation */}
+            <div className="w-full h-full flex items-center justify-center animate-bounce duration-1000">
+              <GirlRobotSVG size={46} isSpeaking={isSpeaking} isListening={isListening} />
             </div>
-
-            <div className="text-left">
-              <p className="text-xs font-black tracking-wide leading-tight flex items-center gap-1.5">
-                Nic AI <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 font-semibold">Online</span>
-              </p>
-              <p className="text-[11px] text-white/90 font-medium flex items-center gap-1">
-                Boliye: "Haan Nic..." 🎙️
-              </p>
-            </div>
-          </div>
-
-          {/* Direct One-Click Mic Button */}
-          <button
-            onClick={() => {
-              setIsOpen(true);
-              setTimeout(() => {
-                toggleListening();
-              }, 200);
-            }}
-            className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border border-white/30"
-            title="Direct Voice (Click & Speak to Nic)"
-          >
-            <Mic className="w-5 h-5 animate-pulse" />
           </button>
         </div>
       )}
@@ -994,34 +928,34 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
       {/* Main Chat Drawer */}
       {isOpen && (
         <div
-          className={`fixed right-3 sm:right-6 bottom-3 sm:bottom-6 z-50 transition-all duration-300 shadow-2xl rounded-3xl overflow-hidden border border-slate-700/80 bg-slate-900/95 backdrop-blur-2xl flex flex-col text-white ${
-            isMinimized ? 'w-80 h-16' : 'w-[94vw] sm:w-[440px] h-[640px] max-h-[92vh]'
+          className={`fixed right-3 sm:right-6 bottom-3 sm:bottom-6 z-50 transition-all duration-300 shadow-2xl rounded-3xl overflow-hidden border border-pink-500/30 bg-slate-900/95 backdrop-blur-2xl flex flex-col text-white ${
+            isMinimized ? 'w-80 h-16' : 'w-[94vw] sm:w-[430px] h-[640px] max-h-[92vh]'
           }`}
         >
           {/* Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 border-b border-slate-800 flex items-center justify-between select-none">
+          <div className="px-4 py-3 bg-gradient-to-r from-slate-950 via-purple-950 to-pink-950 border-b border-pink-500/20 flex items-center justify-between select-none">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 flex-shrink-0">
-                <CartoonRobotSVG size={40} isSpeaking={isSpeaking} isListening={isListening} />
+                <GirlRobotSVG size={42} isSpeaking={isSpeaking} isListening={isListening} />
               </div>
 
               <div>
                 <h3 className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-                  Nic (Aapka AI Assistant)
+                  Mayra <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-semibold border border-pink-500/30">AI Assistant</span>
                 </h3>
-                <p className="text-[10px] text-slate-300 flex items-center gap-1 font-medium">
+                <p className="text-[10px] text-pink-200/80 flex items-center gap-1 font-medium">
                   {isListening ? (
                     <span className="text-red-400 flex items-center gap-1 font-bold animate-pulse">
-                      <Radio className="w-3 h-3" /> Nic sun raha hai... Boliye!
+                      <Radio className="w-3 h-3" /> Mayra sun rahi hai... Boliye!
                     </span>
                   ) : isSpeaking ? (
-                    <span className="text-cyan-400 flex items-center gap-1 font-semibold">
-                      <Radio className="w-3 h-3 animate-pulse" /> Nic bol raha hai...
+                    <span className="text-pink-300 flex items-center gap-1 font-semibold">
+                      <Radio className="w-3 h-3 animate-pulse" /> Mayra bol rahi hai...
                     </span>
                   ) : (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span>Krishna Sir ke liye ready • 100% Portal Access</span>
+                      <span>Krishna Sir ke liye ready • Hindi & English</span>
                     </>
                   )}
                 </p>
@@ -1033,7 +967,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
               <button
                 onClick={toggleVoice}
                 className={`p-1.5 rounded-lg transition-colors ${
-                  voiceEnabled ? 'text-cyan-400 hover:bg-cyan-500/20' : 'text-slate-500 hover:bg-slate-800 line-through'
+                  voiceEnabled ? 'text-pink-300 hover:bg-pink-500/20' : 'text-slate-500 hover:bg-slate-800 line-through'
                 }`}
                 title={voiceEnabled ? 'Voice Mute karein' : 'Voice Unmute karein'}
               >
@@ -1043,9 +977,9 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 className={`p-1.5 rounded-lg transition-colors ${
-                  showSettings ? 'text-amber-400 bg-slate-800' : 'text-slate-400 hover:bg-slate-800'
+                  showSettings ? 'text-pink-300 bg-slate-800' : 'text-slate-400 hover:bg-slate-800'
                 }`}
-                title="Voice Settings & ElevenLabs"
+                title="Settings & ElevenLabs"
               >
                 <Settings className="w-4 h-4" />
               </button>
@@ -1073,63 +1007,13 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
 
           {!isMinimized && (
             <>
-              {/* Persona Selector Bar */}
-              <div className="px-3 py-2 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-slate-400 font-semibold">Voice Mode:</span>
-                <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
-                  <button
-                    onClick={() => handlePersonaChange('dost')}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                      persona === 'dost'
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <span>🤝 Dost</span>
-                  </button>
-
-                  <button
-                    onClick={() => handlePersonaChange('man')}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                      persona === 'man'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <span>🧔 Man</span>
-                  </button>
-
-                  <button
-                    onClick={() => handlePersonaChange('woman')}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                      persona === 'woman'
-                        ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <span>👩 Woman</span>
-                  </button>
-
-                  <button
-                    onClick={() => handlePersonaChange('child')}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                      persona === 'child'
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <span>👦 Child</span>
-                  </button>
-                </div>
-              </div>
-
               {/* Settings Drawer */}
               {showSettings && (
-                <div className="p-3.5 bg-slate-800/95 border-b border-slate-700/80 text-xs space-y-3 animate-fadeIn">
+                <div className="p-3.5 bg-slate-800/95 border-b border-pink-500/20 text-xs space-y-3 animate-fadeIn">
                   <div className="flex items-center justify-between font-bold text-slate-200">
                     <span className="flex items-center gap-1.5">
-                      <Music className="w-3.5 h-3.5 text-cyan-400" />
-                      ElevenLabs Studio Quality Human Voice
+                      <Music className="w-3.5 h-3.5 text-pink-400" />
+                      Mayra's Voice Settings (ElevenLabs Option)
                     </span>
                     <button
                       onClick={clearChat}
@@ -1149,9 +1033,9 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                         checked={useElevenLabs}
                         onChange={(e) => {
                           setUseElevenLabs(e.target.checked);
-                          localStorage.setItem('ai_buddy_use_elevenlabs', String(e.target.checked));
+                          localStorage.setItem('ai_mayra_use_elevenlabs', String(e.target.checked));
                         }}
-                        className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
+                        className="w-4 h-4 rounded text-pink-600 focus:ring-0 cursor-pointer"
                       />
                     </div>
 
@@ -1162,12 +1046,12 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                         value={elevenLabsKey}
                         onChange={(e) => {
                           setElevenLabsKey(e.target.value);
-                          localStorage.setItem('ai_buddy_elevenlabs_key', e.target.value);
+                          localStorage.setItem('ai_mayra_elevenlabs_key', e.target.value);
                         }}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-blue-500"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-pink-500"
                       />
                       <p className="text-[10px] text-slate-400 mt-1">
-                        Free key elevenlabs.io se le sakte hain. Bina key ke Natural Indian Hindi Speech automatically bina atke chalega!
+                        Free key elevenlabs.io se le sakte hain. Bina key ke Natural Indian Female Voice automatically bina atke chalegi!
                       </p>
                     </div>
                   </div>
@@ -1182,9 +1066,9 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                       value={apiKey}
                       onChange={(e) => {
                         setApiKey(e.target.value);
-                        localStorage.setItem('ai_buddy_gemini_key', e.target.value);
+                        localStorage.setItem('ai_mayra_gemini_key', e.target.value);
                       }}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-blue-500"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-pink-500"
                     />
                   </div>
                 </div>
@@ -1201,14 +1085,14 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                     >
                       {!isUser && (
                         <div className="w-8 h-8 flex-shrink-0 mt-0.5">
-                          <CartoonRobotSVG size={32} />
+                          <GirlRobotSVG size={32} />
                         </div>
                       )}
 
                       <div
                         className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed shadow-sm ${
                           isUser
-                            ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-tr-none'
+                            ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-indigo-600 text-white rounded-tr-none'
                             : 'bg-slate-800/90 border border-slate-700/70 text-slate-100 rounded-tl-none'
                         }`}
                       >
@@ -1218,7 +1102,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                           <div className="mt-2.5 pt-2 border-t border-slate-700/70">
                             <button
                               onClick={m.quickAction.action}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-bold text-[11px] border border-blue-400/30 transition-all hover:scale-105 active:scale-95"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 font-bold text-[11px] border border-pink-400/30 transition-all hover:scale-105 active:scale-95"
                             >
                               <span>{m.quickAction.label}</span>
                               <ExternalLink className="w-3 h-3" />
@@ -1228,7 +1112,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
 
                         <span
                           className={`text-[9px] mt-1 block text-right font-medium opacity-60 ${
-                            isUser ? 'text-blue-100' : 'text-slate-400'
+                            isUser ? 'text-pink-100' : 'text-slate-400'
                           }`}
                         >
                           {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1249,7 +1133,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                   <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-red-950/40 border border-red-500/50 rounded-2xl text-xs text-red-200 animate-pulse shadow-lg">
                     <Mic className="w-4 h-4 text-red-400 animate-bounce" />
                     <div>
-                      <p className="font-bold text-red-300">Nic sun raha hai...</p>
+                      <p className="font-bold text-red-300">Mayra sun rahi hai...</p>
                       {interimTranscript && (
                         <p className="text-[11px] text-white/90 italic">"{interimTranscript}"</p>
                       )}
@@ -1259,15 +1143,15 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
 
                 {/* Animated Speaking Wave */}
                 {isSpeaking && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/95 border border-cyan-500/40 rounded-xl w-fit shadow-lg animate-fadeIn">
-                    <span className="text-[11px] text-cyan-300 font-bold flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-                      Nic bol raha hai...
+                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/95 border border-pink-500/40 rounded-xl w-fit shadow-lg animate-fadeIn">
+                    <span className="text-[11px] text-pink-300 font-bold flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+                      Mayra bol rahi hai...
                     </span>
                     <div className="flex items-center gap-0.5">
-                      <span className="w-1 h-3.5 bg-cyan-400 animate-bounce rounded-full" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1 h-5 bg-cyan-400 animate-bounce rounded-full" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1 h-2.5 bg-cyan-400 animate-bounce rounded-full" style={{ animationDelay: '300ms' }} />
+                      <span className="w-1 h-3.5 bg-pink-400 animate-bounce rounded-full" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1 h-5 bg-pink-400 animate-bounce rounded-full" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1 h-2.5 bg-pink-400 animate-bounce rounded-full" style={{ animationDelay: '300ms' }} />
                     </div>
                     <button
                       onClick={stopSpeaking}
@@ -1289,8 +1173,8 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                     onClick={() => handleSend(p.query)}
                     className={`whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all hover:scale-105 active:scale-95 flex-shrink-0 ${
                       idx === 0
-                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold hover:bg-emerald-500/30'
-                        : 'bg-slate-800 hover:bg-indigo-600/30 text-slate-300 hover:text-indigo-200 border-slate-700/80'
+                        ? 'bg-pink-500/20 border-pink-500/40 text-pink-300 font-bold hover:bg-pink-500/30'
+                        : 'bg-slate-800 hover:bg-pink-600/30 text-slate-300 hover:text-pink-200 border-slate-700/80'
                     }`}
                   >
                     {p.label}
@@ -1308,7 +1192,7 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                       ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/60 scale-110'
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                   }`}
-                  title={isListening ? 'Sun raha hoon... Click karein band karne ke liye' : 'Microphone se boliye (Krishna Sir)'}
+                  title={isListening ? 'Sun rahi hoon... Click karein band karne ke liye' : 'Microphone se boliye (Hindi ya English)'}
                 >
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
@@ -1317,20 +1201,20 @@ User question: "${query}". Reply warmly and accurately in Hinglish with instant 
                   type="text"
                   placeholder={
                     isListening
-                      ? 'Krishna Sir boliye... Nic sun raha hai...'
-                      : 'Poochiye: "Haan Sir batao..." ya koi bhi timetable...'
+                      ? 'Krishna Sir boliye... Mayra sun rahi hai...'
+                      : 'Ask in English or Hindi (e.g. "Dr. Sharma schedule", "free faculty")...'
                   }
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all"
                 />
 
                 <button
                   type="button"
                   onClick={() => handleSend()}
                   disabled={!inputText.trim()}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:opacity-90 disabled:opacity-40 transition-all duration-300 hover:scale-105 active:scale-95 shadow-md"
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-indigo-600 text-white hover:opacity-90 disabled:opacity-40 transition-all duration-300 hover:scale-105 active:scale-95 shadow-md"
                   title="Send message"
                 >
                   <Send className="w-4 h-4" />
