@@ -181,22 +181,74 @@ export function AIAssistant({
     }
   }, []);
 
-  // Pick smooth, natural female voice for Mayra
+  // Filter out all male voices strictly
+  const isMaleVoice = (v: SpeechSynthesisVoice): boolean => {
+    const name = v.name.toLowerCase();
+    return (
+      (name.includes('male') && !name.includes('female')) ||
+      name.includes('alex') ||
+      name.includes('fred') ||
+      name.includes('daniel') ||
+      name.includes('david') ||
+      name.includes('george') ||
+      name.includes('rishi') ||
+      name.includes('oliver') ||
+      name.includes('thomas') ||
+      name.includes('ravi') ||
+      name.includes('guy') ||
+      name.includes('mark') ||
+      name.includes('google हिन्दी') // Chrome's Google हिन्दी is a male voice
+    );
+  };
+
+  // Pick genuine, smooth human female voice for Mayra (Women Voice)
   const getMayraVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
-    if (!availableVoices.length) return { voice: null, pitch: 1.12, rate: 0.98 };
+    if (!availableVoices.length) return { voice: null, pitch: 1.25, rate: 1.0 };
 
-    // Find Indian Female / Natural Female voice
+    // 1. Check Indian Female voices first
     const indianFemale = availableVoices.find(v => 
-      (v.name.includes('Lekha') || v.name.includes('Swara') || v.name.includes('Neerja'))
+      !isMaleVoice(v) && (
+        v.name.includes('Veena') ||  // Apple Indian English Female
+        v.name.includes('Lekha') ||  // Apple Hindi Female
+        v.name.includes('Neerja') || // Microsoft Indian Female
+        v.name.includes('Swara') ||  // Microsoft Indian Female
+        v.name.includes('Heera')     // Microsoft Indian Female
+      )
     ) || availableVoices.find(v => 
-      (v.lang === 'hi-IN' || v.lang === 'en-IN') && v.name.toLowerCase().includes('female')
-    ) || availableVoices.find(v => 
-      v.name.includes('Google हिन्दी')
-    ) || availableVoices.find(v => 
-      v.name.includes('Samantha') || v.name.includes('Victoria') || v.name.toLowerCase().includes('female')
-    ) || availableVoices[0];
+      !isMaleVoice(v) && 
+      (v.lang === 'hi-IN' || v.lang === 'en-IN') && 
+      v.name.toLowerCase().includes('female')
+    );
 
-    return { voice: indianFemale || null, pitch: 1.12, rate: 0.98 };
+    if (indianFemale) {
+      return { voice: indianFemale, pitch: 1.22, rate: 0.98 };
+    }
+
+    // 2. High-quality natural English Female voices
+    const englishFemale = availableVoices.find(v => 
+      !isMaleVoice(v) && (
+        v.name.toLowerCase().includes('female') ||
+        v.name.includes('Samantha') || // Apple smooth US Female
+        v.name.includes('Victoria') ||
+        v.name.includes('Karen') ||
+        v.name.includes('Zira') ||
+        v.name.includes('Google UK English Female') ||
+        v.name.includes('Google US English Female')
+      )
+    );
+
+    if (englishFemale) {
+      return { voice: englishFemale, pitch: 1.22, rate: 0.98 };
+    }
+
+    // 3. Fallback to any voice that is NOT male
+    const nonMale = availableVoices.find(v => !isMaleVoice(v));
+    if (nonMale) {
+      return { voice: nonMale, pitch: 1.25, rate: 0.98 };
+    }
+
+    // 4. Force high female pitch if system only has generic voice
+    return { voice: null, pitch: 1.3, rate: 0.98 };
   };
 
   const stopSpeaking = () => {
@@ -793,22 +845,37 @@ User question: "${query}". Reply warmly and accurately in human female tone (2-3
 
   return (
     <>
-      {/* 👩 Stable, Large AI Human Woman Avatar (Mayra) - No background, No bounce */}
+      {/* 👩 Stable AI Human Woman Avatar (Mayra) with Thought Cloud */}
       {!isOpen && (
         <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50">
-          <button
-            onClick={() => {
-              setIsOpen(true);
-              speakText('Hello Sir, kaise ho aap?');
-            }}
-            className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
-            title="Click to talk to Mayra"
-          >
-            {/* Stable, Large Mayra GIF (No background, No bounce) */}
-            <div className="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
-              <AIHumanWomanAvatar size={144} isSpeaking={isSpeaking} isListening={isListening} />
+          <div className="relative flex flex-col items-end">
+            {/* 💭 Authentic Comic Thought Cloud Bubble */}
+            <div className="absolute -top-16 right-0 sm:right-2 z-20 pointer-events-none select-none transition-all duration-300">
+              <div className="relative bg-white text-slate-800 text-[11px] sm:text-xs font-bold px-3.5 py-1.5 rounded-[20px] shadow-lg border border-pink-200/90 whitespace-nowrap flex items-center gap-1.5 backdrop-blur-sm">
+                <span className="text-pink-500">✨</span>
+                <span>Hi Sir, I am Mayra! How can I help you?</span>
+              </div>
+              {/* Cloud Trail Dots pointing toward Mayra */}
+              <div className="flex flex-col items-end mr-10 -space-y-0.5 mt-0.5">
+                <span className="w-2.5 h-2.5 bg-white rounded-full border border-pink-200 shadow-sm"></span>
+                <span className="w-1.5 h-1.5 bg-white rounded-full border border-pink-200 shadow-sm mr-2 mt-0.5"></span>
+              </div>
             </div>
-          </button>
+
+            <button
+              onClick={() => {
+                setIsOpen(true);
+                speakText('Hello Sir, kaise ho aap?');
+              }}
+              className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
+              title="Click to talk to Mayra"
+            >
+              {/* Stable Mayra GIF (Dialed down 1-2px: 138px) */}
+              <div className="w-[134px] h-[134px] sm:w-[138px] sm:h-[138px] flex items-center justify-center">
+                <AIHumanWomanAvatar size={138} isSpeaking={isSpeaking} isListening={isListening} />
+              </div>
+            </button>
+          </div>
         </div>
       )}
 
