@@ -101,6 +101,62 @@ function AIHumanWomanAvatar({
   );
 }
 
+// 💭 Authentic Comic Puffy Thought Cloud with Lobes & Trail Dots
+function ComicThoughtCloud() {
+  return (
+    <div className="relative inline-flex items-center justify-center select-none pointer-events-none drop-shadow-md">
+      <svg
+        viewBox="0 0 240 120"
+        className="w-44 sm:w-52 h-auto"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Cloud Body - Overlapping Fluffy Circles & Lobes */}
+        <g fill="#ffffff" stroke="#f472b6" strokeWidth="2" strokeLinejoin="round">
+          {/* Main solid center body */}
+          <ellipse cx="118" cy="50" rx="84" ry="28" fill="#ffffff" stroke="none" />
+
+          {/* Outer Cloud Puffs / Lobes */}
+          <circle cx="48" cy="50" r="26" />
+          <circle cx="76" cy="28" r="24" />
+          <circle cx="118" cy="22" r="26" />
+          <circle cx="160" cy="28" r="24" />
+          <circle cx="188" cy="50" r="26" />
+          <circle cx="164" cy="72" r="22" />
+          <circle cx="118" cy="76" r="24" />
+          <circle cx="72" cy="72" r="22" />
+
+          {/* Clean pure white center fill to cover internal overlapping lines */}
+          <ellipse cx="118" cy="50" rx="82" ry="26" fill="#ffffff" stroke="none" />
+          <circle cx="76" cy="32" r="20" fill="#ffffff" stroke="none" />
+          <circle cx="118" cy="26" r="22" fill="#ffffff" stroke="none" />
+          <circle cx="160" cy="32" r="20" fill="#ffffff" stroke="none" />
+          <circle cx="48" cy="50" r="22" fill="#ffffff" stroke="none" />
+          <circle cx="188" cy="50" r="22" fill="#ffffff" stroke="none" />
+          <circle cx="164" cy="68" r="18" fill="#ffffff" stroke="none" />
+          <circle cx="118" cy="72" r="20" fill="#ffffff" stroke="none" />
+          <circle cx="72" cy="68" r="18" fill="#ffffff" stroke="none" />
+
+          {/* Comic Thought Trail Dots leading down to Mayra */}
+          <circle cx="176" cy="95" r="5.5" />
+          <circle cx="184" cy="108" r="3.5" />
+        </g>
+      </svg>
+
+      {/* Text inside the Cloud */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pb-5 px-5 text-center pointer-events-none">
+        <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-800 leading-tight flex items-center gap-1">
+          <span className="text-pink-500">✨</span>
+          <span>Hi Sir, I am Mayra!</span>
+        </span>
+        <span className="text-[9px] sm:text-[10px] font-bold text-pink-600 leading-tight">
+          How can I help you?
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function AIAssistant({
   faculty,
   batches,
@@ -845,21 +901,13 @@ User question: "${query}". Reply warmly and accurately in human female tone (2-3
 
   return (
     <>
-      {/* 👩 Stable AI Human Woman Avatar (Mayra) with Thought Cloud */}
+      {/* 👩 Stable AI Human Woman Avatar (Mayra) with Authentic Thought Cloud */}
       {!isOpen && (
-        <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50">
+        <div className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50">
           <div className="relative flex flex-col items-end">
-            {/* 💭 Authentic Comic Thought Cloud Bubble */}
-            <div className="absolute -top-16 right-0 sm:right-2 z-20 pointer-events-none select-none transition-all duration-300">
-              <div className="relative bg-white text-slate-800 text-[11px] sm:text-xs font-bold px-3.5 py-1.5 rounded-[20px] shadow-lg border border-pink-200/90 whitespace-nowrap flex items-center gap-1.5 backdrop-blur-sm">
-                <span className="text-pink-500">✨</span>
-                <span>Hi Sir, I am Mayra! How can I help you?</span>
-              </div>
-              {/* Cloud Trail Dots pointing toward Mayra */}
-              <div className="flex flex-col items-end mr-10 -space-y-0.5 mt-0.5">
-                <span className="w-2.5 h-2.5 bg-white rounded-full border border-pink-200 shadow-sm"></span>
-                <span className="w-1.5 h-1.5 bg-white rounded-full border border-pink-200 shadow-sm mr-2 mt-0.5"></span>
-              </div>
+            {/* 💭 Authentic Comic Puffy Thought Cloud */}
+            <div className="absolute -top-[82px] -right-2 sm:-top-[90px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
+              <ComicThoughtCloud />
             </div>
 
             <button
@@ -870,20 +918,20 @@ User question: "${query}". Reply warmly and accurately in human female tone (2-3
               className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
               title="Click to talk to Mayra"
             >
-              {/* Stable Mayra GIF (Dialed down 1-2px: 138px) */}
-              <div className="w-[134px] h-[134px] sm:w-[138px] sm:h-[138px] flex items-center justify-center">
-                <AIHumanWomanAvatar size={138} isSpeaking={isSpeaking} isListening={isListening} />
+              {/* Stable Mayra GIF (Smartphone & Desktop optimized compact size: 88px mobile / 96px desktop) */}
+              <div className="w-[84px] h-[84px] sm:w-[96px] sm:h-[96px] flex items-center justify-center">
+                <AIHumanWomanAvatar size={92} isSpeaking={isSpeaking} isListening={isListening} />
               </div>
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Chat Drawer */}
+      {/* Main Chat Drawer - Fully Responsive for all Smartphones & Desktops */}
       {isOpen && (
         <div
-          className={`fixed right-3 sm:right-6 bottom-3 sm:bottom-6 z-50 transition-all duration-300 shadow-2xl rounded-3xl overflow-hidden border border-pink-500/30 bg-slate-900/95 backdrop-blur-2xl flex flex-col text-white ${
-            isMinimized ? 'w-80 h-16' : 'w-[94vw] sm:w-[430px] h-[640px] max-h-[92vh]'
+          className={`fixed right-2 sm:right-6 bottom-2 sm:bottom-6 z-50 transition-all duration-300 shadow-2xl rounded-2xl sm:rounded-3xl overflow-hidden border border-pink-500/30 bg-slate-900/95 backdrop-blur-2xl flex flex-col text-white ${
+            isMinimized ? 'w-72 sm:w-80 h-16' : 'w-[calc(100vw-1rem)] sm:w-[420px] h-[82vh] sm:h-[620px] max-h-[92vh]'
           }`}
         >
           {/* Header */}
