@@ -191,6 +191,7 @@ export function AIAssistant({
   const recognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const hideCardTimeoutRef = useRef<any>(null);
+  const isStoppedRef = useRef<boolean>(false);
 
   // Load browser voices
   useEffect(() => {
@@ -227,60 +228,73 @@ export function AIAssistant({
     );
   };
 
-  // 🌸 Pick Cute Anime Girl Voice (Pitch 1.48 - Super sweet, lively & feminine)
+  // 🌸 Pick Cute Hindi/Indian Anime Girl Voice (Strictly NO Japanese / Foreign accents!)
   const getMayraAnimeVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
-    if (!availableVoices.length) return { voice: null, pitch: 1.48, rate: 1.08 };
+    if (!availableVoices.length) return { voice: null, pitch: 1.34, rate: 1.02 };
 
-    // 1. Japanese / Anime / Cute female voices if installed
-    const animeJapanese = availableVoices.find(v => 
-      !isMaleVoice(v) && (v.name.includes('Kyoko') || v.name.includes('Otoya') || v.lang.startsWith('ja'))
-    );
-    if (animeJapanese) {
-      return { voice: animeJapanese, pitch: 1.42, rate: 1.05 };
-    }
+    // STRICTLY EXCLUDE Japanese, Chinese, and non-Hindi/English foreign voices!
+    const isExcluded = (v: SpeechSynthesisVoice) => {
+      const n = v.name.toLowerCase();
+      const l = v.lang.toLowerCase();
+      return (
+        isMaleVoice(v) ||
+        l.startsWith('ja') ||
+        l.startsWith('zh') ||
+        l.startsWith('ko') ||
+        n.includes('kyoko') ||
+        n.includes('otoya') ||
+        n.includes('sinji') ||
+        n.includes('ting-ting')
+      );
+    };
 
-    // 2. High Quality Indian & Natural Female Voices
-    const indianFemale = availableVoices.find(v => 
-      !isMaleVoice(v) && (
-        v.name.includes('Veena') ||  // Apple Indian English Female
-        v.name.includes('Lekha') ||  // Apple Hindi Female
-        v.name.includes('Neerja') || // Microsoft Indian Female
-        v.name.includes('Swara') ||  // Microsoft Indian Female
-        v.name.includes('Heera')     // Microsoft Indian Female
+    // 1. High Priority: Pure Hindi & Indian Female Voices (Sweet, clear Hindi)
+    const hindiFemale = availableVoices.find(v => 
+      !isExcluded(v) && (
+        v.name.includes('Lekha') ||   // Apple Hindi Female
+        v.name.includes('Veena') ||   // Apple Indian English Female
+        v.name.includes('Swara') ||   // Microsoft Hindi Female
+        v.name.includes('Heera') ||   // Microsoft Hindi Female
+        v.name.includes('Neerja')     // Microsoft Indian Female
       )
     ) || availableVoices.find(v => 
-      !isMaleVoice(v) && 
-      (v.lang === 'hi-IN' || v.lang === 'en-IN') && 
+      !isExcluded(v) && 
+      (v.lang === 'hi-IN' || v.lang === 'hi_IN')
+    ) || availableVoices.find(v => 
+      !isExcluded(v) && 
+      (v.lang === 'en-IN' || v.lang === 'en_IN') && 
       v.name.toLowerCase().includes('female')
     );
 
-    if (indianFemale) {
-      return { voice: indianFemale, pitch: 1.48, rate: 1.06 };
+    if (hindiFemale) {
+      return { voice: hindiFemale, pitch: 1.34, rate: 1.02 };
     }
 
-    // 3. Apple & Windows sweet female voices
-    const cuteFemale = availableVoices.find(v => 
-      !isMaleVoice(v) && (
+    // 2. High-Quality Natural English/Hindi Female Voices (Samantha / Victoria / Google Female)
+    const naturalFemale = availableVoices.find(v => 
+      !isExcluded(v) && (
+        v.name.includes('Google UK English Female') ||
+        v.name.includes('Google US English Female') ||
         v.name.includes('Samantha') || 
         v.name.includes('Victoria') || 
         v.name.includes('Karen') ||
         v.name.includes('Zira') ||
-        v.name.includes('Google UK English Female') ||
-        v.name.includes('Google US English Female') ||
         v.name.toLowerCase().includes('female')
       )
     );
 
-    if (cuteFemale) {
-      return { voice: cuteFemale, pitch: 1.48, rate: 1.08 };
+    if (naturalFemale) {
+      return { voice: naturalFemale, pitch: 1.35, rate: 1.02 };
     }
 
-    // 4. Non-male fallback with high anime pitch
-    const nonMale = availableVoices.find(v => !isMaleVoice(v));
-    return { voice: nonMale || null, pitch: 1.5, rate: 1.08 };
+    // 3. Fallback
+    const fallback = availableVoices.find(v => !isExcluded(v));
+    return { voice: fallback || null, pitch: 1.36, rate: 1.02 };
   };
 
+  // 🛑 Instant and unblockable speech stopper
   const stopSpeaking = () => {
+    isStoppedRef.current = true;
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
@@ -292,10 +306,11 @@ export function AIAssistant({
     setIsSpeaking(false);
   };
 
-  // 🎙️ Anime Girl Voice Synthesizer
+  // 🎙️ Anime Girl Voice Synthesizer in Hindi
   const speakAnimeVoice = async (fullText: string) => {
     if (!voiceEnabled) return;
     stopSpeaking();
+    isStoppedRef.current = false; // Reset stop flag for new speech
 
     const clean = fullText
       .replace(/[*_#`~•]/g, ' ')
@@ -322,9 +337,14 @@ export function AIAssistant({
     let currentIndex = 0;
 
     const speakNextChunk = () => {
+      // 🛑 If stopped by user, cancel everything immediately!
+      if (isStoppedRef.current) {
+        setIsSpeaking(false);
+        return;
+      }
+
       if (currentIndex >= sentenceChunks.length) {
         setIsSpeaking(false);
-        // Reset emotion after speaking
         setTimeout(() => setEmotion('normal'), 2500);
         return;
       }
@@ -335,17 +355,27 @@ export function AIAssistant({
       const utterance = new SpeechSynthesisUtterance(chunk);
       if (voice) {
         utterance.voice = voice;
-        utterance.lang = voice.lang || 'hi-IN';
+        utterance.lang = voice.lang && voice.lang.startsWith('hi') ? 'hi-IN' : 'en-IN';
+      } else {
+        utterance.lang = 'hi-IN';
       }
       utterance.pitch = pitch;
       utterance.rate = rate;
       utterance.volume = 1.0;
 
       utterance.onend = () => {
+        if (isStoppedRef.current) {
+          setIsSpeaking(false);
+          return;
+        }
         setTimeout(speakNextChunk, 40);
       };
 
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
+        if (isStoppedRef.current) {
+          setIsSpeaking(false);
+          return;
+        }
         speakNextChunk();
       };
 
@@ -359,6 +389,23 @@ export function AIAssistant({
   const processVoiceCommand = (rawText: string) => {
     const q = rawText.toLowerCase().trim();
     const today = DAYS[new Date().getDay()];
+
+    // 🛑 0. IMMEDIATE STOP / CHUP COMMAND
+    if (
+      q.includes('stop') || 
+      q.includes('chup') || 
+      q.includes('shant') || 
+      q.includes('ruko') || 
+      q.includes('ruk ja') ||
+      q.includes('bas') ||
+      q.includes('quiet')
+    ) {
+      stopSpeaking();
+      setEmotion('normal');
+      setLastSpeechResponse('Ji Sir, chup ho gayi.');
+      setShowSubtitleCard(false);
+      return;
+    }
 
     setLastUserCommand(rawText);
     setShowSubtitleCard(true);
@@ -544,6 +591,21 @@ export function AIAssistant({
 
         recognition.onresult = (event: any) => {
           for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const currentTranscript = event.results[i][0].transcript.trim().toLowerCase();
+
+            // 🛑 INSTANT REAL-TIME STOP: Even during interim or final speech
+            const hasStop = /\b(stop|chup|shant|ruko|ruk|quiet|bas)\b/i.test(currentTranscript);
+            const mentionsMayra = /\b(mayra|maira|myra|mera|aira|meera)\b/i.test(currentTranscript);
+
+            if (hasStop && (mentionsMayra || currentTranscript.length <= 15)) {
+              console.log('🛑 Real-time Mayra Stop triggered:', currentTranscript);
+              stopSpeaking();
+              setEmotion('normal');
+              setLastSpeechResponse('Ji Sir, chup ho gayi.');
+              setShowSubtitleCard(false);
+              return;
+            }
+
             if (event.results[i].isFinal) {
               const transcript = event.results[i][0].transcript.trim();
               console.log('Voice heard:', transcript);
