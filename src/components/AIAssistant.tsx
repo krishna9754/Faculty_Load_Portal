@@ -274,6 +274,12 @@ export function AIAssistant({
   const isRecognizingRef = useRef<boolean>(false);
   const interimTimerRef = useRef<any>(null);
 
+  // 🛡️ Loop Protection & Acoustic Echo Cancellation Refs
+  const isSpeakingRef = useRef<boolean>(false);
+  const echoCooldownUntilRef = useRef<number>(0);
+  const lastCommandTimeRef = useRef<number>(0);
+  const lastCommandTextRef = useRef<string>('');
+
   // 🎵 Preload and decode custom studio voice into Web Audio buffer for instant, unblocked playback
   useEffect(() => {
     let active = true;
@@ -422,6 +428,8 @@ export function AIAssistant({
   // 🛑 Instant and unblockable speech stopper
   const stopSpeaking = () => {
     isStoppedRef.current = true;
+    isSpeakingRef.current = false;
+    echoCooldownUntilRef.current = Date.now() + 500;
     if (customAudioElementRef.current) {
       try {
         customAudioElementRef.current.pause();
@@ -434,7 +442,7 @@ export function AIAssistant({
     setIsSpeaking(false);
   };
 
-  // 🎙️ Natural Human Girl Voice Synthesizer
+  // 🎙️ Natural Human Girl Voice Synthesizer (Pure Devanagari Hindi or cleaned English)
   const speakAnimeVoice = async (fullText: string) => {
     if (!voiceEnabled) return;
     stopSpeaking();
@@ -459,12 +467,16 @@ export function AIAssistant({
     if (sentences.length === 0) return;
 
     setIsSpeaking(true);
+    isSpeakingRef.current = true;
+    echoCooldownUntilRef.current = Date.now() + 10000;
     const { voice, pitch, rate } = getMayraAnimeVoice();
     let currentIdx = 0;
 
     const speakNextSentence = () => {
       if (isStoppedRef.current || currentIdx >= sentences.length) {
         setIsSpeaking(false);
+        isSpeakingRef.current = false;
+        echoCooldownUntilRef.current = Date.now() + 1200;
         setTimeout(() => setEmotion('normal'), 2000);
         // Hands-free continuous listening: Ensure mic is re-armed after speaking!
         setTimeout(() => {
@@ -492,6 +504,8 @@ export function AIAssistant({
       utterance.onend = () => {
         if (isStoppedRef.current) {
           setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          echoCooldownUntilRef.current = Date.now() + 1200;
           return;
         }
         setTimeout(speakNextSentence, 40);
@@ -500,6 +514,8 @@ export function AIAssistant({
       utterance.onerror = () => {
         if (isStoppedRef.current) {
           setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          echoCooldownUntilRef.current = Date.now() + 1200;
           return;
         }
         speakNextSentence();
@@ -516,6 +532,8 @@ export function AIAssistant({
     stopSpeaking();
     isStoppedRef.current = false;
     setIsSpeaking(true);
+    isSpeakingRef.current = true;
+    echoCooldownUntilRef.current = Date.now() + 10000;
     setEmotion('happy');
     const greetingText = 'Hello Sir, aap kaise ho? Main kya help kar sakti hoon?';
     setLastSpeechResponse(greetingText);
@@ -523,6 +541,8 @@ export function AIAssistant({
 
     const onAudioDone = () => {
       setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      echoCooldownUntilRef.current = Date.now() + 1200;
       setTimeout(() => setEmotion('normal'), 2000);
       // Hands-free continuous listening: Ensure mic is re-armed after greeting!
       setTimeout(() => {
@@ -574,6 +594,44 @@ export function AIAssistant({
     }
   };
 
+  // 🎵 Studio Voice Clip Player for consistent human girl voice across all navigation commands!
+  const playAudioClip = (audioUrl: string, fallbackDevanagariText: string) => {
+    stopSpeaking();
+    isStoppedRef.current = false;
+    setIsSpeaking(true);
+    isSpeakingRef.current = true;
+    echoCooldownUntilRef.current = Date.now() + 10000;
+
+    const onAudioDone = () => {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      echoCooldownUntilRef.current = Date.now() + 1200;
+      setTimeout(() => setEmotion('normal'), 2000);
+      setTimeout(() => {
+        if (micActiveRef.current && !isMicMuted && !isRecognizingRef.current) {
+          try { startListenerRef.current?.(); } catch (e) {}
+        }
+      }, 400);
+    };
+
+    try {
+      const audio = new Audio(audioUrl);
+      customAudioElementRef.current = audio;
+      audio.onended = onAudioDone;
+      audio.onerror = () => {
+        speakAnimeVoice(fallbackDevanagariText);
+      };
+      const p = audio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          speakAnimeVoice(fallbackDevanagariText);
+        });
+      }
+    } catch (e) {
+      speakAnimeVoice(fallbackDevanagariText);
+    }
+  };
+
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions (Devanagari Hindi & Hinglish support)
   const processVoiceCommand = (rawText: string) => {
     const q = rawText.toLowerCase().trim();
@@ -601,6 +659,7 @@ export function AIAssistant({
       setEmotion('normal');
       setLastSpeechResponse('Ji Sir, chup ho gayi.');
       setShowSubtitleCard(false);
+      playAudioClip('/audio/nav-stop.wav', 'जी सर, चुप हो गई।');
       return;
     }
 
@@ -627,7 +686,7 @@ export function AIAssistant({
     ) {
       const resp = 'Theek hai Sir! Main ye baat ignore kar rahi hoon. 😊';
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      speakAnimeVoice('ठीक है सर! मैं यह बात इग्नोर कर रही हूँ।');
       return;
     }
 
@@ -638,7 +697,7 @@ export function AIAssistant({
       setEmotion('sad');
       const resp = 'Sir mujhse koi galti hui kya? Aap gussa kar rahe ho... 🥺 Maaf kar dijiye na Sir, main aage se dhyan rakhungi.';
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      speakAnimeVoice('सर मुझसे कोई गलती हुई क्या? आप गुस्सा कर रहे हो... माफ कर दीजिए ना सर।');
       return;
     }
 
@@ -649,210 +708,281 @@ export function AIAssistant({
       setEmotion('blush');
       const resp = 'Aww thank you so much Sir! 🥰 Aap itne pyaar se baat karte ho to mujhe sach me sharm aa jaati hai... Hehe!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      speakAnimeVoice('थैंक यू सो मच सर! आप इतने प्यार से बात करते हो तो मुझे सच में शर्म आ जाती है।');
       return;
     }
 
-    // 5. DIRECT ANSWER: Free Faculty Check (Prioritized!) & Navigate to Section
+    // 4. 🎯 NAVIGATION: PLANNER / BATCH SYLLABUS (Requested by Sir!)
+    if (
+      q.includes('planner') || 
+      q.includes('planer') || 
+      q.includes('plan') || 
+      q.includes('syllabus') || 
+      q.includes('batch plan') ||
+      q.includes('batch syllabus') ||
+      q.includes('बैच सिलेबस') || 
+      q.includes('प्लानर') || 
+      q.includes('प्लान') || 
+      q.includes('सिलेबस')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('batchSyllabus');
+      const resp = 'Ji Sir! Planner aur Batch Syllabus screen open kar di hai.';
+      setLastSpeechResponse(resp);
+      playAudioClip('/audio/nav-planner.wav', 'जी सर! प्लानर स्क्रीन ओपन कर दी है।');
+      return;
+    }
+
+    // 5. 🎯 DIRECT ANSWER & NAV: Free Faculty Check & Free Slots Screen
     if (
       q.includes('free') || 
       q.includes('khali') || 
-      q.includes('available') ||
-      q.includes('kaun free') ||
-      q.includes('aaj free') ||
-      q.includes('konsa') ||
-      q.includes('kaunsa') ||
-      q.includes('फ्री') ||
-      q.includes('खाली') ||
-      q.includes('उपलब्ध') ||
-      q.includes('कौन फ्री') ||
-      q.includes('फ्री फैकल्टी') ||
-      q.includes('टीचर फ्री') ||
-      q.includes('कौन सा') ||
-      q.includes('कौनसा')
+      q.includes('available') || 
+      q.includes('kaun free') || 
+      q.includes('aaj free') || 
+      q.includes('konsa') || 
+      q.includes('kaunsa') || 
+      q.includes('slot') || 
+      q.includes('slots') || 
+      q.includes('faculty slot') || 
+      q.includes('free slot') || 
+      q.includes('availability') ||
+      q.includes('फ्री') || 
+      q.includes('खाली') || 
+      q.includes('उपलब्ध') || 
+      q.includes('कौन फ्री') || 
+      q.includes('फ्री फैकल्टी') || 
+      q.includes('टीचर फ्री') || 
+      q.includes('स्लॉट') || 
+      q.includes('स्लॉट्स') || 
+      q.includes('उपलब्धता')
     ) {
-      if (onNavigateTab) onNavigateTab('facultyAvailability');
+      if (onNavigateTabRef.current) onNavigateTabRef.current('facultyAvailability');
 
-      // Find busy faculty for today
-      const dayLoads = loads.filter(l => l.day_of_week.toLowerCase() === today.toLowerCase());
+      const dayLoads = loadsRef.current.filter(l => l.day_of_week.toLowerCase() === today.toLowerCase());
       const busyFacultyIds = new Set(dayLoads.map(l => l.faculty_id));
+      const freeFaculties = facultyRef.current.filter(f => !busyFacultyIds.has(f.id));
 
-      const freeFaculties = faculty.filter(f => !busyFacultyIds.has(f.id));
-
-      if (dayLoads.length === 0 || freeFaculties.length === faculty.length) {
-        const resp = `Haii Sir! Aaj koi bhi lecture schedule nahi hai, sabhi faculty free hain! Main aapko live availability screen par le aayi hoon. 😊`;
+      if (dayLoads.length === 0 || freeFaculties.length === facultyRef.current.length) {
+        const resp = 'Ji Sir! Aaj koi bhi lecture schedule nahi hai, sabhi faculty free hain!';
         setLastSpeechResponse(resp);
-        speakAnimeVoice(resp);
+        playAudioClip('/audio/nav-freeslots.wav', 'जी सर! फैकल्टी फ्री स्लॉट्स और उपलब्धता स्क्रीन ओपन कर दी है।');
         return;
       }
 
       if (freeFaculties.length > 0) {
-        const names = freeFaculties.slice(0, 5).map(f => f.name).join(', ');
-        const extraCount = freeFaculties.length > 5 ? ` aur ${freeFaculties.length - 5} anya teachers` : '';
-        const resp = `Sir! Aaj ye faculty free hain: ${names}${extraCount}! Main aapko availability screen par le aayi hoon.`;
+        const names = freeFaculties.slice(0, 4).map(f => f.name).join(', ');
+        const extraCount = freeFaculties.length > 4 ? ` aur ${freeFaculties.length - 4} anya teachers` : '';
+        const resp = `Sir! Aaj ye faculty free hain: ${names}${extraCount}!`;
         setLastSpeechResponse(resp);
-        speakAnimeVoice(resp);
+        playAudioClip('/audio/nav-freeslots.wav', `जी सर! आज ये टीचर्स फ्री हैं: ${names}।`);
         return;
       }
 
-      const resp = `Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko availability screen par le aayi hoon.`;
+      const resp = 'Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko availability screen par le aayi hoon.';
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      playAudioClip('/audio/nav-freeslots.wav', 'जी सर! फैकल्टी फ्री स्लॉट्स और उपलब्धता स्क्रीन ओपन कर दी है।');
       return;
     }
 
-    // 6. NAVIGATION: Faculty Slots & Availability Screen
-    if (
-      q.includes('slot') || 
-      q.includes('slots') ||
-      q.includes('faculty slot') || 
-      q.includes('free slot') ||
-      q.includes('availability') ||
-      q.includes('स्लॉट') ||
-      q.includes('स्लॉट्स') ||
-      q.includes('उपलब्धता')
-    ) {
-      if (onNavigateTab) onNavigateTab('facultyAvailability');
-      const resp = `Haii Sir! Main aapko Faculty Slots aur Availability screen par le aayi hoon! Yahan aap live slots check kar sakte hain.`;
-      setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
-      return;
-    }
-
-    // 7. NAVIGATION: Timetable / Schedule Screen
-    if (
-      q.includes('timetable') || 
-      q.includes('time table') ||
-      q.includes('schedule') || 
-      q.includes('lecture') || 
-      q.includes('lectures') ||
-      q.includes('class') || 
-      q.includes('classes') ||
-      q.includes('search') ||
-      q.includes('टाइम टेबल') ||
-      q.includes('टाइमटेबल') ||
-      q.includes('शेड्यूल') ||
-      q.includes('लेक्चर') ||
-      q.includes('क्लास') ||
-      q.includes('कक्षा') ||
-      q.includes('समय सारणी')
-    ) {
-      if (onNavigateTab) onNavigateTab('search');
-      const resp = `Ji Sir! Timetable aur Lectures screen open kar di hai!`;
-      setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
-      return;
-    }
-
-    // 8. NAVIGATION: Extra Classes / Reschedule
-    if (
-      q.includes('extra class') || 
-      q.includes('extra') ||
-      q.includes('cancelled') || 
-      q.includes('cancel') ||
-      q.includes('reschedule') || 
-      q.includes('substitute') ||
-      q.includes('एक्स्ट्रा') ||
-      q.includes('एक्स्ट्रा क्लास') ||
-      q.includes('कैंसिल') ||
-      q.includes('रद्द')
-    ) {
-      if (onNavigateTab) onNavigateTab('extraReschedule');
-      const count = cancelledClasses.length;
-      const resp = `Sir, Extra classes aur Cancelled classes screen open kar di hai! Portal par total ${count} cancelled lectures hain.`;
-      setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
-      return;
-    }
-
-    // 9. NAVIGATION: Faculty Directory
+    // 6. 🎯 NAVIGATION: Faculty Directory
     if (
       q.includes('faculty list') || 
+      q.includes('faculty directory') || 
       q.includes('teacher list') || 
       q.includes('sabhi teacher') || 
-      q.includes('faculty') ||
-      q.includes('teacher') ||
-      q.includes('teachers') ||
-      q.includes('फैकल्टी') ||
-      q.includes('टीचर्स') ||
-      q.includes('अध्यापक') ||
+      q.includes('faculty') || 
+      q.includes('teacher') || 
+      q.includes('teachers') || 
+      q.includes('prof') || 
+      q.includes('professor') ||
+      q.includes('फैकल्टी') || 
+      q.includes('टीचर्स') || 
+      q.includes('अध्यापक') || 
       q.includes('शिक्षक')
     ) {
-      if (onNavigateTab) onNavigateTab('faculty');
-      const resp = `Ji Sir! Faculty Directory screen open ho gayi hai. Total ${faculty.length} teachers registered hain.`;
+      if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
+      const resp = `Ji Sir! Faculty Directory screen open ho gayi hai. Total ${facultyRef.current.length} teachers registered hain.`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      playAudioClip('/audio/nav-faculty.wav', 'जी सर! फैकल्टी डायरेक्टरी स्क्रीन ओपन कर दी है।');
       return;
     }
 
-    // 10. NAVIGATION: Batches & Syllabus
+    // 7. 🎯 NAVIGATION: Timetable / Lectures / Schedule
     if (
-      q.includes('batch') || 
-      q.includes('batches') || 
-      q.includes('syllabus') ||
-      q.includes('बैच') ||
-      q.includes('बैचेस') ||
-      q.includes('सिलेबस')
+      q.includes('timetable') || 
+      q.includes('time table') || 
+      q.includes('schedule') || 
+      q.includes('lecture') || 
+      q.includes('lectures') || 
+      q.includes('class') || 
+      q.includes('classes') || 
+      q.includes('search') || 
+      q.includes('load search') ||
+      q.includes('टाइम टेबल') || 
+      q.includes('टाइमटेबल') || 
+      q.includes('शेड्यूल') || 
+      q.includes('लेक्चर') || 
+      q.includes('क्लास') || 
+      q.includes('सर्च')
     ) {
-      if (onNavigateTab) onNavigateTab('batchSyllabus');
-      const resp = `Ji Sir! Batches aur Syllabus screen open kar di hai.`;
+      if (onNavigateTabRef.current) onNavigateTabRef.current('search');
+      const resp = 'Ji Sir! Timetable aur Live Schedule screen open kar di hai!';
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      playAudioClip('/audio/nav-search.wav', 'जी सर! टाइमटेबल और लाइव शेड्यूल स्क्रीन ओपन कर दी है।');
       return;
     }
 
-    // 11. NAVIGATION: Dashboard / Home
+    // 8. 🎯 NAVIGATION: Add Load
+    if (
+      q.includes('add load') || 
+      q.includes('add lecture') || 
+      q.includes('new load') || 
+      q.includes('create load') ||
+      q.includes('एड लोड') || 
+      q.includes('नया लोड')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
+      const resp = 'Ji Sir! Add Load screen open kar di hai.';
+      setLastSpeechResponse(resp);
+      playAudioClip('/audio/nav-addload.wav', 'जी सर! ऐड लोड स्क्रीन ओपन कर दी है।');
+      return;
+    }
+
+    // 9. 🎯 NAVIGATION: Batches
+    if (
+      q.includes('batches') || 
+      q.includes('batch list') || 
+      q.includes('sabhi batch') || 
+      q.includes('बैच') || 
+      q.includes('बैचेस')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
+      const resp = 'Ji Sir! Batches screen open kar di hai.';
+      setLastSpeechResponse(resp);
+      playAudioClip('/audio/nav-batches.wav', 'जी सर! बैचेस स्क्रीन ओपन कर दी है।');
+      return;
+    }
+
+    // 10. 🎯 NAVIGATION: Clash Alerts
+    if (
+      q.includes('clash') || 
+      q.includes('clashes') || 
+      q.includes('conflict') || 
+      q.includes('overlap') || 
+      q.includes('क्लैश')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('clashes');
+      const resp = 'Ji Sir! Clash Alerts screen open kar di hai.';
+      setLastSpeechResponse(resp);
+      playAudioClip('/audio/nav-clashes.wav', 'जी सर! क्लैश अलर्ट्स स्क्रीन ओपन कर दी है।');
+      return;
+    }
+
+    // 11. 🎯 NAVIGATION: Date Alerts
+    if (
+      q.includes('date alert') || 
+      q.includes('date alerts') || 
+      q.includes('alert') || 
+      q.includes('alerts') || 
+      q.includes('अलर्ट') || 
+      q.includes('अलर्ट्स')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('alerts');
+      const resp = 'Ji Sir! Date Alerts screen open kar di hai.';
+      setLastSpeechResponse(resp);
+      playAudioClip('/audio/nav-alerts.wav', 'जी सर! डेट अलर्ट्स स्क्रीन ओपन कर दी है।');
+      return;
+    }
+
+    // 12. 🎯 NAVIGATION: Mail Tracker
+    if (
+      q.includes('mail') || 
+      q.includes('email') || 
+      q.includes('mail tracker') || 
+      q.includes('मेल') || 
+      q.includes('ईमेल')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('mailTracker');
+      const resp = 'Ji Sir! Mail Tracker screen open kar di hai.';
+      setLastSpeechResponse(resp);
+      playAudioClip('/audio/nav-mail.wav', 'जी सर! मेल ट्रैकर स्क्रीन ओपन कर दी है।');
+      return;
+    }
+
+    // 13. 🎯 NAVIGATION: Extra Classes / Reschedule
+    if (
+      q.includes('extra class') || 
+      q.includes('extra') || 
+      q.includes('cancelled') || 
+      q.includes('cancel') || 
+      q.includes('reschedule') || 
+      q.includes('substitute') || 
+      q.includes('एक्स्ट्रा') || 
+      q.includes('एक्स्ट्रा क्लास') || 
+      q.includes('कैंसिल') || 
+      q.includes('रद्द')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('extraReschedule');
+      const count = cancelledClassesRef.current.length;
+      const resp = `Sir! Extra aur Cancelled classes screen open kar di hai. Total ${count} cancelled lectures hain.`;
+      setLastSpeechResponse(resp);
+      playAudioClip('/audio/nav-extra.wav', 'जी सर! एक्स्ट्रा और कैंसिल्ड क्लासेस स्क्रीन ओपन कर दी है।');
+      return;
+    }
+
+    // 14. 🎯 NAVIGATION: Dashboard / Home
     if (
       q.includes('dashboard') || 
       q.includes('home') || 
-      q.includes('main page') ||
-      q.includes('डैशबोर्ड') ||
+      q.includes('main page') || 
+      q.includes('overview') ||
+      q.includes('डैशबोर्ड') || 
       q.includes('होम')
     ) {
-      if (onNavigateTab) onNavigateTab('dashboard');
-      const resp = `Ji Sir! Dashboard screen par le aayi hoon.`;
+      if (onNavigateTabRef.current) onNavigateTabRef.current('dashboard');
+      const resp = 'Ji Sir! Dashboard screen par le aayi hoon.';
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      playAudioClip('/audio/nav-dashboard.wav', 'जी सर! डैशबोर्ड स्क्रीन पर ले आई हूँ।');
       return;
     }
 
-    // 12. Identity check: Who am I?
+    // 15. Identity check: Who am I?
     if (
       q.includes('mera naam') || 
       q.includes('who am i') || 
-      q.includes('krishna') ||
-      q.includes('मेरा नाम') ||
-      q.includes('मैं कौन हूं') ||
+      q.includes('krishna') || 
+      q.includes('मेरा नाम') || 
+      q.includes('मैं कौन हूं') || 
       q.includes('कृष्णा')
     ) {
-      const resp = `Aap is portal ke Tony Stark hain, Sir! Hamare Head Administrator aur Chief Architect! JARVIS system aapke aadesh par hamesha taiyar hai. 🙏`;
+      const resp = 'Aap is portal ke Tony Stark hain, Sir! Hamare Head Administrator aur Chief Architect! JARVIS system aapke aadesh par hamesha taiyar hai. 🙏';
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      speakAnimeVoice('आप इस पोर्टल के टोनी स्टार्क हैं, सर! हमारे हेड एडमिनिस्ट्रेटर और चीफ आर्किटेक्ट!');
       return;
     }
 
-    // 13. Specific Faculty Search by Name
-    const matchedFaculty = faculty.find(f => {
+    // 16. Specific Faculty Search by Name
+    const matchedFaculty = facultyRef.current.find(f => {
       const parts = f.name.toLowerCase().split(' ');
       return parts.some(part => part.length > 2 && q.includes(part));
     });
 
     if (matchedFaculty) {
-      if (onNavigateTab) onNavigateTab('facultyAvailability');
-      const facLoads = loads.filter(l => l.faculty_id === matchedFaculty.id);
+      if (onNavigateTabRef.current) onNavigateTabRef.current('facultyAvailability');
+      const facLoads = loadsRef.current.filter(l => l.faculty_id === matchedFaculty.id);
       if (facLoads.length === 0) {
         const resp = `Sir! ${matchedFaculty.name} (${matchedFaculty.department}) ka aaj koi load nahi hai, ye free hain!`;
         setLastSpeechResponse(resp);
-        speakAnimeVoice(resp);
+        speakAnimeVoice(`सर! ${matchedFaculty.name} का आज कोई लोड नहीं है, ये फ्री हैं।`);
         return;
       }
       const resp = `Sir! ${matchedFaculty.name} ke weekly total ${facLoads.length} lectures scheduled hain!`;
       setLastSpeechResponse(resp);
-      speakAnimeVoice(resp);
+      speakAnimeVoice(`सर! ${matchedFaculty.name} के वीकली टोटल ${facLoads.length} लेक्चर्स शेड्यूल्ड हैं।`);
       return;
     }
 
-    // 14. GREETING / HELLO / KAISE HO (Plays Krishna Sir's Custom Studio Voice Recording!)
+    // 17. GREETING / HELLO / KAISE HO (Plays user's original custom studio voice recording!)
     const cleanQ = q
       .replace(/\b(mayra|maira|myra|aira|meera|jarvis)\b/gi, '')
       .replace(/(मायरा|मैरा|मीरा|जार्विस)/gi, '')
@@ -861,25 +991,47 @@ export function AIAssistant({
     if (
       cleanQ === '' || 
       cleanQ === 'mayra' || 
-      cleanQ === 'jarvis' ||
-      /\b(hello|hi|hey|namaste|pranam|kaise ho|kaisi ho|kya hal|hal chal|help)\b/i.test(cleanQ) ||
+      cleanQ === 'jarvis' || 
+      /\b(hello|hi|hey|namaste|pranam|kaise ho|kaisi ho|kya hal|hal chal|help)\b/i.test(cleanQ) || 
       /(हैलो|हेलो|हाय|हे|नमस्ते|प्रणाम|कैसे हो|कैसी हो|क्या हाल|हाल चाल|मदद)/i.test(cleanQ)
     ) {
       playGreetingAudio();
       return;
     }
 
-    // 15. Intelligent Default: Live Timetable / Search navigation (Tony Stark JARVIS style)
-    if (onNavigateTab) onNavigateTab('search');
-    const defaultResp = `Ji Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi live lectures aur free slots dekh sakte hain!`;
+    // 18. Intelligent Default: Live Timetable / Search navigation (Tony Stark JARVIS style)
+    if (onNavigateTabRef.current) onNavigateTabRef.current('search');
+    const defaultResp = 'Ji Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi live lectures aur free slots dekh sakte hain!';
     setLastSpeechResponse(defaultResp);
-    speakAnimeVoice(defaultResp);
+    playAudioClip('/audio/nav-search.wav', 'जी सर! टाइमटेबल और लाइव शेड्यूल स्क्रीन ओपन कर दी है।');
   };
 
   const processVoiceCommandRef = useRef(processVoiceCommand);
   useEffect(() => {
     processVoiceCommandRef.current = processVoiceCommand;
   });
+
+  // 🛡️ Helper to detect speaker echo of Mayra's own output phrases
+  const isEchoOfMayra = (t: string) => {
+    const s = t.toLowerCase();
+    return (
+      s.includes('le aayi hoon') ||
+      s.includes('le aai hoon') ||
+      s.includes('open kar di hai') ||
+      s.includes('khol di hai') ||
+      s.includes('chup ho gayi') ||
+      s.includes('kya help kar sakti') ||
+      s.includes('aap kaise ho') ||
+      s.includes('tony stark') ||
+      s.includes('stark ai') ||
+      s.includes('live schedule') ||
+      s.includes('sabhyata') ||
+      s.includes('planner screen') ||
+      s.includes('planer screen') ||
+      s.includes('directory screen') ||
+      s.includes('directry screen')
+    );
+  };
 
   // 🎤 Continuous Hands-Free Microphone Listener (Never auto-mutes on errors or speech end)
   useEffect(() => {
@@ -926,7 +1078,9 @@ export function AIAssistant({
         };
 
         recognition.onspeechstart = () => {
-          setIsDetectingSpeech(true);
+          if (!isSpeakingRef.current && Date.now() >= echoCooldownUntilRef.current) {
+            setIsDetectingSpeech(true);
+          }
         };
 
         recognition.onspeechend = () => {
@@ -934,7 +1088,9 @@ export function AIAssistant({
         };
 
         recognition.onsoundstart = () => {
-          setIsDetectingSpeech(true);
+          if (!isSpeakingRef.current && Date.now() >= echoCooldownUntilRef.current) {
+            setIsDetectingSpeech(true);
+          }
         };
 
         recognition.onsoundend = () => {
@@ -942,10 +1098,28 @@ export function AIAssistant({
         };
 
         const executeCommand = (cmdText: string) => {
+          // 🛡️ Loop Protection: Discard speech if Mayra is speaking or in cooldown period
+          if (isSpeakingRef.current || Date.now() < echoCooldownUntilRef.current) {
+            return;
+          }
+
           const cleanCommand = cmdText
             .replace(/\b(mayra|maira|myra|aira|meera|jarvis)\b/gi, '')
             .replace(/(मायरा|मैरा|मीरा|जार्विस)/gi, '')
             .trim();
+
+          // 🛡️ Deduplicate Loop Protection: Never execute same command twice within 2.5s
+          const now = Date.now();
+          if (
+            cleanCommand &&
+            cleanCommand === lastCommandTextRef.current &&
+            now - lastCommandTimeRef.current < 2500
+          ) {
+            console.log('🛡️ Command loop prevented, duplicate command ignored:', cleanCommand);
+            return;
+          }
+          lastCommandTextRef.current = cleanCommand;
+          lastCommandTimeRef.current = now;
 
           setTimeout(() => {
             setLiveHeardText('');
@@ -960,6 +1134,27 @@ export function AIAssistant({
         };
 
         recognition.onresult = (event: any) => {
+          // 🛡️ CRITICAL ECHO SHIELD: When Mayra is speaking or in echo cooldown, ignore speaker audio
+          if (isSpeakingRef.current || Date.now() < echoCooldownUntilRef.current) {
+            // Check only if user commands STOP / CHUP
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              const currentTranscript = event.results[i][0].transcript.trim().toLowerCase();
+              const hasStop = /^(stop|chup|shant|ruko|ruk ja|quiet|bas|स्टॉप|चुप|शांत|रुको|रुक|बस)$/i.test(currentTranscript) ||
+                /\b(mayra stop|jarvis stop|chup ho jao|chup raho|bolna band karo|stop speaking|शांत हो जाओ)\b/i.test(currentTranscript);
+              if (hasStop) {
+                stopSpeaking();
+                setEmotion('normal');
+                setLastSpeechResponse('Ji Sir, chup ho gayi.');
+                setShowSubtitleCard(false);
+                setLiveHeardText('');
+                setWakeWordDetected(false);
+                if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
+                return;
+              }
+            }
+            return; // Discard speaker audio!
+          }
+
           setIsDetectingSpeech(true);
           let interim = '';
 
@@ -967,12 +1162,11 @@ export function AIAssistant({
             const currentTranscript = event.results[i][0].transcript.trim().toLowerCase();
             interim = currentTranscript;
 
-            // 🛑 INSTANT REAL-TIME STOP: Only when user explicitly commands STOP / CHUP
+            // 🛑 INSTANT REAL-TIME STOP
             const hasStop = /^(stop|chup|shant|ruko|ruk ja|quiet|bas|स्टॉप|चुप|शांत|रुको|रुक|बस)$/i.test(currentTranscript) ||
               /\b(mayra stop|jarvis stop|chup ho jao|chup raho|bolna band karo|stop speaking|शांत हो जाओ)\b/i.test(currentTranscript);
 
-            if (hasStop && isSpeaking) {
-              console.log('🛑 Real-time Stop triggered:', currentTranscript);
+            if (hasStop) {
               stopSpeaking();
               setEmotion('normal');
               setLastSpeechResponse('Ji Sir, chup ho gayi.');
@@ -989,16 +1183,24 @@ export function AIAssistant({
                 interimTimerRef.current = null;
               }
               const transcript = event.results[i][0].transcript.trim();
+              if (!transcript) return;
+
+              // Filter out echo of Mayra's output
+              if (isEchoOfMayra(transcript)) {
+                console.log('🛡️ Ignored speaker echo:', transcript);
+                return;
+              }
+
               console.log('Voice heard (Final):', transcript);
               setLiveHeardText(transcript);
               setIsDetectingSpeech(false);
               executeCommand(transcript);
             } else {
               setLiveHeardText(interim);
-              // Fallback debounce: If Chrome on mobile delays isFinal, execute interim after 1.2s silence
               if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
               interimTimerRef.current = setTimeout(() => {
-                if (interim && micActiveRef.current) {
+                if (interim && micActiveRef.current && !isSpeakingRef.current && Date.now() >= echoCooldownUntilRef.current) {
+                  if (isEchoOfMayra(interim)) return;
                   console.log('Voice heard (Debounced interim):', interim);
                   setIsDetectingSpeech(false);
                   executeCommand(interim);
