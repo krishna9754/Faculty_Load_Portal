@@ -199,7 +199,7 @@ export default function App() {
     { id: 'dashboard', label: 'Dashboard', icon: Layers, mascotColor: 'blue' },
     { id: 'addLoad', label: 'Add Load', icon: Plus, mascotColor: 'emerald' },
     { id: 'search', label: 'Faculty Load Search', icon: Search, mascotColor: 'cyan' },
-    { id: 'facultyAvailability', label: 'Faculty Free Slots', icon: UserCheck, mascotColor: 'cyan' },
+    { id: 'facultyAvailability', label: 'Spending Time', icon: UserCheck, mascotColor: 'cyan' },
     { id: 'batchSyllabus', label: 'Planner', icon: BookOpen, mascotColor: 'amber' },
     { id: 'clashes', label: 'Clash Alerts', icon: AlertTriangle, mascotColor: 'red' },
     { id: 'alerts', label: 'Date Alerts', icon: Bell, mascotColor: 'amber' },
@@ -694,7 +694,7 @@ function Dashboard({
         })}
       </div>
 
-      {/* Quick Feature Banners: Faculty Free Slots & Batch Syllabus */}
+      {/* Quick Feature Banners: Spending Time & Planner */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         <div
           className="p-4 rounded-2xl bg-white/90 backdrop-blur-sm border border-slate-200/80 shadow-xs flex items-center justify-between gap-3 group hover:border-cyan-300 transition-all cursor-pointer"
@@ -707,12 +707,12 @@ function Dashboard({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200">
-                  Live & Free Slots Tracker
+                  Live & Spending Time Tracker
                 </span>
                 <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">• Real-time</span>
               </div>
               <h3 className="text-xs font-bold text-slate-900 mt-0.5">
-                Check who is busy in class & daily free breaks
+                Check who is busy in class & daily spending time
               </h3>
             </div>
           </div>

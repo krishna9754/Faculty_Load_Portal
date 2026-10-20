@@ -1087,14 +1087,14 @@ export function FacultyAvailabilityView({
       {/* Header with Mascot */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <AnimeSectionHeader
-          title="Faculty Availability & Free Slots Tracker"
+          title="Faculty Availability & Spending Time Tracker"
           icon={CalendarClock}
           mascotVariant="sensei"
           mascotColor="cyan"
-          mascotMessage="Check live class status, shift classes between days, and inspect free slots with ninja precision!"
+          mascotMessage="Check live class status, shift classes between days, and inspect spending time with ninja precision!"
         >
           <p className="text-xs text-slate-500 font-medium mt-1">
-            Real-time occupancy, shift classes to Sunday/other days, and track daily & semester free slots ({assignedFaculty.length} faculties tracked).
+            Real-time occupancy, shift classes to Sunday/other days, and track daily & semester spending time ({assignedFaculty.length} faculties tracked).
           </p>
         </AnimeSectionHeader>
 
@@ -1137,7 +1137,7 @@ export function FacultyAvailabilityView({
             }`}
           >
             <Clock className="w-4 h-4" />
-            <span>Daily Free Slots & Schedule</span>
+            <span>Daily Spending Time & Schedule</span>
           </button>
 
           <button
@@ -2359,7 +2359,7 @@ export function FacultyAvailabilityView({
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">
-                    Faculty Free Slots Overview on {formattedSelectedDate}
+                    Faculty Spending Time Overview on {formattedSelectedDate}
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Gaps and free windows during working college hours (06:00 AM – 10:00 PM)

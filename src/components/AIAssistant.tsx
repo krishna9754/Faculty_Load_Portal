@@ -704,8 +704,13 @@ export function AIAssistant({
       return;
     }
 
-    // 5. 🎯 DIRECT ANSWER & NAV: Free Faculty Check & Free Slots Screen
+    // 5. 🎯 DIRECT ANSWER & NAV: Free Faculty Check & Spending Time Screen
     if (
+      q.includes('spending time') ||
+      q.includes('spending') ||
+      q.includes('spend time') ||
+      q.includes('स्पेंडिंग') ||
+      q.includes('स्पेंडिंग टाइम') ||
       q.includes('free') || 
       q.includes('khali') || 
       q.includes('available') || 
@@ -737,7 +742,7 @@ export function AIAssistant({
       if (dayLoads.length === 0 || freeFaculties.length === facultyRef.current.length) {
         const resp = 'Ji Sir! Aaj koi bhi lecture schedule nahi hai, sabhi faculty free hain!';
         setLastSpeechResponse(resp);
-        playAudioClip('/audio/nav-freeslots.wav', 'जी सर! फैकल्टी फ्री स्लॉट्स और उपलब्धता स्क्रीन ओपन कर दी है।');
+        playAudioClip('/audio/nav-freeslots.wav', 'जी सर! स्पेंडिंग टाइम और फैकल्टी उपलब्धता स्क्रीन ओपन कर दी है।');
         return;
       }
 
@@ -750,9 +755,9 @@ export function AIAssistant({
         return;
       }
 
-      const resp = 'Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko availability screen par le aayi hoon.';
+      const resp = 'Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko Spending Time screen par le aayi hoon.';
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-freeslots.wav', 'जी सर! फैकल्टी फ्री स्लॉट्स और उपलब्धता स्क्रीन ओपन कर दी है।');
+      playAudioClip('/audio/nav-freeslots.wav', 'जी सर! स्पेंडिंग टाइम और फैकल्टी उपलब्धता स्क्रीन ओपन कर दी है।');
       return;
     }
 
