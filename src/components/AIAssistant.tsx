@@ -54,7 +54,7 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 // ElevenLabs Voice ID for Mayra (Studio Human Female Voice)
 const ELEVENLABS_MAYRA_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel
 
-// 👩 Animated AI Human Woman Avatar (Mayra GIF)
+// 👩 Animated AI Human Woman Avatar (Mayra GIF) - Pure transparent & stable
 function AIHumanWomanAvatar({
   size = 48,
   isSpeaking = false,
@@ -66,30 +66,15 @@ function AIHumanWomanAvatar({
 }) {
   return (
     <div
-      className="relative flex items-center justify-center select-none"
+      className="relative flex items-center justify-center select-none bg-transparent"
       style={{ width: size, height: size }}
     >
-      {/* Outer Pulse / Ping Glow Ring */}
-      <span
-        className={`absolute inset-0 rounded-full transition-all duration-300 pointer-events-none ${
-          isListening
-            ? 'border-2 border-red-500 animate-ping'
-            : isSpeaking
-            ? 'border-2 border-pink-400 animate-pulse ring-2 ring-pink-500/50'
-            : 'border border-pink-400/40'
-        }`}
-      />
-
-      {/* Animated Avatar GIF */}
+      {/* Animated Avatar GIF - Pure transparent background */}
       <img
         src={mayraGif}
         alt="Mayra AI Assistant"
-        className={`w-full h-full rounded-full object-cover shadow-md transition-all duration-300 border-2 bg-gradient-to-tr from-pink-100 to-indigo-100 ${
-          isSpeaking
-            ? 'border-pink-400 scale-105 ring-2 ring-pink-400/60'
-            : isListening
-            ? 'border-red-400 scale-105 ring-2 ring-red-400/60'
-            : 'border-pink-300/80 hover:scale-105'
+        className={`w-full h-full object-contain filter drop-shadow-md transition-transform duration-200 ${
+          isSpeaking ? 'scale-105' : ''
         }`}
         onError={(e) => {
           const target = e.currentTarget;
@@ -101,14 +86,14 @@ function AIHumanWomanAvatar({
 
       {/* Speaking Active Indicator Badge */}
       {isSpeaking && (
-        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+        <span className="absolute bottom-2 right-2 w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
           <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
         </span>
       )}
 
       {/* Listening Mic Indicator Badge */}
       {isListening && (
-        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+        <span className="absolute bottom-2 right-2 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
           <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
         </span>
       )}
@@ -808,26 +793,20 @@ User question: "${query}". Reply warmly and accurately in human female tone (2-3
 
   return (
     <>
-      {/* 👩 Elegant Circular Floating AI Human Woman Avatar (Mayra) */}
+      {/* 👩 Stable, Large AI Human Woman Avatar (Mayra) - No background, No bounce */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50">
           <button
             onClick={() => {
               setIsOpen(true);
               speakText('Hello Sir, kaise ho aap?');
             }}
-            className="group relative w-16 h-16 rounded-full bg-gradient-to-tr from-pink-500 via-rose-500 to-indigo-600 p-1 shadow-2xl hover:shadow-pink-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-white/60 flex items-center justify-center cursor-pointer overflow-visible"
-            title="Click to talk to Mayra (AI Human Assistant)"
+            className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
+            title="Click to talk to Mayra"
           >
-            {/* Live Online Ping Dot */}
-            <span className="absolute top-0 right-0 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-white"></span>
-            </span>
-
-            {/* AI Human Woman Avatar with Floating/Bobbing Effect */}
-            <div className="w-full h-full flex items-center justify-center animate-bounce duration-1000">
-              <AIHumanWomanAvatar size={48} isSpeaking={isSpeaking} isListening={isListening} />
+            {/* Stable, Large Mayra GIF (No background, No bounce) */}
+            <div className="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
+              <AIHumanWomanAvatar size={144} isSpeaking={isSpeaking} isListening={isListening} />
             </div>
           </button>
         </div>
