@@ -1232,7 +1232,24 @@ export function AIAssistant({
       return;
     }
 
-    // 13. 🎯 NAVIGATION: EXTRA & RESCHEDULE (Proactive Ask!)
+    // 13. 🎯 NAVIGATION: EXTRA & RESCHEDULE / INDIAN HOLIDAYS (Proactive Ask!)
+    if (
+      q.includes('holiday') ||
+      q.includes('holidays') ||
+      q.includes('chutti') ||
+      q.includes('chhutti') ||
+      q.includes('chhuttiyan') ||
+      q.includes('छुट्टी') ||
+      q.includes('छुट्टियां') ||
+      q.includes('हॉलिडे')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('extraReschedule');
+      const resp = 'Ji Sir! Main Extra and Reschedule ke Indian Holidays section par aa gayi hoon. Yahan sabhi Indian National holidays ki chutti mapped hai aur routine classes off hain. Agar kisi teacher ko chutti ke din special class leni hai, to yahan entry kar sakte hain!';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice('जी सर! मैं इंडियन हॉलिडेज और स्पेशल क्लासेस सेक्शन पर आ गई हूँ। यहाँ छुट्टियों के दिन रूटीन क्लासेस ऑफ हैं, और स्पेशल क्लास की एंट्री की जा सकती है!');
+      return;
+    }
+
     if (
       q.includes('extra class') || 
       q.includes('extra') || 

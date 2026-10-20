@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Faculty, Batch, FacultyLoadWithDetails, ExtraClassWithDetails, RescheduledClassWithDetails, CancelledClassWithDetails } from '@/lib/supabase';
 import { AnimeMascot } from '@/components/AnimeMascot';
+import { IndianHolidaysManager, DEFAULT_INDIAN_HOLIDAYS } from '@/components/IndianHolidaysManager';
 import * as XLSX from 'xlsx';
 import {
   CalendarPlus,
@@ -701,7 +702,7 @@ function ExportButtons({ onBulk, onSingle, singleDisabled }: { onBulk: () => voi
 
 /* ==================== Main View ==================== */
 
-type SubTab = 'liveManager' | 'extra' | 'reschedule' | 'cancelled';
+type SubTab = 'liveManager' | 'extra' | 'reschedule' | 'cancelled' | 'holidays';
 
 export function ExtraRescheduleView({
   faculty, batches, loads,
@@ -720,11 +721,20 @@ export function ExtraRescheduleView({
   const groupedResched = groupRescheduledClasses(rescheduledClasses);
   const groupedCancel = groupCancelledClasses(cancelledClasses);
 
+  const holidaySpecialCount = useMemo(() => {
+    return extraClasses.filter(ec => {
+      const hasHoliday = String(ec.reason || '').toLowerCase().includes('holiday');
+      const isHolidayDate = DEFAULT_INDIAN_HOLIDAYS.some(h => h.date === ec.date);
+      return hasHoliday || isHolidayDate;
+    }).length;
+  }, [extraClasses]);
+
   const tabs: { id: SubTab; label: string; icon: typeof CalendarPlus; count: number; color: string }[] = [
     { id: 'liveManager', label: 'Faculty Live Classes', icon: Zap, count: runningSessions.length, color: 'emerald' },
     { id: 'extra', label: 'Extra Classes', icon: CalendarPlus, count: groupedExtra.length, color: 'blue' },
     { id: 'reschedule', label: 'Rescheduled', icon: RefreshCw, count: groupedResched.length, color: 'amber' },
     { id: 'cancelled', label: 'Cancelled', icon: XCircle, count: groupedCancel.length, color: 'red' },
+    { id: 'holidays', label: 'Indian Holidays & Special Classes', icon: Sparkles, count: holidaySpecialCount, color: 'purple' },
   ];
 
   const colorMap: Record<string, { gradient: string; shadow: string; glow: string; bg: string; text: string; badge: string }> = {
@@ -732,6 +742,7 @@ export function ExtraRescheduleView({
     blue: { gradient: 'from-blue-600 via-cyan-500 to-teal-400', shadow: 'shadow-blue-500/30', glow: 'anime-glow-blue', bg: 'from-blue-50/80 to-cyan-50/80', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-700' },
     amber: { gradient: 'from-amber-500 via-orange-500 to-rose-400', shadow: 'shadow-amber-500/30', glow: 'anime-glow-amber', bg: 'from-amber-50/80 to-orange-50/80', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' },
     red: { gradient: 'from-red-500 via-rose-500 to-pink-400', shadow: 'shadow-red-500/30', glow: 'anime-glow-red', bg: 'from-red-50/80 to-rose-50/80', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
+    purple: { gradient: 'from-purple-600 via-violet-500 to-indigo-500', shadow: 'shadow-purple-500/30', glow: 'anime-glow-purple', bg: 'from-purple-50/80 to-violet-50/80', text: 'text-purple-600', badge: 'bg-purple-100 text-purple-700' },
   };
 
   return (
@@ -784,6 +795,15 @@ export function ExtraRescheduleView({
           groupedItems={groupedCancel}
           extraClasses={groupedExtra}
           rescheduledClasses={groupedResched}
+          onChange={onChange}
+        />
+      )}
+      {subTab === 'holidays' && (
+        <IndianHolidaysManager
+          faculty={faculty}
+          batches={batches}
+          loads={loads}
+          extraClasses={extraClasses}
           onChange={onChange}
         />
       )}
