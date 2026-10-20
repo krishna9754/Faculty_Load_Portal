@@ -294,6 +294,9 @@ export function AIAssistant({
   const echoCooldownUntilRef = useRef<number>(0);
   const lastCommandTimeRef = useRef<number>(0);
   const lastCommandTextRef = useRef<string>('');
+  const speechSessionIdRef = useRef<number>(0);
+  const activeWebAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const activeAudioElementRef = useRef<HTMLAudioElement | null>(null);
 
   // 🎵 Preload and decode custom studio voice into Web Audio buffer for instant, unblocked playback
   useEffect(() => {
@@ -440,20 +443,57 @@ export function AIAssistant({
     return { voice: fallback || null, pitch: 1.10, rate: 1.0 };
   };
 
-  // 🛑 Instant and unblockable speech stopper
+  // 🛑 Instant and unblockable speech stopper (Terminates all audio sources cleanly)
   const stopSpeaking = () => {
     isStoppedRef.current = true;
+    speechSessionIdRef.current += 1;
     isSpeakingRef.current = false;
-    echoCooldownUntilRef.current = Date.now() + 500;
+    echoCooldownUntilRef.current = Date.now() + 600;
+
+    // 1. Stop Web Audio buffer source
+    if (activeWebAudioSourceRef.current) {
+      try {
+        activeWebAudioSourceRef.current.stop();
+        activeWebAudioSourceRef.current.disconnect();
+      } catch (e) {}
+      activeWebAudioSourceRef.current = null;
+    }
+
+    // 2. Stop active HTMLAudio clip
+    if (activeAudioElementRef.current) {
+      try {
+        activeAudioElementRef.current.pause();
+        activeAudioElementRef.current.currentTime = 0;
+      } catch (e) {}
+      activeAudioElementRef.current = null;
+    }
+
+    // 3. Stop preloaded custom audio element
     if (customAudioElementRef.current) {
       try {
         customAudioElementRef.current.pause();
         customAudioElementRef.current.currentTime = 0;
       } catch (e) {}
     }
+
+    // 4. Cancel browser TTS immediately
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
     }
+
+    // 5. Abort speech recognition buffer if active
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+    }
+    isRecognizingRef.current = false;
+
+    if (interimTimerRef.current) {
+      clearTimeout(interimTimerRef.current);
+      interimTimerRef.current = null;
+    }
+
     setIsSpeaking(false);
   };
 
@@ -481,24 +521,39 @@ export function AIAssistant({
 
     if (sentences.length === 0) return;
 
+    // 🛡️ CRITICAL LOOP SHIELD: Pause mic recognition so speaker audio cannot be heard by mic!
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+    }
+    isRecognizingRef.current = false;
+    setIsListening(false);
+    setIsDetectingSpeech(false);
+    setLiveHeardText('');
+
     setIsSpeaking(true);
     isSpeakingRef.current = true;
     echoCooldownUntilRef.current = Date.now() + 10000;
+
+    speechSessionIdRef.current += 1;
+    const thisSessionId = speechSessionIdRef.current;
+
     const { voice, pitch, rate } = getMayraAnimeVoice();
     let currentIdx = 0;
 
     const speakNextSentence = () => {
-      if (isStoppedRef.current || currentIdx >= sentences.length) {
-        setIsSpeaking(false);
-        isSpeakingRef.current = false;
-        echoCooldownUntilRef.current = Date.now() + 1200;
-        setTimeout(() => setEmotion('normal'), 2000);
-        // Hands-free continuous listening: Ensure mic is re-armed after speaking!
-        setTimeout(() => {
-          if (micActiveRef.current && !isMicMuted && !isRecognizingRef.current) {
-            try { startListenerRef.current?.(); } catch (e) {}
-          }
-        }, 400);
+      if (isStoppedRef.current || speechSessionIdRef.current !== thisSessionId || currentIdx >= sentences.length) {
+        if (speechSessionIdRef.current === thisSessionId) {
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          echoCooldownUntilRef.current = Date.now() + 800;
+          setTimeout(() => setEmotion('normal'), 1800);
+          // Hands-free continuous listening: Ensure mic is re-armed ONLY after speech is done!
+          setTimeout(() => {
+            if (micActiveRef.current && !isMicMuted && !isSpeakingRef.current) {
+              try { startListenerRef.current?.(); } catch (e) {}
+            }
+          }, 600);
+        }
         return;
       }
 
@@ -517,20 +572,14 @@ export function AIAssistant({
       utterance.volume = 1.0;
 
       utterance.onend = () => {
-        if (isStoppedRef.current) {
-          setIsSpeaking(false);
-          isSpeakingRef.current = false;
-          echoCooldownUntilRef.current = Date.now() + 1200;
+        if (isStoppedRef.current || speechSessionIdRef.current !== thisSessionId) {
           return;
         }
         setTimeout(speakNextSentence, 40);
       };
 
-      utterance.onerror = () => {
-        if (isStoppedRef.current) {
-          setIsSpeaking(false);
-          isSpeakingRef.current = false;
-          echoCooldownUntilRef.current = Date.now() + 1200;
+      utterance.onerror = (e: any) => {
+        if (isStoppedRef.current || speechSessionIdRef.current !== thisSessionId || e?.error === 'canceled' || e?.error === 'interrupted') {
           return;
         }
         speakNextSentence();
@@ -546,6 +595,16 @@ export function AIAssistant({
   const playGreetingAudio = () => {
     stopSpeaking();
     isStoppedRef.current = false;
+
+    // 🛡️ CRITICAL LOOP SHIELD: Pause mic recognition during greeting so speaker audio is not recorded
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+    }
+    isRecognizingRef.current = false;
+    setIsListening(false);
+    setIsDetectingSpeech(false);
+    setLiveHeardText('');
+
     setIsSpeaking(true);
     isSpeakingRef.current = true;
     echoCooldownUntilRef.current = Date.now() + 10000;
@@ -554,17 +613,21 @@ export function AIAssistant({
     setLastSpeechResponse(greetingText);
     setShowSubtitleCard(true);
 
+    speechSessionIdRef.current += 1;
+    const thisSessionId = speechSessionIdRef.current;
+
     const onAudioDone = () => {
+      if (speechSessionIdRef.current !== thisSessionId) return;
       setIsSpeaking(false);
       isSpeakingRef.current = false;
-      echoCooldownUntilRef.current = Date.now() + 1200;
-      setTimeout(() => setEmotion('normal'), 2000);
+      echoCooldownUntilRef.current = Date.now() + 800;
+      setTimeout(() => setEmotion('normal'), 1800);
       // Hands-free continuous listening: Ensure mic is re-armed after greeting!
       setTimeout(() => {
-        if (micActiveRef.current && !isMicMuted && !isRecognizingRef.current) {
+        if (micActiveRef.current && !isMicMuted && !isSpeakingRef.current) {
           try { startListenerRef.current?.(); } catch (e) {}
         }
-      }, 400);
+      }, 600);
     };
 
     // 1. First priority: Play pre-decoded Web Audio buffer (instant, smooth studio voice!)
@@ -577,7 +640,13 @@ export function AIAssistant({
         const source = ctx.createBufferSource();
         source.buffer = audioBufferRef.current;
         source.connect(ctx.destination);
-        source.onended = onAudioDone;
+        activeWebAudioSourceRef.current = source;
+        source.onended = () => {
+          if (activeWebAudioSourceRef.current === source) {
+            activeWebAudioSourceRef.current = null;
+          }
+          onAudioDone();
+        };
         source.start(0);
         return;
       }
@@ -589,6 +658,13 @@ export function AIAssistant({
     if (customAudioElementRef.current) {
       try {
         customAudioElementRef.current.currentTime = 0;
+        activeAudioElementRef.current = customAudioElementRef.current;
+        customAudioElementRef.current.onended = () => {
+          if (activeAudioElementRef.current === customAudioElementRef.current) {
+            activeAudioElementRef.current = null;
+          }
+          onAudioDone();
+        };
         const playPromise = customAudioElementRef.current.play();
         if (playPromise !== undefined) {
           playPromise
@@ -606,44 +682,6 @@ export function AIAssistant({
       }
     } else {
       speakAnimeVoice(greetingText);
-    }
-  };
-
-  // 🎵 Studio Voice Clip Player for consistent human girl voice across all navigation commands!
-  const playAudioClip = (audioUrl: string, fallbackDevanagariText: string) => {
-    stopSpeaking();
-    isStoppedRef.current = false;
-    setIsSpeaking(true);
-    isSpeakingRef.current = true;
-    echoCooldownUntilRef.current = Date.now() + 10000;
-
-    const onAudioDone = () => {
-      setIsSpeaking(false);
-      isSpeakingRef.current = false;
-      echoCooldownUntilRef.current = Date.now() + 1200;
-      setTimeout(() => setEmotion('normal'), 2000);
-      setTimeout(() => {
-        if (micActiveRef.current && !isMicMuted && !isRecognizingRef.current) {
-          try { startListenerRef.current?.(); } catch (e) {}
-        }
-      }, 400);
-    };
-
-    try {
-      const audio = new Audio(audioUrl);
-      customAudioElementRef.current = audio;
-      audio.onended = onAudioDone;
-      audio.onerror = () => {
-        speakAnimeVoice(fallbackDevanagariText);
-      };
-      const p = audio.play();
-      if (p !== undefined) {
-        p.catch(() => {
-          speakAnimeVoice(fallbackDevanagariText);
-        });
-      }
-    } catch (e) {
-      speakAnimeVoice(fallbackDevanagariText);
     }
   };
 
@@ -674,7 +712,7 @@ export function AIAssistant({
       setEmotion('normal');
       setLastSpeechResponse('Ji Sir, chup ho gayi.');
       setShowSubtitleCard(false);
-      playAudioClip('/audio/nav-stop.wav', 'जी सर, चुप हो गई।');
+      speakAnimeVoice('जी सर, चुप हो गई।');
       return;
     }
 
@@ -1341,7 +1379,7 @@ export function AIAssistant({
     if (onNavigateTabRef.current) onNavigateTabRef.current('search');
     const defaultResp = 'Ji Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi live lectures aur free slots dekh sakte hain!';
     setLastSpeechResponse(defaultResp);
-    playAudioClip('/audio/nav-search.wav', 'जी सर! टाइमटेबल और लाइव शेड्यूल स्क्रीन ओपन कर दी है।');
+    speakAnimeVoice('जी सर! टाइमटेबल और लाइव शेड्यूल स्क्रीन ओपन कर दी है। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!');
   };
 
   const processVoiceCommandRef = useRef(processVoiceCommand);
@@ -1360,14 +1398,21 @@ export function AIAssistant({
       s.includes('chup ho gayi') ||
       s.includes('kya help kar sakti') ||
       s.includes('aap kaise ho') ||
+      s.includes('kya help') ||
       s.includes('tony stark') ||
       s.includes('stark ai') ||
       s.includes('live schedule') ||
-      s.includes('sabhyata') ||
       s.includes('planner screen') ||
       s.includes('planer screen') ||
       s.includes('directory screen') ||
-      s.includes('directry screen')
+      s.includes('spending time screen') ||
+      s.includes('kya karna hai mujhe bata dijiye') ||
+      s.includes('isme aapko kya karna hai') ||
+      s.includes('main kar deti hoon') ||
+      s.includes('main kar deti hu') ||
+      s.includes('par aa gayi hoon') ||
+      s.includes('par aa gai hoon') ||
+      s.includes('screen par aa')
     );
   };
 
@@ -1397,6 +1442,7 @@ export function AIAssistant({
 
     const startListener = () => {
       if (!micActiveRef.current || isMicMuted) return;
+      if (isSpeakingRef.current) return; // Do not start listening while Mayra is speaking!
       if (isRecognizingRef.current) return; // Prevent duplicate instances!
 
       try {
@@ -1441,17 +1487,20 @@ export function AIAssistant({
             return;
           }
 
+          const rawLower = cmdText.toLowerCase();
           const cleanCommand = cmdText
             .replace(/\b(mayra|maira|myra|aira|meera|jarvis)\b/gi, '')
             .replace(/(मायरा|मैरा|मीरा|जार्विस)/gi, '')
             .trim();
 
-          // 🛡️ Deduplicate Loop Protection: Never execute same command twice within 2.5s
+          const hadWakeWord = /\b(mayra|maira|myra|aira|meera|jarvis)\b/i.test(rawLower) || /(मायरा|मैरा|मीरा|जार्विस)/.test(rawLower);
+
+          // 🛡️ Deduplicate Loop Protection: Never execute same command twice within 3.5s
           const now = Date.now();
           if (
             cleanCommand &&
             cleanCommand === lastCommandTextRef.current &&
-            now - lastCommandTimeRef.current < 2500
+            now - lastCommandTimeRef.current < 3500
           ) {
             console.log('🛡️ Command loop prevented, duplicate command ignored:', cleanCommand);
             return;
@@ -1465,7 +1514,10 @@ export function AIAssistant({
           }, 3000);
 
           if (!cleanCommand) {
-            processVoiceCommandRef.current?.('jarvis');
+            // Only wake greeting if wake word was explicitly spoken
+            if (hadWakeWord) {
+              processVoiceCommandRef.current?.('jarvis');
+            }
           } else {
             processVoiceCommandRef.current?.(cleanCommand);
           }
@@ -1534,16 +1586,8 @@ export function AIAssistant({
               setIsDetectingSpeech(false);
               executeCommand(transcript);
             } else {
+              // Only update live HUD text during speech; never trigger command execution on interim!
               setLiveHeardText(interim);
-              if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
-              interimTimerRef.current = setTimeout(() => {
-                if (interim && micActiveRef.current && !isSpeakingRef.current && Date.now() >= echoCooldownUntilRef.current) {
-                  if (isEchoOfMayra(interim)) return;
-                  console.log('Voice heard (Debounced interim):', interim);
-                  setIsDetectingSpeech(false);
-                  executeCommand(interim);
-                }
-              }, 1200);
             }
           }
         };
