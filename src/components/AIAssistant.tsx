@@ -237,13 +237,35 @@ export function AIAssistant({
     return saved !== null ? saved === 'true' : true;
   });
 
-  // 🎙️ Real-Time Hearing Feedback States (So Krishna Sir knows mic is receiving audio)
+  // 🎙️ Real-Time Hearing Feedback States (So Sir knows mic is receiving audio)
   const [liveHeardText, setLiveHeardText] = useState<string>('');
   const [isDetectingSpeech, setIsDetectingSpeech] = useState<boolean>(false);
   const [wakeWordDetected, setWakeWordDetected] = useState<boolean>(false);
 
+  // Stable refs for props so that speech recognition never restarts or aborts on data changes
+  const facultyRef = useRef(faculty);
+  const batchesRef = useRef(batches);
+  const loadsRef = useRef(loads);
+  const batchManagersRef = useRef(batchManagers);
+  const extraClassesRef = useRef(extraClasses);
+  const rescheduledClassesRef = useRef(rescheduledClasses);
+  const cancelledClassesRef = useRef(cancelledClasses);
+  const onNavigateTabRef = useRef(onNavigateTab);
+
+  useEffect(() => {
+    facultyRef.current = faculty;
+    batchesRef.current = batches;
+    loadsRef.current = loads;
+    batchManagersRef.current = batchManagers;
+    extraClassesRef.current = extraClasses;
+    rescheduledClassesRef.current = rescheduledClasses;
+    cancelledClassesRef.current = cancelledClasses;
+    onNavigateTabRef.current = onNavigateTab;
+  }, [faculty, batches, loads, batchManagers, extraClasses, rescheduledClasses, cancelledClasses, onNavigateTab]);
+
   const micActiveRef = useRef<boolean>(true);
   const recognitionRef = useRef<any>(null);
+  const startListenerRef = useRef<() => void>(() => {});
   const customAudioElementRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
@@ -252,7 +274,7 @@ export function AIAssistant({
   const isRecognizingRef = useRef<boolean>(false);
   const interimTimerRef = useRef<any>(null);
 
-  // 🎵 Preload and decode custom studio voice into Web Audio buffer for instant, unblocked mobile playback
+  // 🎵 Preload and decode custom studio voice into Web Audio buffer for instant, unblocked playback
   useEffect(() => {
     let active = true;
     const preloadCustomAudio = async () => {
@@ -262,7 +284,10 @@ export function AIAssistant({
         const ctx = new AudioCtx();
         audioCtxRef.current = ctx;
 
-        const res = await fetch(greetingAudioSrc);
+        let res = await fetch(greetingAudioSrc);
+        if (!res.ok) {
+          res = await fetch('/mayra-greeting.wav');
+        }
         const arrayBuf = await res.arrayBuffer();
         const decoded = await ctx.decodeAudioData(arrayBuf);
         if (active) {
@@ -315,9 +340,9 @@ export function AIAssistant({
     );
   };
 
-  // 🌸 Pick Cute Hindi/Indian Girl Voice (Sweet, human & feminine)
+  // 🌸 Pick Sweet Hindi/Indian Girl Voice (Natural, sweet human female tone - NOT high-pitched robot)
   const getMayraAnimeVoice = (): { voice: SpeechSynthesisVoice | null; pitch: number; rate: number } => {
-    if (!availableVoices.length) return { voice: null, pitch: 1.25, rate: 1.04 };
+    if (!availableVoices.length) return { voice: null, pitch: 1.10, rate: 1.02 };
 
     const isExcluded = (v: SpeechSynthesisVoice) => {
       const n = v.name.toLowerCase();
@@ -349,7 +374,7 @@ export function AIAssistant({
     );
 
     if (hindiFemale) {
-      return { voice: hindiFemale, pitch: 1.25, rate: 1.04 };
+      return { voice: hindiFemale, pitch: 1.10, rate: 1.02 };
     }
 
     // 2. Second Priority: Indian Female Voices (Veena, Neerja, Aditi, etc.)
@@ -363,12 +388,12 @@ export function AIAssistant({
         v.name.includes('Priya') ||
         ((v.lang.toLowerCase().includes('in')) && v.name.toLowerCase().includes('female'))
       )
-    ) || availableVoices.find(v =>
+    ) || availableVoices.find(v => 
       !isExcluded(v) && (v.lang.toLowerCase() === 'en-in' || v.lang.toLowerCase() === 'en_in')
     );
 
     if (indianEnglishFemale) {
-      return { voice: indianEnglishFemale, pitch: 1.28, rate: 1.03 };
+      return { voice: indianEnglishFemale, pitch: 1.12, rate: 1.0 };
     }
 
     // 3. Third Priority: Natural Sweet Female Voices
@@ -387,11 +412,11 @@ export function AIAssistant({
     );
 
     if (naturalFemale) {
-      return { voice: naturalFemale, pitch: 1.30, rate: 1.02 };
+      return { voice: naturalFemale, pitch: 1.12, rate: 1.0 };
     }
 
     const fallback = availableVoices.find(v => !isExcluded(v));
-    return { voice: fallback || null, pitch: 1.28, rate: 1.02 };
+    return { voice: fallback || null, pitch: 1.10, rate: 1.0 };
   };
 
   // 🛑 Instant and unblockable speech stopper
@@ -409,7 +434,7 @@ export function AIAssistant({
     setIsSpeaking(false);
   };
 
-  // 🎙️ Natural Human Anime Girl Voice Synthesizer
+  // 🎙️ Natural Human Girl Voice Synthesizer
   const speakAnimeVoice = async (fullText: string) => {
     if (!voiceEnabled) return;
     stopSpeaking();
@@ -440,7 +465,13 @@ export function AIAssistant({
     const speakNextSentence = () => {
       if (isStoppedRef.current || currentIdx >= sentences.length) {
         setIsSpeaking(false);
-        setTimeout(() => setEmotion('normal'), 2500);
+        setTimeout(() => setEmotion('normal'), 2000);
+        // Hands-free continuous listening: Ensure mic is re-armed after speaking!
+        setTimeout(() => {
+          if (micActiveRef.current && !isMicMuted && !isRecognizingRef.current) {
+            try { startListenerRef.current?.(); } catch (e) {}
+          }
+        }, 400);
         return;
       }
 
@@ -480,7 +511,7 @@ export function AIAssistant({
     speakNextSentence();
   };
 
-  // 🎵 JARVIS Anime Girl Voice Greeting (Addressing as "Sir")
+  // 🎵 JARVIS Girl Voice Greeting (Addressing as "Sir" - Plays real human studio recording!)
   const playGreetingAudio = () => {
     stopSpeaking();
     isStoppedRef.current = false;
@@ -489,7 +520,58 @@ export function AIAssistant({
     const greetingText = 'Hello Sir, aap kaise ho? Main kya help kar sakti hoon?';
     setLastSpeechResponse(greetingText);
     setShowSubtitleCard(true);
-    speakAnimeVoice(greetingText);
+
+    const onAudioDone = () => {
+      setIsSpeaking(false);
+      setTimeout(() => setEmotion('normal'), 2000);
+      // Hands-free continuous listening: Ensure mic is re-armed after greeting!
+      setTimeout(() => {
+        if (micActiveRef.current && !isMicMuted && !isRecognizingRef.current) {
+          try { startListenerRef.current?.(); } catch (e) {}
+        }
+      }, 400);
+    };
+
+    // 1. First priority: Play pre-decoded Web Audio buffer (instant, smooth studio voice!)
+    try {
+      const ctx = audioCtxRef.current;
+      if (ctx && audioBufferRef.current) {
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        const source = ctx.createBufferSource();
+        source.buffer = audioBufferRef.current;
+        source.connect(ctx.destination);
+        source.onended = onAudioDone;
+        source.start(0);
+        return;
+      }
+    } catch (e) {
+      console.warn('Web Audio buffer playback note, trying HTMLAudio:', e);
+    }
+
+    // 2. Fallback: HTML Audio Element
+    if (customAudioElementRef.current) {
+      try {
+        customAudioElementRef.current.currentTime = 0;
+        const playPromise = customAudioElementRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsSpeaking(true);
+            })
+            .catch(err => {
+              console.warn('HTMLAudio play failed, falling back to speech synthesis:', err);
+              speakAnimeVoice(greetingText);
+            });
+          return;
+        }
+      } catch (e) {
+        speakAnimeVoice(greetingText);
+      }
+    } else {
+      speakAnimeVoice(greetingText);
+    }
   };
 
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions (Devanagari Hindi & Hinglish support)
@@ -789,12 +871,17 @@ export function AIAssistant({
 
     // 15. Intelligent Default: Live Timetable / Search navigation (Tony Stark JARVIS style)
     if (onNavigateTab) onNavigateTab('search');
-    const defaultResp = `Krishna Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi live lectures aur free slots dekh sakte hain!`;
+    const defaultResp = `Ji Sir! Main aapko Timetable aur Live Schedule screen par le aayi hoon, yahan aap sabhi live lectures aur free slots dekh sakte hain!`;
     setLastSpeechResponse(defaultResp);
     speakAnimeVoice(defaultResp);
   };
 
-  // 🎤 Continuous Microphone Listener (Controlled purely by Mute / Unmute)
+  const processVoiceCommandRef = useRef(processVoiceCommand);
+  useEffect(() => {
+    processVoiceCommandRef.current = processVoiceCommand;
+  });
+
+  // 🎤 Continuous Hands-Free Microphone Listener (Never auto-mutes on errors or speech end)
   useEffect(() => {
     if (isMicMuted) {
       micActiveRef.current = false;
@@ -819,7 +906,7 @@ export function AIAssistant({
     let recognition: any = null;
 
     const startListener = () => {
-      if (!micActiveRef.current) return;
+      if (!micActiveRef.current || isMicMuted) return;
       if (isRecognizingRef.current) return; // Prevent duplicate instances!
 
       try {
@@ -866,9 +953,9 @@ export function AIAssistant({
           }, 3000);
 
           if (!cleanCommand) {
-            processVoiceCommand('jarvis');
+            processVoiceCommandRef.current?.('jarvis');
           } else {
-            processVoiceCommand(cleanCommand);
+            processVoiceCommandRef.current?.(cleanCommand);
           }
         };
 
@@ -922,14 +1009,10 @@ export function AIAssistant({
         };
 
         recognition.onerror = (err: any) => {
-          console.warn('SpeechRecognition error:', err?.error);
-          if (err.error === 'not-allowed') {
-            setIsMicMuted(true);
-            micActiveRef.current = false;
-            setIsListening(false);
-            setIsDetectingSpeech(false);
-          }
-          // Note: Do NOT restart here! onend will restart cleanly without duplicate collision!
+          console.warn('SpeechRecognition note/error:', err?.error);
+          setIsDetectingSpeech(false);
+          // CRITICAL: NEVER auto-mute on error! Temporary audio collisions happen on mobile.
+          // onend will cleanly re-arm the listener hands-free!
         };
 
         recognition.onend = () => {
@@ -937,11 +1020,11 @@ export function AIAssistant({
           setIsDetectingSpeech(false);
           recognitionRef.current = null;
 
-          // Auto-restart if mic is still active
-          if (micActiveRef.current) {
+          // Continuous hands-free auto-restart if mic is active and not explicitly muted by user
+          if (micActiveRef.current && !isMicMuted) {
             setTimeout(() => {
               try {
-                if (micActiveRef.current && !isRecognizingRef.current) {
+                if (micActiveRef.current && !isMicMuted && !isRecognizingRef.current) {
                   startListener();
                 }
               } catch (e) {}
@@ -950,20 +1033,21 @@ export function AIAssistant({
         };
 
         recognitionRef.current = recognition;
+        startListenerRef.current = startListener;
         recognition.start();
       } catch (e) {
         isRecognizingRef.current = false;
         console.warn('Recognition start exception, retrying:', e);
-        if (micActiveRef.current) {
+        if (micActiveRef.current && !isMicMuted) {
           setTimeout(startListener, 1000);
         }
       }
     };
 
+    startListenerRef.current = startListener;
     startListener();
 
     return () => {
-      micActiveRef.current = false;
       isRecognizingRef.current = false;
       if (interimTimerRef.current) clearTimeout(interimTimerRef.current);
       if (recognitionRef.current) {
@@ -973,7 +1057,7 @@ export function AIAssistant({
         recognitionRef.current = null;
       }
     };
-  }, [loads, faculty, extraClasses, cancelledClasses, isMicMuted]);
+  }, [isMicMuted]);
 
   // 🎙️ Toggle Mute / Unmute for Mayra Microphone (Never interrupts speaking!)
   const toggleMicMute = () => {
@@ -1001,17 +1085,27 @@ export function AIAssistant({
       }
     } else {
       // Unmuting the microphone (listening)
-      // DO NOT stop speaking!
       setIsMicMuted(false);
       micActiveRef.current = true;
       setIsListening(true);
+      setTimeout(() => {
+        if (!isRecognizingRef.current) {
+          try { startListenerRef.current?.(); } catch (e) {}
+        }
+      }, 200);
     }
   };
 
-  // Click handler on Mayra: warm greeting & wake up with custom voice
+  // Click handler on Mayra Arc Reactor: warm greeting & wake up with custom voice
   const handleMayraClick = () => {
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume();
+    }
+    // If mic was muted, click un-mutes it and starts listening
+    if (isMicMuted) {
+      setIsMicMuted(false);
+      micActiveRef.current = true;
+      setIsListening(true);
     }
     if (isSpeaking) {
       stopSpeaking();
