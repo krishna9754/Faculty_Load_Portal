@@ -45,11 +45,13 @@ function JarvisArcReactorAvatar({
   size = 96,
   isSpeaking = false,
   isListening = false,
+  isDetectingSpeech = false,
   emotion = 'normal',
 }: {
   size?: number;
   isSpeaking?: boolean;
   isListening?: boolean;
+  isDetectingSpeech?: boolean;
   emotion?: MayraEmotion;
 }) {
   return (
@@ -155,12 +157,22 @@ function JarvisArcReactorAvatar({
           className={`w-1.5 h-1.5 rounded-full ${
             isSpeaking
               ? 'bg-amber-400 animate-ping'
+              : isDetectingSpeech
+              ? 'bg-emerald-400 animate-bounce'
               : isListening
               ? 'bg-cyan-400 animate-pulse'
               : 'bg-rose-500'
           }`}
         />
-        <span>{isSpeaking ? 'TRANSMITTING' : isListening ? 'JARVIS ONLINE' : 'STANDBY'}</span>
+        <span>
+          {isSpeaking
+            ? 'COMMAND'
+            : isDetectingSpeech
+            ? 'LISTENING...'
+            : isListening
+            ? 'MAYRA ONLINE'
+            : 'STANDBY'}
+        </span>
       </div>
 
       {/* Emotion Overlay Emoji */}
@@ -170,46 +182,6 @@ function JarvisArcReactorAvatar({
       {emotion === 'blush' && (
         <span className="absolute -top-1 -right-1 text-base animate-pulse z-20">🥰</span>
       )}
-    </div>
-  );
-}
-
-// 💠 Iron Man Stark HUD Hologram Readout (Floating above the Arc Reactor)
-function JarvisHologramHud({
-  text,
-  subtitle,
-  isListening = false,
-  isSpeaking = false,
-}: {
-  text: string;
-  subtitle?: string;
-  isListening?: boolean;
-  isSpeaking?: boolean;
-}) {
-  return (
-    <div className="relative inline-flex flex-col items-end select-none pointer-events-none animate-fadeIn">
-      {/* Sci-Fi Hologram Header Tag */}
-      <div className="flex items-center gap-1.5 px-3 py-1 rounded-t-lg bg-slate-950/95 border-t border-x border-cyan-500/70 shadow-[0_0_15px_rgba(6,182,212,0.4)] backdrop-blur-md">
-        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-        <span className="text-[10px] font-mono font-bold tracking-widest text-cyan-400 uppercase">
-          STARK A.I. // JARVIS
-        </span>
-      </div>
-
-      {/* Main Holographic HUD Panel */}
-      <div className="px-3.5 py-2 rounded-b-xl rounded-tl-xl bg-slate-950/95 border border-cyan-500/70 shadow-[0_0_22px_rgba(6,182,212,0.5)] backdrop-blur-xl text-right max-w-[260px] space-y-0.5">
-        <div className="text-[11px] font-mono font-semibold text-cyan-100 tracking-wide truncate">
-          {text}
-        </div>
-        {subtitle && (
-          <div className="text-[9px] font-mono text-cyan-400/80 tracking-wider uppercase truncate">
-            {subtitle}
-          </div>
-        )}
-      </div>
-
-      {/* Cyber Reticle Line Pointer pointing down to Arc Reactor */}
-      <div className="w-0.5 h-3 bg-gradient-to-b from-cyan-400 to-transparent mr-8" />
     </div>
   );
 }
@@ -1353,26 +1325,6 @@ export function AIAssistant({
             </div>
           )}
 
-          {/* 💠 Holographic JARVIS HUD Readout */}
-          <div className="absolute -top-[82px] -right-1 sm:-top-[90px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
-            <JarvisHologramHud
-              text={
-                isSpeaking
-                  ? 'TRANSMITTING VOICE...'
-                  : isMicMuted
-                  ? 'STANDBY // TAP ARC REACTOR'
-                  : emotion === 'sad'
-                  ? 'RECALIBRATING TONE...'
-                  : emotion === 'blush'
-                  ? 'SYSTEM RUNNING OPTIMAL 🥰'
-                  : 'ALL SYSTEMS ONLINE 🎙️'
-              }
-              subtitle={isMicMuted ? 'AUDIO PAUSED // CLICK TO TALK' : isSpeaking ? 'OUTPUT ACTIVE' : 'AWAITING DIRECTIVE, SIR'}
-              isListening={!isMicMuted}
-              isSpeaking={isSpeaking}
-            />
-          </div>
-
           {/* 💬 Stark Industries JARVIS HUD Response Card */}
           {showSubtitleCard && lastSpeechResponse && (
             <div className="absolute bottom-[108px] right-0 sm:right-2 z-30 max-w-[290px] sm:max-w-[360px] bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/60 rounded-2xl p-4 shadow-[0_0_30px_rgba(6,182,212,0.35)] text-white text-xs animate-fadeIn space-y-2 select-none">
@@ -1380,7 +1332,7 @@ export function AIAssistant({
               <div className="flex items-center justify-between border-b border-cyan-500/30 pb-2">
                 <span className="font-mono font-bold text-cyan-400 flex items-center gap-1.5 text-[11px] tracking-wider uppercase">
                   <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                  <span>STARK A.I. // JARVIS PROTOCOL</span>
+                  <span>MAYRA A.I. // JARVIS PROTOCOL</span>
                 </span>
                 <button
                   onClick={() => setShowSubtitleCard(false)}
@@ -1415,13 +1367,14 @@ export function AIAssistant({
           <button
             onClick={handleMayraClick}
             className="group relative cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center mt-1"
-            title="STARK A.I. JARVIS (Click to Talk / Wake Up)"
+            title="MAYRA A.I. (Click to Talk / Wake Up)"
           >
             <div className="w-[96px] h-[96px] sm:w-[104px] sm:h-[104px] flex items-center justify-center">
               <JarvisArcReactorAvatar
                 size={100}
                 isSpeaking={isSpeaking}
                 isListening={!isMicMuted}
+                isDetectingSpeech={isDetectingSpeech || Boolean(liveHeardText && !isSpeaking)}
                 emotion={emotion}
               />
             </div>
