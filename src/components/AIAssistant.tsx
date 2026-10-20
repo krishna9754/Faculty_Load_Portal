@@ -48,9 +48,9 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 
 type MayraEmotion = 'normal' | 'sad' | 'blush' | 'happy' | 'speaking';
 
-// ⚡ Iron Man JARVIS Arc Reactor & Holographic Mayra Avatar
+// ⚡ Mayra AI Avatar with Thinking Cloud & Transparent Background
 function JarvisArcReactorAvatar({
-  size = 96,
+  size = 116,
   isSpeaking = false,
   isListening = false,
   isDetectingSpeech = false,
@@ -67,7 +67,24 @@ function JarvisArcReactorAvatar({
       className="relative flex items-center justify-center select-none"
       style={{ width: size, height: size }}
     >
-      {/* 1. Outer Arc Reactor Rotating Calibration Ring */}
+      {/* 💭 Thought Cloud Bubble ("jaise koi soch raha ho") */}
+      <div className="absolute -top-7 -right-2 z-30 pointer-events-none select-none flex flex-col items-center animate-bounce-slow">
+        {/* Thought Cloud Body */}
+        <div className="relative px-3 py-1 rounded-full bg-white/95 text-slate-800 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.45)] text-[11px] font-black tracking-wider flex items-center gap-1">
+          <span className="text-cyan-500 text-xs">✨</span>
+          <span className="bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600 bg-clip-text text-transparent font-black">
+            Mayra
+          </span>
+          <span className="text-amber-500 text-xs">💭</span>
+        </div>
+        {/* Small Thought Dots leading to head like a comic thought bubble */}
+        <div className="flex flex-col items-center -space-y-0.5 mt-0.5 -mr-4">
+          <span className="w-2 h-2 rounded-full bg-white border border-cyan-400 shadow-2xs" />
+          <span className="w-1.5 h-1.5 rounded-full bg-white border border-cyan-400 shadow-2xs mr-1" />
+        </div>
+      </div>
+
+      {/* 1. Outer Arc Reactor Rotating Calibration Ring (Holographic Tech Ring) */}
       <svg
         className={`absolute inset-0 w-full h-full pointer-events-none transition-all duration-700 ${
           isSpeaking ? 'animate-spin-slow' : isListening ? 'animate-spin-slow' : 'opacity-40'
@@ -127,25 +144,13 @@ function JarvisArcReactorAvatar({
         })}
       </svg>
 
-      {/* 3. Pulsing Arc Reactor Glow Core */}
-      <div
-        className={`absolute inset-2.5 rounded-full transition-all duration-500 backdrop-blur-md flex items-center justify-center overflow-hidden border ${
-          isSpeaking
-            ? 'bg-amber-950/50 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.8)] animate-arc-pulse'
-            : isListening
-            ? 'bg-slate-950/80 border-cyan-400 shadow-[0_0_30px_rgba(0,240,255,0.8)] animate-arc-pulse'
-            : 'bg-slate-950/85 border-slate-700 shadow-[0_0_12px_rgba(100,116,139,0.3)]'
-        }`}
-      >
-        {/* Holographic Scanline Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/15 to-transparent pointer-events-none opacity-70" />
-
-        {/* Mayra Holographic Avatar floating in Core */}
+      {/* 3. Transparent Floating Mayra Avatar Core (Dark Background Removed & Larger Size) */}
+      <div className="absolute inset-1 flex items-center justify-center pointer-events-none">
         <img
           src={mayraGif}
-          alt="Mayra JARVIS AI"
-          className={`w-[80%] h-[80%] object-contain filter drop-shadow-lg transition-transform duration-300 ${
-            isSpeaking ? 'scale-110 brightness-110' : isListening ? 'scale-105' : 'opacity-85'
+          alt="Mayra AI"
+          className={`w-[95%] h-[95%] object-contain filter drop-shadow-[0_4px_16px_rgba(6,182,212,0.4)] transition-transform duration-300 ${
+            isSpeaking ? 'scale-115 brightness-110' : isListening ? 'scale-110' : 'scale-100 opacity-95'
           }`}
           onError={(e) => {
             const target = e.currentTarget;
@@ -154,31 +159,24 @@ function JarvisArcReactorAvatar({
             }
           }}
         />
-
-        {/* Holographic Concentric Grid Lines */}
-        <div className="absolute inset-0 rounded-full border border-cyan-400/25 pointer-events-none" />
       </div>
 
-      {/* 4. Sleek Stark AI Micro HUD Tag */}
-      <div className="absolute -bottom-2 z-10 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-950/95 border border-cyan-500/70 shadow-[0_0_15px_rgba(6,182,212,0.6)] text-[9px] font-mono tracking-wider font-extrabold text-cyan-300 uppercase pointer-events-none">
+      {/* 4. Sleek Stark AI Micro HUD Tag (Only LISTENING... and COMMAND) */}
+      <div className="absolute -bottom-2 z-20 flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-950/95 border border-cyan-500/80 shadow-[0_0_15px_rgba(6,182,212,0.6)] text-[9px] font-mono tracking-wider font-extrabold text-cyan-300 uppercase pointer-events-none">
         <span
           className={`w-1.5 h-1.5 rounded-full ${
             isSpeaking
               ? 'bg-amber-400 animate-ping'
-              : isDetectingSpeech
-              ? 'bg-emerald-400 animate-bounce'
               : isListening
-              ? 'bg-cyan-400 animate-pulse'
+              ? 'bg-emerald-400 animate-pulse'
               : 'bg-rose-500'
           }`}
         />
         <span>
           {isSpeaking
             ? 'COMMAND'
-            : isDetectingSpeech
-            ? 'LISTENING...'
             : isListening
-            ? 'MAYRA ONLINE'
+            ? 'LISTENING...'
             : 'STANDBY'}
         </span>
       </div>
@@ -1737,9 +1735,9 @@ export function AIAssistant({
             className="group relative cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center mt-1"
             title="MAYRA A.I. (Click to Talk / Wake Up)"
           >
-            <div className="w-[96px] h-[96px] sm:w-[104px] sm:h-[104px] flex items-center justify-center">
+            <div className="w-[116px] h-[116px] sm:w-[124px] sm:h-[124px] flex items-center justify-center">
               <JarvisArcReactorAvatar
-                size={100}
+                size={120}
                 isSpeaking={isSpeaking}
                 isListening={!isMicMuted}
                 isDetectingSpeech={isDetectingSpeech || Boolean(liveHeardText && !isSpeaking)}
