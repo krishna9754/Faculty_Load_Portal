@@ -816,10 +816,11 @@ export function AIAssistant({
             const currentTranscript = event.results[i][0].transcript.trim().toLowerCase();
             interim = currentTranscript;
 
-            // 🛑 INSTANT REAL-TIME STOP: Even during interim or final speech
-            const hasStop = /\b(stop|chup|shant|ruko|ruk|quiet|bas)\b/i.test(currentTranscript);
+            // 🛑 INSTANT REAL-TIME STOP: Only when user explicitly commands STOP / CHUP
+            const hasStop = /^(stop|chup|shant|ruko|ruk ja|quiet|bas|स्टॉप|चुप|शांत|रुको|रुक|बस)$/i.test(currentTranscript) ||
+              /\b(mayra stop|chup ho jao|chup raho|bolna band karo|stop speaking|शांत हो जाओ)\b/i.test(currentTranscript);
 
-            if (hasStop) {
+            if (hasStop && isSpeaking) {
               console.log('🛑 Real-time Stop triggered:', currentTranscript);
               stopSpeaking();
               setEmotion('normal');
@@ -911,7 +912,7 @@ export function AIAssistant({
     };
   }, [loads, faculty, extraClasses, cancelledClasses, isMicMuted]);
 
-  // 🎙️ Toggle Mute / Unmute for Mayra
+  // 🎙️ Toggle Mute / Unmute for Mayra Microphone (Never interrupts speaking!)
   const toggleMicMute = () => {
     // Unlock custom studio voice audio on user interaction
     if (customAudioElementRef.current) {
@@ -921,25 +922,23 @@ export function AIAssistant({
     }
 
     if (!isMicMuted) {
+      // Muting ONLY the microphone (listening)
+      // DO NOT stop speaking - Mayra must finish her answer and command!
       setIsMicMuted(true);
       micActiveRef.current = false;
       setIsListening(false);
       setIsDetectingSpeech(false);
       setLiveHeardText('');
       setWakeWordDetected(false);
-      stopSpeaking();
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
       }
-      setLastSpeechResponse('Mic mute kar diya hai Krishna Sir.');
-      setShowSubtitleCard(true);
     } else {
-      stopSpeaking();
+      // Unmuting the microphone (listening)
+      // DO NOT stop speaking!
       setIsMicMuted(false);
       micActiveRef.current = true;
       setIsListening(true);
-      setLastSpeechResponse('Main sun rahi hoon Krishna Sir, boliye!');
-      setShowSubtitleCard(true);
     }
   };
 
