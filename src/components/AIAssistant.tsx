@@ -96,6 +96,13 @@ function AIHumanWomanAvatar({
           <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
         </span>
       )}
+
+      {/* Muted Indicator Badge */}
+      {!isListening && (
+        <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm" title="Mic Muted (Off)">
+          <span className="w-1.5 h-1.5 bg-white rounded-full" />
+        </span>
+      )}
     </div>
   );
 }
@@ -177,6 +184,7 @@ export function AIAssistant({
 }: AIAssistantProps) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(true); // Always ON
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(false); // 🎙️ Dedicated Mute/Unmute state
   const [emotion, setEmotion] = useState<MayraEmotion>('normal');
   const [lastSpeechResponse, setLastSpeechResponse] = useState<string>('');
   const [lastUserCommand, setLastUserCommand] = useState<string>('');
@@ -610,8 +618,20 @@ export function AIAssistant({
     speakAnimeVoice(defaultResp);
   };
 
-  // 🎤 Continuous Always-On Microphone Listener (With "Mayra" Wake Word Filter)
+  // 🎤 Continuous Microphone Listener (With "Mayra" Wake Word Filter & Mute/Unmute toggle)
   useEffect(() => {
+    if (isMicMuted) {
+      micActiveRef.current = false;
+      setIsListening(false);
+      setIsDetectingSpeech(false);
+      setLiveHeardText('');
+      setWakeWordDetected(false);
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) {}
+      }
+      return;
+    }
+
     micActiveRef.current = true;
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -755,7 +775,32 @@ export function AIAssistant({
         } catch (e) {}
       }
     };
-  }, [loads, faculty, extraClasses, cancelledClasses]);
+  }, [loads, faculty, extraClasses, cancelledClasses, isMicMuted]);
+
+  // 🎙️ Toggle Mute / Unmute for Mayra
+  const toggleMicMute = () => {
+    if (!isMicMuted) {
+      setIsMicMuted(true);
+      micActiveRef.current = false;
+      setIsListening(false);
+      setIsDetectingSpeech(false);
+      setLiveHeardText('');
+      setWakeWordDetected(false);
+      stopSpeaking();
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) {}
+      }
+      setLastSpeechResponse('Mic mute ho gaya hai Krishna Sir.');
+      setShowSubtitleCard(true);
+    } else {
+      setIsMicMuted(false);
+      micActiveRef.current = true;
+      setIsListening(true);
+      setLastSpeechResponse('Mic on ho gaya hai Sir! Mayra sun rahi hai.');
+      setShowSubtitleCard(true);
+      speakAnimeVoice('Mic on ho gaya hai Sir, main sun rahi hoon!');
+    }
+  };
 
   // Click handler on Mayra: warm greeting & wake up
   const handleMayraClick = () => {
@@ -804,7 +849,9 @@ export function AIAssistant({
           <div className="absolute -top-[80px] -right-2 sm:-top-[88px] sm:right-0 z-20 pointer-events-none select-none transition-all duration-300">
             <ComicThoughtCloud
               text={
-                isSpeaking
+                isMicMuted
+                  ? 'Mic Muted hai 🔴'
+                  : isSpeaking
                   ? 'Speaking...'
                   : emotion === 'sad'
                   ? 'Galti hui kya Sir? 🥺'
@@ -812,7 +859,7 @@ export function AIAssistant({
                   ? 'Sharm aa rahi hai 🥰'
                   : 'Say "Mayra" to talk!'
               }
-              subtitle={isSpeaking ? 'Listening...' : 'Mic is Always On 🎙️'}
+              subtitle={isMicMuted ? 'Click to UNMUTE 🎙️' : isSpeaking ? 'Listening...' : 'Mic is Live 🟢'}
               emotion={emotion}
             />
           </div>
@@ -844,31 +891,58 @@ export function AIAssistant({
 
               {/* Status footer */}
               <div className="flex items-center justify-between pt-1 text-[10px] text-pink-200/70 font-semibold">
-                <span className="flex items-center gap-1 text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Mic Always-On
+                <span className={`flex items-center gap-1 ${isMicMuted ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isMicMuted ? 'bg-rose-400' : 'bg-emerald-400 animate-pulse'}`} />
+                  {isMicMuted ? 'Mic Muted (OFF)' : 'Mic Live (ON)'}
                 </span>
-                <span>Say "Mayra" anytime</span>
+                <span>{isMicMuted ? 'Unmute to talk' : 'Say "Mayra" anytime'}</span>
               </div>
             </div>
           )}
 
-          {/* Clickable Mayra Avatar Button */}
-          <button
-            onClick={handleMayraClick}
-            className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
-            title="Click to talk to Mayra"
-          >
-            {/* Compact Size for Smartphones & Desktops */}
-            <div className="w-[82px] h-[82px] sm:w-[94px] sm:h-[94px] flex items-center justify-center">
-              <AIHumanWomanAvatar
-                size={88}
-                isSpeaking={isSpeaking}
-                isListening={isListening}
-                emotion={emotion}
-              />
-            </div>
-          </button>
+          {/* Mayra & Interactive Mute/Unmute Control Bar */}
+          <div className="flex items-center gap-2">
+            {/* 🎙️ Dedicated MUTE / UNMUTE Interactive Pill Button */}
+            <button
+              onClick={toggleMicMute}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-extrabold shadow-xl transition-all duration-300 border backdrop-blur-md cursor-pointer select-none active:scale-95 ${
+                isMicMuted
+                  ? 'bg-rose-950/95 border-rose-500/80 text-rose-300 hover:bg-rose-900 shadow-rose-900/40 ring-1 ring-rose-500/50'
+                  : 'bg-emerald-950/95 border-emerald-500/80 text-emerald-300 hover:bg-emerald-900 shadow-emerald-900/40 ring-1 ring-emerald-500/50'
+              }`}
+              title={isMicMuted ? "Mayra abhi sun nahi rahi hai (Click to UNMUTE)" : "Mayra aapki baat sun rahi hai (Click to MUTE)"}
+            >
+              {isMicMuted ? (
+                <>
+                  <MicOff className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Mic Muted 🔴</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <Mic className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Sun Rahi Hai 🟢</span>
+                </>
+              )}
+            </button>
+
+            {/* Clickable Mayra Avatar Button */}
+            <button
+              onClick={handleMayraClick}
+              className="group relative cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 bg-transparent border-0 outline-none p-0 focus:outline-none flex items-center justify-center"
+              title="Click to talk to Mayra"
+            >
+              {/* Compact Size for Smartphones & Desktops */}
+              <div className="w-[82px] h-[82px] sm:w-[94px] sm:h-[94px] flex items-center justify-center">
+                <AIHumanWomanAvatar
+                  size={88}
+                  isSpeaking={isSpeaking}
+                  isListening={!isMicMuted}
+                  emotion={emotion}
+                />
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </>
