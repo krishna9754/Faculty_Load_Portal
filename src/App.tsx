@@ -542,7 +542,7 @@ export default function App() {
         onSelectTheme={handleSelectAnimeTheme}
       />
 
-      {/* AI Assistant Kabir (Hinglish Buddy with Real Male Voice) */}
+      {/* AI Assistant Mayra (Iron Man JARVIS A.I. with Full Portal Access) */}
       <AIAssistant
         faculty={faculty}
         batches={batches}
@@ -551,7 +551,14 @@ export default function App() {
         extraClasses={extraClasses}
         rescheduledClasses={rescheduledClasses}
         cancelledClasses={cancelledClasses}
+        clashes={clashes}
+        alerts={alerts}
+        mailGroups={mailGroups}
+        activeTab={activeTab}
         onNavigateTab={(tab) => setActiveTab(tab as Tab)}
+        onRefreshData={fetchAll}
+        onOpenBulkModal={() => setBulkModalOpen(true)}
+        onOpenThemeModal={() => setThemeModalOpen(true)}
       />
     </div>
   );

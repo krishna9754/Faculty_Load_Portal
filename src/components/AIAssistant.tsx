@@ -12,14 +12,15 @@ import {
   Frown,
   X,
 } from 'lucide-react';
-import type {
-  Faculty,
-  Batch,
-  FacultyLoadWithDetails,
-  ExtraClassWithDetails,
-  RescheduledClassWithDetails,
-  CancelledClassWithDetails,
-  LoadBatchManager,
+import {
+  supabase,
+  type Faculty,
+  type Batch,
+  type FacultyLoadWithDetails,
+  type ExtraClassWithDetails,
+  type RescheduledClassWithDetails,
+  type CancelledClassWithDetails,
+  type LoadBatchManager,
 } from '@/lib/supabase';
 
 import mayraGif from '@/assets/mayra-avatar.gif';
@@ -33,7 +34,14 @@ interface AIAssistantProps {
   extraClasses: ExtraClassWithDetails[];
   rescheduledClasses: RescheduledClassWithDetails[];
   cancelledClasses: CancelledClassWithDetails[];
+  clashes?: any[];
+  alerts?: any[];
+  mailGroups?: any[];
+  activeTab?: string;
   onNavigateTab?: (tab: string) => void;
+  onRefreshData?: () => void;
+  onOpenBulkModal?: () => void;
+  onOpenThemeModal?: () => void;
 }
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -194,7 +202,14 @@ export function AIAssistant({
   extraClasses,
   rescheduledClasses,
   cancelledClasses,
+  clashes = [],
+  alerts = [],
+  mailGroups = [],
+  activeTab = 'dashboard',
   onNavigateTab,
+  onRefreshData,
+  onOpenBulkModal,
+  onOpenThemeModal,
 }: AIAssistantProps) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(true); // Always ON
@@ -222,7 +237,14 @@ export function AIAssistant({
   const extraClassesRef = useRef(extraClasses);
   const rescheduledClassesRef = useRef(rescheduledClasses);
   const cancelledClassesRef = useRef(cancelledClasses);
+  const clashesRef = useRef(clashes);
+  const alertsRef = useRef(alerts);
+  const mailGroupsRef = useRef(mailGroups);
+  const activeTabRef = useRef(activeTab);
   const onNavigateTabRef = useRef(onNavigateTab);
+  const onRefreshDataRef = useRef(onRefreshData);
+  const onOpenBulkModalRef = useRef(onOpenBulkModal);
+  const onOpenThemeModalRef = useRef(onOpenThemeModal);
 
   useEffect(() => {
     facultyRef.current = faculty;
@@ -232,8 +254,31 @@ export function AIAssistant({
     extraClassesRef.current = extraClasses;
     rescheduledClassesRef.current = rescheduledClasses;
     cancelledClassesRef.current = cancelledClasses;
+    clashesRef.current = clashes;
+    alertsRef.current = alerts;
+    mailGroupsRef.current = mailGroups;
+    activeTabRef.current = activeTab;
     onNavigateTabRef.current = onNavigateTab;
-  }, [faculty, batches, loads, batchManagers, extraClasses, rescheduledClasses, cancelledClasses, onNavigateTab]);
+    onRefreshDataRef.current = onRefreshData;
+    onOpenBulkModalRef.current = onOpenBulkModal;
+    onOpenThemeModalRef.current = onOpenThemeModal;
+  }, [
+    faculty,
+    batches,
+    loads,
+    batchManagers,
+    extraClasses,
+    rescheduledClasses,
+    cancelledClasses,
+    clashes,
+    alerts,
+    mailGroups,
+    activeTab,
+    onNavigateTab,
+    onRefreshData,
+    onOpenBulkModal,
+    onOpenThemeModal,
+  ]);
 
   const micActiveRef = useRef<boolean>(true);
   const recognitionRef = useRef<any>(null);
@@ -605,7 +650,7 @@ export function AIAssistant({
   };
 
   // 🧠 Mayra's Knowledge Engine with Direct Answers & Emotions (Devanagari Hindi & Hinglish support)
-  const processVoiceCommand = (rawText: string) => {
+  const processVoiceCommand = async (rawText: string) => {
     const q = rawText.toLowerCase().trim();
     const today = DAYS[new Date().getDay()];
 
@@ -684,7 +729,312 @@ export function AIAssistant({
       return;
     }
 
-    // 4. 🎯 NAVIGATION: PLANNER / BATCH SYLLABUS (Requested by Sir!)
+    // 🎯 TASK A: ADD LOAD VIA VOICE (Step-by-step or direct execution)
+    if (
+      q.includes('load add karo') ||
+      q.includes('load add kar do') ||
+      q.includes('naya load add') ||
+      q.includes('naya load create') ||
+      q.includes('lecture add karo') ||
+      q.includes('class add karo') ||
+      (q.includes('add') && q.includes('load') && !q.includes('addload') && !q.includes('screen') && !q.includes('chalo')) ||
+      (q.includes('create') && q.includes('load')) ||
+      q.includes('लोड ऐड') ||
+      q.includes('नया लोड ऐड')
+    ) {
+      let matchedFaculty = facultyRef.current.find(f => {
+        const lowerName = f.name.toLowerCase();
+        const parts = lowerName.split(' ');
+        return parts.some(part => part.length > 2 && q.includes(part));
+      });
+
+      let matchedBatch = batchesRef.current.find(b => {
+        const lowerBatch = b.name.toLowerCase();
+        return q.includes(lowerBatch) || (lowerBatch.includes('cse') && q.includes('cse'));
+      });
+
+      let matchedDay = 'Monday';
+      const daysMap: Record<string, string> = {
+        monday: 'Monday', somwar: 'Monday', सोमवार: 'Monday',
+        tuesday: 'Tuesday', mangalwar: 'Tuesday', मंगलवार: 'Tuesday',
+        wednesday: 'Wednesday', budhwar: 'Wednesday', बुधवार: 'Wednesday',
+        thursday: 'Thursday', guruwar: 'Thursday', veerwar: 'Thursday', गुरुवार: 'Thursday',
+        friday: 'Friday', shukrawar: 'Friday', शुक्रवार: 'Friday',
+        saturday: 'Saturday', shaniwar: 'Saturday', शनिवार: 'Saturday',
+        sunday: 'Sunday', raviwar: 'Sunday', रविवार: 'Sunday',
+      };
+      for (const [key, val] of Object.entries(daysMap)) {
+        if (q.includes(key)) {
+          matchedDay = val;
+          break;
+        }
+      }
+
+      let startTime = '10:00:00';
+      let endTime = '11:00:00';
+      const timeMatch = q.match(/\b([0-1]?[0-9]|2[0-3])(?::([0-5][0-9]))?\s*(am|pm|baje)?\b/i);
+      if (timeMatch) {
+        let hr = parseInt(timeMatch[1], 10);
+        const isPm = timeMatch[3] && timeMatch[3].toLowerCase() === 'pm';
+        if (isPm && hr < 12) hr += 12;
+        startTime = `${String(hr).padStart(2, '0')}:00:00`;
+        endTime = `${String(hr + 1).padStart(2, '0')}:00:00`;
+      }
+
+      let matchedSubject = 'General Lecture';
+      const subjectsList = ['java', 'python', 'c++', 'dsa', 'data structures', 'os', 'operating system', 'dbms', 'database', 'networking', 'maths', 'physics', 'ai', 'ml', 'machine learning', 'web tech', 'cloud', 'cyber security', 'compiler'];
+      for (const s of subjectsList) {
+        if (q.includes(s)) {
+          matchedSubject = s.toUpperCase();
+          break;
+        }
+      }
+
+      if (matchedFaculty && matchedBatch) {
+        const startDate = new Date().toISOString().split('T')[0];
+        const endD = new Date();
+        endD.setDate(endD.getDate() + 90);
+        const endDate = endD.toISOString().split('T')[0];
+
+        try {
+          const { error } = await supabase.from('faculty_loads').insert({
+            faculty_id: matchedFaculty.id,
+            batch_id: matchedBatch.id,
+            subject: matchedSubject,
+            day_of_week: matchedDay,
+            start_time: startTime,
+            end_time: endTime,
+            start_date: startDate,
+            end_date: endDate,
+            room: 'Room-101',
+            start_mail_sent: false,
+          });
+
+          if (!error) {
+            onRefreshDataRef.current?.();
+            if (onNavigateTabRef.current) onNavigateTabRef.current('search');
+            const resp = `Ji Sir! Maine ${matchedFaculty.name} ke liye ${matchedDay} ko ${startTime.slice(0, 5)} baje ${matchedSubject} subject ka load batch ${matchedBatch.name} mein successfully add kar diya hai!`;
+            setLastSpeechResponse(resp);
+            speakAnimeVoice(`जी सर! मैंने ${matchedFaculty.name} के लिए ${matchedDay} को ${matchedSubject} का लोड बैच ${matchedBatch.name} में सक्सेसफुली ऐड कर दिया है!`);
+            return;
+          }
+        } catch (err) {
+          console.warn('Voice add load error:', err);
+        }
+      }
+
+      if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
+      const resp = 'Ji Sir! Load add karne ke liye mujhe teacher ka naam, subject, batch aur time bataiye. Jaise boliye: Krishna sir, Java, CSE A, Monday 10 AM. Main turant entry create kar doongi!';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice('जी सर! लोड ऐड करने के लिए मुझे टीचर का नाम, सब्जेक्ट, बैच और टाइम बताइए। जैसे बोलिए: कृष्णा सर, जावा, सीएसई ए, मंडे १० बजे। मैं तुरंत एंट्री क्रिएट कर दूँगी!');
+      return;
+    }
+
+    // 🎯 TASK B: ADD FACULTY VIA VOICE
+    if (
+      q.includes('teacher add karo') ||
+      q.includes('faculty add karo') ||
+      q.includes('naya teacher') ||
+      q.includes('naya faculty') ||
+      q.includes('add faculty') ||
+      q.includes('add teacher') ||
+      q.includes('टीचर ऐड करो') ||
+      q.includes('फैकल्टी ऐड करो')
+    ) {
+      const cleanName = q
+        .replace(/\b(teacher add karo|faculty add karo|naya teacher add karo|naya faculty add karo|add faculty|add teacher|naya teacher|naya faculty|karo|kar do|please|mayra|jarvis)\b/gi, '')
+        .replace(/(टीचर ऐड करो|फैकल्टी ऐड करो|नया टीचर|नया फैकल्टी)/gi, '')
+        .trim();
+
+      if (cleanName.length >= 3) {
+        const capitalized = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+        try {
+          const { error } = await supabase.from('faculty').insert({
+            name: capitalized,
+            department: 'Computer Science',
+          });
+          if (!error) {
+            onRefreshDataRef.current?.();
+            if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
+            const resp = `Ji Sir! Maine teacher ${capitalized} ko Computer Science department mein successfully add kar diya hai!`;
+            setLastSpeechResponse(resp);
+            speakAnimeVoice(`जी सर! मैंने टीचर ${capitalized} को कंप्यूटर साइंस डिपार्टमेंट में सक्सेसफुली ऐड कर दिया है!`);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
+      const resp = 'Ji Sir! Naya teacher add karne ke liye teacher ka naam bataiye, jaise boliye: Naya teacher add karo Dr. Amit Sharma. Main turant create kar doongi!';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice('जी सर! नया टीचर ऐड करने के लिए टीचर का नाम बताइए, जैसे बोलिए: नया टीचर ऐड करो अमित शर्मा। मैं तुरंत ऐड कर दूँगी!');
+      return;
+    }
+
+    // 🎯 TASK C: ADD BATCH VIA VOICE
+    if (
+      q.includes('batch add karo') ||
+      q.includes('naya batch add') ||
+      q.includes('naya batch create') ||
+      q.includes('naya batch') ||
+      q.includes('add batch') ||
+      q.includes('create batch') ||
+      q.includes('बैच ऐड करो') ||
+      q.includes('नया बैच')
+    ) {
+      const cleanBatch = q
+        .replace(/\b(batch add karo|naya batch add karo|naya batch create karo|add batch|create batch|naya batch|karo|kar do|please|mayra|jarvis)\b/gi, '')
+        .replace(/(बैच ऐड करो|नया बैच)/gi, '')
+        .trim();
+
+      if (cleanBatch.length >= 2) {
+        const batchName = cleanBatch.toUpperCase();
+        try {
+          const { error } = await supabase.from('batches').insert({
+            name: batchName,
+          });
+          if (!error) {
+            onRefreshDataRef.current?.();
+            if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
+            const resp = `Ji Sir! Naya batch ${batchName} successfully add kar diya hai!`;
+            setLastSpeechResponse(resp);
+            speakAnimeVoice(`जी सर! नया बैच ${batchName} सक्सेसफुली ऐड कर दिया है!`);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
+      const resp = 'Ji Sir! Naya batch add karne ke liye batch ka naam bataiye, jaise boliye: Naya batch add karo CSE 2026. Main turant create kar doongi!';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice('जी सर! नया बैच ऐड करने के लिए बैच का नाम बताइए, जैसे बोलिए: नया बैच ऐड करो सीएसई २०२६। मैं तुरंत बना दूँगी!');
+      return;
+    }
+
+    // 🎯 TASK D: BULK UPLOAD MODAL
+    if (
+      q.includes('bulk upload') ||
+      q.includes('excel upload') ||
+      q.includes('excel file') ||
+      q.includes('बल्क अपलोड') ||
+      q.includes('एक्सेल अपलोड')
+    ) {
+      if (onOpenBulkModalRef.current) onOpenBulkModalRef.current();
+      if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
+      const resp = 'Ji Sir! Bulk Excel upload modal open kar diya hai, aap yahan se Excel file drag-and-drop karke sabhi load ek saath upload kar sakte hain!';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice('जी सर! बल्क एक्सेल अपलोड मोडल ओपन कर दिया है, आप यहाँ से एक्सेल फाइल अपलोड कर सकते हैं!');
+      return;
+    }
+
+    // 🎯 TASK E: CLASH CHECK & RESOLUTION
+    if (
+      q.includes('clash check') ||
+      q.includes('check clash') ||
+      q.includes('koi clash') ||
+      q.includes('clashes batao') ||
+      q.includes('clash batao') ||
+      q.includes('overlap lecture') ||
+      q.includes('overlap class') ||
+      q.includes('क्लैश चेक')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('clashes');
+      const cList = clashesRef.current || [];
+      if (cList.length === 0) {
+        const resp = 'Sir! Portal par ek bhi clash nahi hai. Sabhi faculty aur batches ke time slots perfectly clear hain!';
+        setLastSpeechResponse(resp);
+        speakAnimeVoice('सर! पोर्टल पर एक भी क्लैश नहीं है। सभी फैकल्टी और बैचेस के टाइम स्लॉट्स परफेक्टली क्लियर हैं!');
+        return;
+      } else {
+        const firstMsg = cList[0]?.message || '';
+        const resp = `Sir! Portal par total ${cList.length} clashes detected hain. Sabse pehla: ${firstMsg}. Main aapko Clash Alerts screen par le aayi hoon.`;
+        setLastSpeechResponse(resp);
+        speakAnimeVoice(`सर! पोर्टल पर टोटल ${cList.length} क्लैश डिटेक्ट हुए हैं। मैंने क्लैश अलर्ट्स स्क्रीन ओपन कर दी है।`);
+        return;
+      }
+    }
+
+    // 🎯 TASK F: PENDING MAIL CHECK
+    if (
+      q.includes('pending mail') ||
+      q.includes('mail check') ||
+      q.includes('kis kis ko mail') ||
+      q.includes('kisko mail') ||
+      q.includes('mail bhejna') ||
+      q.includes('पेंडिंग मेल') ||
+      q.includes('मेल चेक')
+    ) {
+      if (onNavigateTabRef.current) onNavigateTabRef.current('mailTracker');
+      const groups = mailGroupsRef.current || [];
+      const pending = groups.filter((g: any) => !g.allMailed);
+      if (pending.length === 0) {
+        const resp = 'Sir! Sabhi teachers ko schedule emails bheje ja chuke hain, koi bhi mail pending nahi hai!';
+        setLastSpeechResponse(resp);
+        speakAnimeVoice('सर! सभी टीचर्स को शेड्यूल ईमेल्स भेजे जा चुके हैं, कोई भी मेल पेंडिंग नहीं है!');
+        return;
+      } else {
+        const names = pending.slice(0, 4).map((g: any) => g.faculty_name).join(', ');
+        const extra = pending.length > 4 ? ` aur ${pending.length - 4} anya teachers` : '';
+        const resp = `Sir! Total ${pending.length} teachers ka mail pending hai: ${names}${extra}. Inhe schedule mail bhejna baaki hai.`;
+        setLastSpeechResponse(resp);
+        speakAnimeVoice(`सर! टोटल ${pending.length} टीचर्स का मेल पेंडिंग है: ${names}।`);
+        return;
+      }
+    }
+
+    // 🎯 TASK G: THEME SWITCH
+    if (
+      q.includes('theme badlo') ||
+      q.includes('theme change') ||
+      q.includes('anime theme') ||
+      q.includes('थीम बदलो') ||
+      q.includes('थीम चेंज')
+    ) {
+      if (onOpenThemeModalRef.current) onOpenThemeModalRef.current();
+      const resp = 'Ji Sir! Anime theme modal open kar diya hai, aap apni pasandeeda anime theme select kar sakte hain!';
+      setLastSpeechResponse(resp);
+      speakAnimeVoice('जी सर! एनीमे थीम मोडल ओपन कर दिया है, आप अपनी पसंद की थीम चुन सकते हैं!');
+      return;
+    }
+
+    // 🎯 TASK H: CONTEXTUAL HELP & WHAT TO DO
+    if (
+      q.includes('kya kar sakti ho') ||
+      q.includes('kya karti ho') ||
+      q.includes('isme kya karna') ||
+      q.includes('isme kya hota') ||
+      q.includes('help me') ||
+      q.includes('help karo') ||
+      q.includes('kya help') ||
+      q.includes('क्या कर सकती हो') ||
+      q.includes('क्या करना है') ||
+      q.includes('मदद')
+    ) {
+      const currentTab = activeTabRef.current || 'dashboard';
+      let guide = '';
+      let devanagariGuide = '';
+      if (currentTab === 'addLoad') {
+        guide = 'Sir, Add Load screen mein aap kisi bhi teacher ka naya lecture load add kar sakte hain ya bulk Excel upload kar sakte hain. Aap mujhe bol sakte hain: "Krishna sir ka Java Monday 10 baje load add karo".';
+        devanagariGuide = 'सर, ऐड लोड स्क्रीन में आप किसी भी टीचर का नया लोड ऐड कर सकते हैं या बल्क एक्सेल अपलोड कर सकते हैं। आप मुझे बोल सकते हैं: कृष्णा सर का जावा मंडे १० बजे लोड ऐड करो।';
+      } else if (currentTab === 'batchSyllabus') {
+        guide = 'Sir, Planner screen mein aap batches ka syllabus, weekly hours aur lecture scheduling plan dekh sakte hain. Boliye kis batch ka syllabus check karna hai!';
+        devanagariGuide = 'सर, प्लानर स्क्रीन में आप बैचेस का सिलेबस और वीकली आवर्स चेक कर सकते हैं। बोलिए किस बैच का सिलेबस देखना है!';
+      } else if (currentTab === 'facultyAvailability') {
+        guide = 'Sir, Spending Time screen mein aap live classes aur free slots dekh sakte hain. Aap pooch sakte hain: "Sharma sir kab free hain?" ya "Aaj kaun free hai?".';
+        devanagariGuide = 'सर, स्पेंडिंग टाइम स्क्रीन में आप लाइव क्लासेस और फ्री स्लॉट्स देख सकते हैं। आप पूछ सकते हैं: शर्मा सर कब फ्री हैं? या आज कौन फ्री है?';
+      } else if (currentTab === 'clashes') {
+        guide = 'Sir, Clash Alerts screen mein aap overlapping lectures aur timing conflicts dekh sakte hain aur resolve kar sakte hain.';
+        devanagariGuide = 'सर, क्लैश अलर्ट्स स्क्रीन में आप ओवरलैपिंग लेक्चर्स और टाइमिंग कॉन्फ्लिक्ट्स चेक कर सकते हैं।';
+      } else {
+        guide = `Sir, main poore portal ki AI Assistant hoon! Main kisi bhi screen par navigate kar sakti hoon, naya load ya faculty add kar sakti hoon, free slots check kar sakti hoon, clashes detect kar sakti hoon aur email tracker bata sakti hoon. Bataiye kya karna hai Sir!`;
+        devanagariGuide = `सर, मैं पूरे पोर्टल की एआई असिस्टेंट हूँ! मैं लोड ऐड कर सकती हूँ, फ्री स्लॉट्स बता सकती हूँ, क्लैश डिटेक्ट कर सकती हूँ और ईमेल्स ट्रैक कर सकती हूँ। बताइए क्या करना है सर!`;
+      }
+      setLastSpeechResponse(guide);
+      speakAnimeVoice(devanagariGuide);
+      return;
+    }
+
+    // 4. 🎯 NAVIGATION: PLANNER / BATCH SYLLABUS (Proactive Ask!)
     if (
       q.includes('planner') || 
       q.includes('planer') || 
@@ -698,13 +1048,13 @@ export function AIAssistant({
       q.includes('सिलेबस')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('batchSyllabus');
-      const resp = 'Ji Sir! Planner aur Batch Syllabus screen open kar di hai.';
+      const resp = 'Ji Sir! Main Planner screen par aa gayi hoon. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon! Jaise kisi batch ka lecture plan check karna ya weekly schedule dekhna.';
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-planner.wav', 'जी सर! प्लानर स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice('जी सर! मैं प्लानर स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ! जैसे किसी बैच का लेक्चर प्लान चेक करना या वीकली शेड्यूल देखना।');
       return;
     }
 
-    // 5. 🎯 DIRECT ANSWER & NAV: Free Faculty Check & Spending Time Screen
+    // 5. 🎯 NAVIGATION: SPENDING TIME / FREE SLOTS (Proactive Ask!)
     if (
       q.includes('spending time') ||
       q.includes('spending') ||
@@ -739,29 +1089,22 @@ export function AIAssistant({
       const busyFacultyIds = new Set(dayLoads.map(l => l.faculty_id));
       const freeFaculties = facultyRef.current.filter(f => !busyFacultyIds.has(f.id));
 
-      if (dayLoads.length === 0 || freeFaculties.length === facultyRef.current.length) {
-        const resp = 'Ji Sir! Aaj koi bhi lecture schedule nahi hai, sabhi faculty free hain!';
-        setLastSpeechResponse(resp);
-        playAudioClip('/audio/nav-freeslots.wav', 'जी सर! स्पेंडिंग टाइम और फैकल्टी उपलब्धता स्क्रीन ओपन कर दी है।');
-        return;
-      }
-
-      if (freeFaculties.length > 0) {
+      if (freeFaculties.length > 0 && freeFaculties.length < facultyRef.current.length) {
         const names = freeFaculties.slice(0, 4).map(f => f.name).join(', ');
         const extraCount = freeFaculties.length > 4 ? ` aur ${freeFaculties.length - 4} anya teachers` : '';
-        const resp = `Sir! Aaj ye faculty free hain: ${names}${extraCount}!`;
+        const resp = `Ji Sir! Main Spending Time screen par aa gayi hoon. Aaj ye faculty free hain: ${names}${extraCount}! Yahan aapko kya karna hai mujhe bata dijiye, main kar deti hoon!`;
         setLastSpeechResponse(resp);
-        playAudioClip('/audio/nav-freeslots.wav', `जी सर! आज ये टीचर्स फ्री हैं: ${names}।`);
+        speakAnimeVoice(`जी सर! मैं स्पेंडिंग टाइम स्क्रीन पर आ गई हूँ। आज ये टीचर्स फ्री हैं: ${names}। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!`);
         return;
       }
 
-      const resp = 'Sir! Aaj sabhi teachers ke classes mapped hain. Main aapko Spending Time screen par le aayi hoon.';
+      const resp = 'Ji Sir! Main Spending Time screen par aa gayi hoon. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon! Aap kisi teacher ka free slot puch sakte hain ya live status check kar sakte hain.';
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-freeslots.wav', 'जी सर! स्पेंडिंग टाइम और फैकल्टी उपलब्धता स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice('जी सर! मैं स्पेंडिंग टाइम स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ! आप किसी टीचर का फ्री स्लॉट पूछ सकते हैं या लाइव स्टेटस चेक कर सकते हैं।');
       return;
     }
 
-    // 6. 🎯 NAVIGATION: Faculty Directory
+    // 6. 🎯 NAVIGATION: FACULTY DIRECTORY (Proactive Ask!)
     if (
       q.includes('faculty list') || 
       q.includes('faculty directory') || 
@@ -778,13 +1121,13 @@ export function AIAssistant({
       q.includes('शिक्षक')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
-      const resp = `Ji Sir! Faculty Directory screen open ho gayi hai. Total ${facultyRef.current.length} teachers registered hain.`;
+      const resp = `Ji Sir! Main Faculty Directory screen par aa gayi hoon. Total ${facultyRef.current.length} teachers registered hain. Yahan naya teacher add karna hai ya kisi department ki list dekhni hai Sir? Mujhe bataiye, main kar deti hoon!`;
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-faculty.wav', 'जी सर! फैकल्टी डायरेक्टरी स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice(`जी सर! मैं फैकल्टी डायरेक्टरी स्क्रीन पर आ गई हूँ। टोटल ${facultyRef.current.length} टीचर्स रजिस्टर्ड हैं। यहाँ नया टीचर ऐड करना है या किसी डिपार्टमेंट की लिस्ट देखनी है सर? मुझे बताइए, मैं कर देती हूँ!`);
       return;
     }
 
-    // 7. 🎯 NAVIGATION: Timetable / Lectures / Schedule
+    // 7. 🎯 NAVIGATION: TIMETABLE & LOAD SEARCH (Proactive Ask!)
     if (
       q.includes('timetable') || 
       q.includes('time table') || 
@@ -803,13 +1146,13 @@ export function AIAssistant({
       q.includes('सर्च')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('search');
-      const resp = 'Ji Sir! Timetable aur Live Schedule screen open kar di hai!';
+      const resp = 'Ji Sir! Main Timetable aur Load Search screen par aa gayi hoon. Yahan aapko kis faculty ya kis batch ka timetable search karna hai Sir? Mujhe bataiye, main kar deti hoon!';
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-search.wav', 'जी सर! टाइमटेबल और लाइव शेड्यूल स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice('जी सर! मैं टाइमटेबल और लोड सर्च स्क्रीन पर आ गई हूँ। यहाँ आपको किस फैकल्टी या किस बैच का टाइमटेबल सर्च करना है सर? मुझे बताइए, मैं कर देती हूँ!');
       return;
     }
 
-    // 8. 🎯 NAVIGATION: Add Load
+    // 8. 🎯 NAVIGATION: ADD LOAD (Proactive Ask!)
     if (
       q.includes('add load') || 
       q.includes('add lecture') || 
@@ -819,13 +1162,13 @@ export function AIAssistant({
       q.includes('नया लोड')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
-      const resp = 'Ji Sir! Add Load screen open kar di hai.';
+      const resp = 'Ji Sir! Main Add Load screen par aa gayi hoon. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon! Aap mujhe teacher ka naam, subject, batch aur time bataiye, main load add kar doongi ya bulk upload open kar sakti hoon.';
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-addload.wav', 'जी सर! ऐड लोड स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice('जी सर! मैं ऐड लोड स्क्रीन पर आ गई हूँ। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ! आप मुझे टीचर का नाम, सब्जेक्ट, बैच और टाइम बताइए, मैं लोड ऐड कर दूँगी या बल्क अपलोड ओपन कर सकती हूँ।');
       return;
     }
 
-    // 9. 🎯 NAVIGATION: Batches
+    // 9. 🎯 NAVIGATION: BATCHES (Proactive Ask!)
     if (
       q.includes('batches') || 
       q.includes('batch list') || 
@@ -834,13 +1177,13 @@ export function AIAssistant({
       q.includes('बैचेस')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
-      const resp = 'Ji Sir! Batches screen open kar di hai.';
+      const resp = `Ji Sir! Main Batches screen par aa gayi hoon. Total ${batchesRef.current.length} batches available hain. Yahan naya batch banana hai ya batch details check karni hain Sir? Mujhe bataiye!`;
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-batches.wav', 'जी सर! बैचेस स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice(`जी सर! मैं बैचेस स्क्रीन पर आ गई हूँ। टोटल ${batchesRef.current.length} बैचेस उपलब्ध हैं। यहाँ नया बैच बनाना है या बैच डिटेल्स देखनी हैं सर? मुझे बताइए!`);
       return;
     }
 
-    // 10. 🎯 NAVIGATION: Clash Alerts
+    // 10. 🎯 NAVIGATION: CLASH ALERTS (Proactive Ask!)
     if (
       q.includes('clash') || 
       q.includes('clashes') || 
@@ -849,13 +1192,14 @@ export function AIAssistant({
       q.includes('क्लैश')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('clashes');
-      const resp = 'Ji Sir! Clash Alerts screen open kar di hai.';
+      const cCount = clashesRef.current?.length || 0;
+      const resp = `Ji Sir! Main Clash Alerts screen par aa gayi hoon. ${cCount > 0 ? `Total ${cCount} clashes detect hue hain. Kya main details bataun Sir?` : 'Ek bhi clash nahi hai, sabhi lectures clean hain!'}`;
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-clashes.wav', 'जी सर! क्लैश अलर्ट्स स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice(`जी सर! मैं क्लैश अलर्ट्स स्क्रीन पर आ गई हूँ। ${cCount > 0 ? `टोटल ${cCount} क्लैश डिटेक्ट हुए हैं। क्या मैं डिटेल्स बताऊँ सर?` : 'एक भी क्लैश नहीं है, सभी लेक्चर्स क्लीन हैं!'}`);
       return;
     }
 
-    // 11. 🎯 NAVIGATION: Date Alerts
+    // 11. 🎯 NAVIGATION: DATE ALERTS (Proactive Ask!)
     if (
       q.includes('date alert') || 
       q.includes('date alerts') || 
@@ -865,13 +1209,14 @@ export function AIAssistant({
       q.includes('अलर्ट्स')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('alerts');
-      const resp = 'Ji Sir! Date Alerts screen open kar di hai.';
+      const aCount = alertsRef.current?.length || 0;
+      const resp = `Ji Sir! Main Date Alerts screen par aa gayi hoon. Total ${aCount} alerts available hain. Yahan kya check karna hai mujhe bata dijiye Sir!`;
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-alerts.wav', 'जी सर! डेट अलर्ट्स स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice(`जी सर! मैं डेट अलर्ट्स स्क्रीन पर आ गई हूँ। टोटल ${aCount} अलर्ट्स उपलब्ध हैं। यहाँ क्या चेक करना है मुझे बता दीजिए सर!`);
       return;
     }
 
-    // 12. 🎯 NAVIGATION: Mail Tracker
+    // 12. 🎯 NAVIGATION: MAIL TRACKER (Proactive Ask!)
     if (
       q.includes('mail') || 
       q.includes('email') || 
@@ -880,13 +1225,14 @@ export function AIAssistant({
       q.includes('ईमेल')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('mailTracker');
-      const resp = 'Ji Sir! Mail Tracker screen open kar di hai.';
+      const pCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
+      const resp = `Ji Sir! Main Mail Tracker screen par aa gayi hoon. ${pCount > 0 ? `Total ${pCount} teachers ke mail pending hain.` : 'Sabhi teachers ko mail bheja ja chuka hai!'} Yahan kya karna hai Sir?`;
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-mail.wav', 'जी सर! मेल ट्रैकर स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice(`जी सर! मैं मेल ट्रैकर स्क्रीन पर आ गई हूँ। ${pCount > 0 ? `टोटल ${pCount} टीचर्स के मेल पेंडिंग हैं।` : 'सभी टीचर्स को मेल भेजा जा चुका है!'} यहाँ क्या करना है सर?`);
       return;
     }
 
-    // 13. 🎯 NAVIGATION: Extra Classes / Reschedule
+    // 13. 🎯 NAVIGATION: EXTRA & RESCHEDULE (Proactive Ask!)
     if (
       q.includes('extra class') || 
       q.includes('extra') || 
@@ -901,13 +1247,13 @@ export function AIAssistant({
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('extraReschedule');
       const count = cancelledClassesRef.current.length;
-      const resp = `Sir! Extra aur Cancelled classes screen open kar di hai. Total ${count} cancelled lectures hain.`;
+      const resp = `Ji Sir! Main Extra aur Reschedule screen par aa gayi hoon. Total ${count} cancelled lectures hain. Yahan extra lecture add karna hai ya status check karna hai Sir? Mujhe bataiye, main kar deti hoon!`;
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-extra.wav', 'जी सर! एक्स्ट्रा और कैंसिल्ड क्लासेस स्क्रीन ओपन कर दी है।');
+      speakAnimeVoice(`जी सर! मैं एक्स्ट्रा और रीशेड्यूल स्क्रीन पर आ गई हूँ। यहाँ एक्स्ट्रा लेक्चर ऐड करना है या स्टेटस चेक करना है सर? मुझे बताइए, मैं कर देती हूँ!`);
       return;
     }
 
-    // 14. 🎯 NAVIGATION: Dashboard / Home
+    // 14. 🎯 NAVIGATION: DASHBOARD / HOME (Proactive Ask!)
     if (
       q.includes('dashboard') || 
       q.includes('home') || 
@@ -917,9 +1263,9 @@ export function AIAssistant({
       q.includes('होम')
     ) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('dashboard');
-      const resp = 'Ji Sir! Dashboard screen par le aayi hoon.';
+      const resp = `Ji Sir! Main Dashboard par aa gayi hoon. Yahan portal ke sabhi statistics available hain: ${facultyRef.current.length} faculty, ${batchesRef.current.length} batches aur ${loadsRef.current.length} loads. Isme aapko kya karna hai mujhe bata dijiye, main kar deti hoon!`;
       setLastSpeechResponse(resp);
-      playAudioClip('/audio/nav-dashboard.wav', 'जी सर! डैशबोर्ड स्क्रीन पर ले आई हूँ।');
+      speakAnimeVoice(`जी सर! मैं डैशबोर्ड पर आ गई हूँ। यहाँ पोर्टल के सभी स्टैटिस्टिक्स उपलब्ध हैं। इसमें आपको क्या करना है मुझे बता दीजिए, मैं कर देती हूँ!`);
       return;
     }
 
