@@ -67,23 +67,6 @@ function JarvisArcReactorAvatar({
       className="relative flex items-center justify-center select-none"
       style={{ width: size, height: size }}
     >
-      {/* 💭 Thought Cloud Bubble ("jaise koi soch raha ho") */}
-      <div className="absolute -top-7 -right-2 z-30 pointer-events-none select-none flex flex-col items-center animate-bounce-slow">
-        {/* Thought Cloud Body */}
-        <div className="relative px-3 py-1 rounded-full bg-white/95 text-slate-800 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.45)] text-[11px] font-black tracking-wider flex items-center gap-1">
-          <span className="text-cyan-500 text-xs">✨</span>
-          <span className="bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600 bg-clip-text text-transparent font-black">
-            Mayra
-          </span>
-          <span className="text-amber-500 text-xs">💭</span>
-        </div>
-        {/* Small Thought Dots leading to head like a comic thought bubble */}
-        <div className="flex flex-col items-center -space-y-0.5 mt-0.5 -mr-4">
-          <span className="w-2 h-2 rounded-full bg-white border border-cyan-400 shadow-2xs" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white border border-cyan-400 shadow-2xs mr-1" />
-        </div>
-      </div>
-
       {/* 1. Outer Arc Reactor Rotating Calibration Ring (Holographic Tech Ring) */}
       <svg
         className={`absolute inset-0 w-full h-full pointer-events-none transition-all duration-700 ${
@@ -1859,11 +1842,10 @@ export function AIAssistant({
       {/* ⚡ Iron Man JARVIS Floating Arc Reactor AI Companion */}
       <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50">
         <div className="relative flex flex-col items-end">
-          {/* 📡 Real-time Stark HUD Audio Telemetry & Waveform */}
+          {/* 📡 Real-time Audio Waveform when listening/hearing user */}
           {(liveHeardText || isDetectingSpeech) && (
-            <div className="absolute -top-[124px] sm:-top-[132px] right-0 z-30 flex flex-col items-end pointer-events-none transition-all duration-200">
+            <div className={`absolute ${showSubtitleCard && lastSpeechResponse ? 'bottom-[270px] sm:bottom-[290px]' : 'bottom-[134px] sm:bottom-[142px]'} right-0 z-50 flex flex-col items-end pointer-events-none transition-all duration-200`}>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/95 border border-cyan-400/80 shadow-[0_0_20px_rgba(6,182,212,0.5)] text-white text-[11px] font-mono font-bold backdrop-blur-xl max-w-[280px] sm:max-w-[340px] truncate animate-fadeIn">
-                {/* JARVIS Sound Frequency Equalizer */}
                 <span className="flex items-center gap-0.5 flex-shrink-0">
                   <span className="w-1 h-3 bg-cyan-400 rounded-full animate-bounce" />
                   <span className="w-1 h-4 bg-sky-300 rounded-full animate-bounce delay-100" />
@@ -1872,47 +1854,70 @@ export function AIAssistant({
                 </span>
 
                 <span className="text-cyan-300 font-mono flex items-center gap-1 truncate">
-                  <span className="text-[10px] text-cyan-400 uppercase tracking-wider font-extrabold">HUD // AUDIO:</span>
+                  <span className="text-[10px] text-cyan-400 uppercase tracking-wider font-extrabold">HEARD:</span>
                   <span className="text-white font-medium truncate">"{liveHeardText || 'Listening...'}"</span>
                 </span>
               </div>
             </div>
           )}
 
-          {/* 💬 Stark Industries JARVIS HUD Response Card */}
-          {showSubtitleCard && lastSpeechResponse && (
-            <div className="absolute bottom-[108px] right-0 sm:right-2 z-30 max-w-[290px] sm:max-w-[360px] bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/60 rounded-2xl p-4 shadow-[0_0_30px_rgba(6,182,212,0.35)] text-white text-xs animate-fadeIn space-y-2 select-none">
-              {/* Card Header with Corner Tech Marks */}
-              <div className="flex items-center justify-between border-b border-cyan-500/30 pb-2">
-                <span className="font-mono font-bold text-cyan-400 flex items-center gap-1.5 text-[11px] tracking-wider uppercase">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                  <span>MAYRA A.I. // JARVIS PROTOCOL</span>
-                </span>
-                <button
-                  onClick={() => setShowSubtitleCard(false)}
-                  className="text-cyan-400/70 hover:text-cyan-200 p-0.5 rounded transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+          {/* 💭 Thought Cloud: Expands with Mayra's response speech, or rests cute above her head */}
+          {showSubtitleCard && lastSpeechResponse ? (
+            <div className="absolute bottom-[116px] sm:bottom-[122px] right-0 sm:right-2 z-40 max-w-[285px] sm:max-w-[340px] flex flex-col items-end animate-fadeIn select-none">
+              {/* Fluffy Comic Thought Cloud Body */}
+              <div className="relative w-full bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 backdrop-blur-xl border-2 border-cyan-400 rounded-[28px] p-3.5 sm:p-4 shadow-[0_14px_35px_rgba(6,182,212,0.35)] space-y-2">
+                {/* Cloud Header */}
+                <div className="flex items-center justify-between pb-1.5 border-b border-cyan-100 dark:border-cyan-900/50">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-cyan-500 text-xs">✨</span>
+                    <span className="bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600 dark:from-cyan-400 dark:via-sky-300 dark:to-indigo-300 bg-clip-text text-transparent font-black text-xs tracking-wide">
+                      Mayra
+                    </span>
+                    <span className="text-amber-500 text-xs">💭</span>
+                  </div>
+                  <button
+                    onClick={() => setShowSubtitleCard(false)}
+                    className="text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    title="Close"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Optional Voice Command Chip */}
+                {lastUserCommand && (
+                  <div className="text-[11px] font-medium text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800/40 inline-flex items-center gap-1 truncate max-w-full">
+                    <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold uppercase tracking-wider">CMD:</span>
+                    <span className="truncate">"{lastUserCommand}"</span>
+                  </div>
+                )}
+
+                {/* Mayra's Speech Text inside the Thought Cloud */}
+                <p className="text-slate-800 dark:text-slate-100 font-medium leading-relaxed font-sans text-xs sm:text-[13px] px-0.5">
+                  {lastSpeechResponse}
+                </p>
               </div>
 
-              {lastUserCommand && (
-                <div className="text-[11px] font-mono text-slate-300 bg-cyan-950/30 px-2.5 py-1 rounded-md border border-cyan-500/20">
-                  <span className="text-amber-400 font-bold uppercase tracking-wider">CMD // SIR:</span> "{lastUserCommand}"
-                </div>
-              )}
-
-              <p className="text-cyan-50 font-medium leading-relaxed font-sans text-xs">
-                {lastSpeechResponse}
-              </p>
-
-              {/* Status footer */}
-              <div className="flex items-center justify-between pt-1.5 text-[10px] font-mono border-t border-cyan-500/20">
-                <span className="flex items-center gap-1 text-cyan-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  <span>STATUS: {isSpeaking ? 'OUTPUT ACTIVE' : 'ONLINE // 100%'}</span>
+              {/* Comic Thought Bubble Trail (Dots pointing down to Mayra's head) */}
+              <div className="flex flex-col items-center -space-y-0.5 mr-12 mt-1 pointer-events-none">
+                <span className="w-3.5 h-3.5 rounded-full bg-white dark:bg-slate-900 border-2 border-cyan-400 shadow-sm" />
+                <span className="w-2.5 h-2.5 rounded-full bg-white dark:bg-slate-900 border-2 border-cyan-400 shadow-xs mr-2" />
+                <span className="w-1.5 h-1.5 rounded-full bg-white dark:bg-slate-900 border border-cyan-400 shadow-2xs mr-3" />
+              </div>
+            </div>
+          ) : (
+            /* 💭 Resting Thought Cloud Pill ("✨ Mayra 💭") above head */
+            <div className="absolute bottom-[98px] sm:bottom-[104px] right-3 sm:right-5 z-30 pointer-events-none select-none flex flex-col items-center animate-bounce-slow">
+              <div className="relative px-3 py-1 rounded-full bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.45)] text-[11px] font-black tracking-wider flex items-center gap-1">
+                <span className="text-cyan-500 text-xs">✨</span>
+                <span className="bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600 dark:from-cyan-400 dark:via-sky-300 dark:to-indigo-300 bg-clip-text text-transparent font-black">
+                  Mayra
                 </span>
-                <span className="text-slate-400">MARK-50 CORE</span>
+                <span className="text-amber-500 text-xs">💭</span>
+              </div>
+              <div className="flex flex-col items-center -space-y-0.5 mt-0.5 -mr-4">
+                <span className="w-2 h-2 rounded-full bg-white dark:bg-slate-900 border border-cyan-400 shadow-2xs" />
+                <span className="w-1.5 h-1.5 rounded-full bg-white dark:bg-slate-900 border border-cyan-400 shadow-2xs mr-1" />
               </div>
             </div>
           )}
