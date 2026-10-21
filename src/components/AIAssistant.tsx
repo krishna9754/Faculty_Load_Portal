@@ -55,12 +55,16 @@ function JarvisArcReactorAvatar({
   isListening = false,
   isDetectingSpeech = false,
   emotion = 'normal',
+  isMicMuted = false,
+  onToggleMute,
 }: {
   size?: number;
   isSpeaking?: boolean;
   isListening?: boolean;
   isDetectingSpeech?: boolean;
   emotion?: MayraEmotion;
+  isMicMuted?: boolean;
+  onToggleMute?: (e: React.MouseEvent) => void;
 }) {
   return (
     <div
@@ -144,24 +148,47 @@ function JarvisArcReactorAvatar({
         />
       </div>
 
-      {/* 4. Sleek Stark AI Micro HUD Tag (Only LISTENING... and COMMAND) */}
-      <div className="absolute -bottom-2 z-20 flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-950/95 border border-cyan-500/80 shadow-[0_0_15px_rgba(6,182,212,0.6)] text-[9px] font-mono tracking-wider font-extrabold text-cyan-300 uppercase pointer-events-none">
-        <span
-          className={`w-1.5 h-1.5 rounded-full ${
-            isSpeaking
-              ? 'bg-amber-400 animate-ping'
-              : isListening
-              ? 'bg-emerald-400 animate-pulse'
-              : 'bg-rose-500'
-          }`}
-        />
-        <span>
-          {isSpeaking
-            ? 'COMMAND'
-            : isListening
-            ? 'LISTENING...'
-            : 'STANDBY'}
-        </span>
+      {/* 4. Interactive Micro HUD Tag with Mute & Unmute Button */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleMute?.(e);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.stopPropagation();
+            onToggleMute?.(e as any);
+          }
+        }}
+        className={`absolute -bottom-2.5 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-lg text-[9px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer select-none hover:scale-105 active:scale-95 ${
+          isMicMuted
+            ? 'bg-rose-950/95 border-rose-500 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.7)] hover:bg-rose-900/95'
+            : isSpeaking
+            ? 'bg-amber-950/95 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.7)] hover:bg-amber-900/95'
+            : 'bg-slate-950/95 border-cyan-500/90 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white'
+        }`}
+        title={isMicMuted ? 'Microphone is MUTED (Click to UNMUTE)' : 'Microphone is ACTIVE (Click to MUTE)'}
+      >
+        {isMicMuted ? (
+          <>
+            <MicOff className="w-2.5 h-2.5 text-rose-400 animate-pulse" />
+            <span>MUTED • UNMUTE</span>
+          </>
+        ) : isSpeaking ? (
+          <>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+            <Mic className="w-2.5 h-2.5 text-amber-300" />
+            <span>COMMAND • MUTE</span>
+          </>
+        ) : (
+          <>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <Mic className="w-2.5 h-2.5 text-cyan-300" />
+            <span>LISTENING • MUTE</span>
+          </>
+        )}
       </div>
 
       {/* Emotion Overlay Emoji */}
@@ -1935,6 +1962,8 @@ export function AIAssistant({
                 isListening={!isMicMuted}
                 isDetectingSpeech={isDetectingSpeech || Boolean(liveHeardText && !isSpeaking)}
                 emotion={emotion}
+                isMicMuted={isMicMuted}
+                onToggleMute={toggleMicMute}
               />
             </div>
           </button>
