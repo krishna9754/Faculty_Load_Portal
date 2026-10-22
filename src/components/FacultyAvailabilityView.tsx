@@ -239,9 +239,16 @@ export function FacultyAvailabilityView({
   // Helper to format Date as "YYYY-MM-DD"
   const getTodayDateStr = () => toLocalDateStr(new Date());
 
-  // Daily Slots Tab state (Interactive Calendar / Date-aware)
   const [dailySelectedDate, setDailySelectedDate] = useState<string>(getTodayDateStr);
   const [dailySelectedFacultyId, setDailySelectedFacultyId] = useState<string>('all');
+
+  useEffect(() => {
+    const handleFilterAvail = (e: any) => {
+      if (e.detail?.facultyId !== undefined) setDailySelectedFacultyId(e.detail.facultyId);
+    };
+    window.addEventListener('ai-filter-availability', handleFilterAvail);
+    return () => window.removeEventListener('ai-filter-availability', handleFilterAvail);
+  }, []);
 
   const dailySelectedDay = useMemo(() => {
     const d = new Date(dailySelectedDate + 'T00:00:00');

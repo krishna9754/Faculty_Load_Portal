@@ -1305,6 +1305,14 @@ function FacultyManager({
   const [editForm, setEditForm] = useState({ name: '', department: '', branch: '' });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  useEffect(() => {
+    const handleFilterFaculty = (e: any) => {
+      if (e.detail?.searchQuery !== undefined) setSearchQuery(e.detail.searchQuery);
+    };
+    window.addEventListener('ai-filter-faculty', handleFilterFaculty);
+    return () => window.removeEventListener('ai-filter-faculty', handleFilterFaculty);
+  }, []);
+
   const BRANCHES = ['Civil', 'Mechanical', 'Electronic', 'Electrical', 'EE/ECE', 'Chemical', 'CS/IT', 'CS/DA', 'DS/AI'];
 
   const categories = Array.from(new Set((faculty || []).map((f) => f?.department).filter(Boolean))).sort();
@@ -2045,6 +2053,14 @@ function BatchManager({
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    const handleFilterBatch = (e: any) => {
+      if (e.detail?.searchQuery !== undefined) setSearchQuery(e.detail.searchQuery);
+    };
+    window.addEventListener('ai-filter-batch', handleFilterBatch);
+    return () => window.removeEventListener('ai-filter-batch', handleFilterBatch);
+  }, []);
+
   const addBatch = async () => {
     if (!name.trim()) return;
     if (batches.some(b => b.name.toLowerCase() === name.trim().toLowerCase())) {
@@ -2362,6 +2378,27 @@ function AddLoadForm({
     end_date: '',
     room: '',
   });
+
+  useEffect(() => {
+    const handleAutofillLoad = (e: any) => {
+      if (e.detail) {
+        setForm((prev) => ({
+          ...prev,
+          faculty_id: e.detail.faculty_id || prev.faculty_id,
+          batch_ids: e.detail.batch_ids || (e.detail.batch_id ? [e.detail.batch_id] : prev.batch_ids),
+          subject: e.detail.subject || prev.subject,
+          day_of_week: e.detail.day_of_week || prev.day_of_week,
+          start_time: e.detail.start_time || prev.start_time,
+          end_time: e.detail.end_time || prev.end_time,
+          start_date: e.detail.start_date || prev.start_date,
+          end_date: e.detail.end_date || prev.end_date,
+          room: e.detail.room !== undefined ? e.detail.room : prev.room,
+        }));
+      }
+    };
+    window.addEventListener('ai-autofill-load', handleAutofillLoad);
+    return () => window.removeEventListener('ai-autofill-load', handleAutofillLoad);
+  }, []);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -2749,6 +2786,17 @@ function SearchView({
   const [searchSubject, setSearchSubject] = useState('');
   const [searchBatch, setSearchBatch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'running' | 'expired'>('all');
+
+  useEffect(() => {
+    const handleFilterSearch = (e: any) => {
+      if (e.detail?.faculty !== undefined) setSearchFaculty(e.detail.faculty);
+      if (e.detail?.subject !== undefined) setSearchSubject(e.detail.subject);
+      if (e.detail?.batch !== undefined) setSearchBatch(e.detail.batch);
+      if (e.detail?.status !== undefined) setStatusFilter(e.detail.status);
+    };
+    window.addEventListener('ai-filter-search', handleFilterSearch);
+    return () => window.removeEventListener('ai-filter-search', handleFilterSearch);
+  }, []);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     subject: '', start_time: '', end_time: '', start_date: '', end_date: '', room: '', day_of_week: 'Monday',
@@ -3535,6 +3583,15 @@ function AlertsView({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'starting' | 'ending'>('all');
 
+  useEffect(() => {
+    const handleFilterAlerts = (e: any) => {
+      if (e.detail?.filterType !== undefined) setFilterType(e.detail.filterType);
+      if (e.detail?.searchQuery !== undefined) setSearchQuery(e.detail.searchQuery);
+    };
+    window.addEventListener('ai-filter-alerts', handleFilterAlerts);
+    return () => window.removeEventListener('ai-filter-alerts', handleFilterAlerts);
+  }, []);
+
   const startEdit = (alert: DateAlert) => {
     setEditingId(alert.load.id);
     setEditForm({ start_date: alert.load.start_date, end_date: alert.load.end_date });
@@ -3979,6 +4036,16 @@ function MailTrackerView({
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [mailTab, setMailTab] = useState<'all' | 'sent' | 'pending'>('all');
+
+  useEffect(() => {
+    const handleFilterMail = (e: any) => {
+      if (e.detail?.tab) {
+        setMailTab(e.detail.tab);
+      }
+    };
+    window.addEventListener('ai-filter-mail', handleFilterMail);
+    return () => window.removeEventListener('ai-filter-mail', handleFilterMail);
+  }, []);
 
   const markMailed = async (group: MailTrackerGroup) => {
     setMarkingId(group.loadIds.join(','));

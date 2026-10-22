@@ -286,6 +286,16 @@ export function BatchSyllabusView({
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'name' | 'hours' | 'subjects'>('name');
 
+  useEffect(() => {
+    const handleFilterPlanner = (e: any) => {
+      if (e.detail?.batchId !== undefined) setSelectedBatchFilter(e.detail.batchId);
+      if (e.detail?.searchQuery !== undefined) setSearchQuery(e.detail.searchQuery);
+      if (e.detail?.facultyId !== undefined) setSelectedFacultyFilter(e.detail.facultyId);
+    };
+    window.addEventListener('ai-filter-planner', handleFilterPlanner);
+    return () => window.removeEventListener('ai-filter-planner', handleFilterPlanner);
+  }, []);
+
   // Modal States
   const [isAddBatchModalOpen, setIsAddBatchModalOpen] = useState(false);
   const [isEditSubjectModalOpen, setIsEditSubjectModalOpen] = useState(false);

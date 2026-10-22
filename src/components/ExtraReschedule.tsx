@@ -714,6 +714,16 @@ export function ExtraRescheduleView({
 }) {
   const [subTab, setSubTab] = useState<SubTab>('liveManager');
 
+  useEffect(() => {
+    const handleSubTabChange = (e: any) => {
+      if (e.detail?.subTab) {
+        setSubTab(e.detail.subTab);
+      }
+    };
+    window.addEventListener('ai-extra-subtab', handleSubTabChange);
+    return () => window.removeEventListener('ai-extra-subtab', handleSubTabChange);
+  }, []);
+
   const allSessions = useMemo(() => extractClassSessions(loads), [loads]);
   const runningSessions = useMemo(() => allSessions.filter((s) => s.status === 'running'), [allSessions]);
 
