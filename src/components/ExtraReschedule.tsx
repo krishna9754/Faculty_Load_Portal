@@ -44,6 +44,50 @@ function formatDate(dateStr: string): string {
   return `${day} ${month} ${year}, ${weekday}`;
 }
 
+export function getTodayStr(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function getTomorrowStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function getDayOfWeekName(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayIdx = d.getDay();
+  return !isNaN(d.getTime()) ? DAYS[dayIdx === 0 ? 6 : dayIdx - 1] : 'Monday';
+}
+
+export function checkClassEndDateEligibility(endDateStr?: string | null, targetDateStr?: string): {
+  isEligible: boolean;
+  message: string;
+} {
+  if (!endDateStr || !endDateStr.trim()) {
+    return { isEligible: true, message: 'Ongoing course (no end date constraint)' };
+  }
+  const endNorm = endDateStr.slice(0, 10);
+  const target = targetDateStr ? targetDateStr.slice(0, 10) : getTomorrowStr();
+  if (target > endNorm) {
+    return {
+      isEligible: false,
+      message: `Course end date is ${formatDate(endNorm)}. Target date (${formatDate(target)}) exceeds the course duration!`,
+    };
+  }
+  return {
+    isEligible: true,
+    message: `Active course: Valid until ${formatDate(endNorm)}`,
+  };
+}
+
 /* ==================== Live Class Session Helper & Selector ==================== */
 
 export type LiveClassSession = {
@@ -1147,7 +1191,9 @@ function FacultyLiveClassManager({
   };
 
   const [reschedForm, setReschedForm] = useState({
-    date: '',
+    original_date: getTodayStr(),
+    new_date: getTomorrowStr(),
+    mode: 'tomorrow' as 'tomorrow' | 'same_day' | 'custom',
     new_start_time: '09:00',
     new_end_time: '10:00',
     room: '',
@@ -1241,18 +1287,23 @@ function FacultyLiveClassManager({
   }, [feedback]);
 
   // Handlers to open modals
-  const openRescheduleModal = (sess: LiveClassSession) => {
+  const openRescheduleModal = (sess: LiveClassSession, preferredMode?: 'tomorrow' | 'same_day' | 'custom') => {
     setActiveSession(sess);
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
+    const todayStr = getTodayStr();
+    const tomorrowStr = getTomorrowStr();
+    const tomorrowCheck = checkClassEndDateEligibility(sess.end_date, tomorrowStr);
+
+    const mode = preferredMode || (tomorrowCheck.isEligible ? 'tomorrow' : 'same_day');
+    const targetNewDate = mode === 'tomorrow' ? tomorrowStr : todayStr;
+
     setReschedForm({
-      date: `${y}-${m}-${d}`,
+      original_date: todayStr,
+      new_date: targetNewDate,
+      mode,
       new_start_time: sess.start_time || '09:00',
       new_end_time: sess.end_time || '10:00',
       room: sess.room || '',
-      reason: '',
+      reason: mode === 'tomorrow' ? 'Shifted from today to tomorrow' : 'Shifted to new slot on same date',
     });
     setModalType('reschedule');
   };
@@ -1298,25 +1349,35 @@ function FacultyLiveClassManager({
     setActiveSession(null);
   };
 
-  // Reschedule Submit Handler (Only Same Date, New Time)
+  // Reschedule Submit Handler (Supports Tomorrow, Same Date, or Custom Date with End-Date Guard)
   const handleRescheduleSubmit = async () => {
-    if (!activeSession || !reschedForm.date || !reschedForm.new_start_time || !reschedForm.new_end_time) return;
+    if (!activeSession || !reschedForm.original_date || !reschedForm.new_date || !reschedForm.new_start_time || !reschedForm.new_end_time) return;
+
+    // Guard: Class End Date Validation
+    const dateCheck = checkClassEndDateEligibility(activeSession.end_date, reschedForm.new_date);
+    if (!dateCheck.isEligible) {
+      setFeedback({
+        type: 'error',
+        message: `Cannot reschedule: ${dateCheck.message}`,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const d = new Date(reschedForm.date + 'T00:00:00');
-      const dayIdx = d.getDay();
-      const dayName = !isNaN(d.getTime()) ? DAYS[dayIdx === 0 ? 6 : dayIdx - 1] : (activeSession.day_of_week || 'Monday');
+      const origDayName = getDayOfWeekName(reschedForm.original_date);
+      const newDayName = getDayOfWeekName(reschedForm.new_date);
 
       const records = activeSession.batch_ids.map((bId) => ({
         faculty_id: activeSession.faculty_id,
         batch_id: bId,
         subject: activeSession.subject.trim(),
-        original_day: activeSession.day_of_week || dayName,
-        original_date: reschedForm.date,
+        original_day: activeSession.day_of_week || origDayName,
+        original_date: reschedForm.original_date,
         original_start_time: activeSession.start_time || null,
         original_end_time: activeSession.end_time || null,
-        new_day: dayName,
-        new_date: reschedForm.date,
+        new_day: newDayName,
+        new_date: reschedForm.new_date,
         new_start_time: reschedForm.new_start_time,
         new_end_time: reschedForm.new_end_time,
         room: reschedForm.room.trim() || null,
@@ -1326,9 +1387,11 @@ function FacultyLiveClassManager({
       const { error } = await supabase.from('rescheduled_classes').insert(records);
       if (error) throw error;
 
+      const isTomorrow = reschedForm.new_date === getTomorrowStr();
+      const dateLabel = isTomorrow ? 'tomorrow' : `on ${formatDate(reschedForm.new_date)}`;
       setFeedback({
         type: 'success',
-        message: `Successfully rescheduled "${activeSession.subject}" to new time (${reschedForm.new_start_time} - ${reschedForm.new_end_time}) on ${reschedForm.date}!`,
+        message: `Successfully rescheduled "${activeSession.subject}" to ${dateLabel} (${reschedForm.new_start_time} - ${reschedForm.new_end_time}) across ${activeSession.batch_ids.length} batch(es)!`,
       });
       closeModal();
       onChange();
@@ -1726,10 +1789,43 @@ function FacultyLiveClassManager({
                 </div>
 
                 {/* Quick Action Buttons */}
-                <div className="pt-5 mt-4 border-t border-slate-100 space-y-2">
-                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
-                    Make Changes to This Live Class:
-                  </p>
+                <div className="pt-5 mt-4 border-t border-slate-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+                      Make Changes to This Live Class:
+                    </p>
+                    {sess.end_date && (
+                      <span className="text-[10px] font-bold text-slate-500">
+                        End Date: <strong className="text-slate-700">{formatDate(sess.end_date).split(',')[0]}</strong>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* ⚡ Dedicated Shift Today's Class to Tomorrow Button */}
+                  {(() => {
+                    const tomorrowCheck = checkClassEndDateEligibility(sess.end_date, getTomorrowStr());
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => openRescheduleModal(sess, 'tomorrow')}
+                        disabled={!tomorrowCheck.isEligible}
+                        title={!tomorrowCheck.isEligible ? tomorrowCheck.message : "Shift today's lecture to tomorrow across all batches"}
+                        className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-black shadow-sm transition-all duration-200 ${
+                          tomorrowCheck.isEligible
+                            ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/20 hover:scale-[1.01] active:scale-98'
+                            : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                        }`}
+                      >
+                        <Zap className={`w-3.5 h-3.5 ${tomorrowCheck.isEligible ? 'text-amber-300 animate-pulse' : 'text-slate-400'}`} />
+                        <span>
+                          {tomorrowCheck.isEligible
+                            ? `⚡ Shift to Tomorrow (${formatDate(getTomorrowStr()).split(',')[0]})`
+                            : `Tomorrow Locked (End Date: ${sess.end_date ? formatDate(sess.end_date).split(',')[0] : 'Expired'})`}
+                        </span>
+                      </button>
+                    );
+                  })()}
+
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -1941,138 +2037,337 @@ function FacultyLiveClassManager({
       )}
 
       {/* ================= MODAL: Reschedule Live Class ================= */}
-      {modalType === 'reschedule' && activeSession && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fade-in-up">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 space-y-5 shadow-2xl relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
-                  <RefreshCw className="w-5 h-5 animate-spin" />
+      {modalType === 'reschedule' && activeSession && (() => {
+        const tomorrowStr = getTomorrowStr();
+        const todayStr = getTodayStr();
+        const tomorrowEligibility = checkClassEndDateEligibility(activeSession.end_date, tomorrowStr);
+        const currentTargetEligibility = checkClassEndDateEligibility(activeSession.end_date, reschedForm.new_date);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fade-in-up">
+            <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 space-y-5 shadow-2xl relative">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">Reschedule Live Class</h3>
+                    <p className="text-xs text-slate-500">Will shift lecture across all {activeSession.batch_ids.length} linked batches</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Reschedule Live Class</h3>
-                  <p className="text-xs text-slate-500">Will shift lecture across all {activeSession.batch_ids.length} linked batches</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isSubmitting}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={isSubmitting}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Target session info preview */}
-            <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-900">{activeSession.subject}</span>
-                <span className="font-bold text-amber-800">{activeSession.faculty_name}</span>
-              </div>
-              <p className="text-slate-600">
-                Routine Slot: {activeSession.day_of_week}, {activeSession.start_time} - {activeSession.end_time}
-                {activeSession.room ? ` (Room: ${activeSession.room})` : ''}
-              </p>
-              <div className="flex flex-wrap gap-1 pt-1">
-                {activeSession.batchNames.map((b) => (
-                  <span key={b} className="px-2 py-0.5 rounded bg-white text-slate-700 text-[10px] font-semibold border border-amber-200">
-                    {b}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Form Fields: Only Same Date, New Time */}
-            <div className="space-y-3.5">
-              <Field label="Lecture Date * (Reschedule on same date)">
-                <input
-                  type="date"
-                  required
-                  value={reschedForm.date}
-                  onChange={(e) => setReschedForm({ ...reschedForm, date: e.target.value })}
-                  className={inputCls()}
-                />
-              </Field>
-
-              <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/70 space-y-3">
+              {/* Target session info preview */}
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-amber-600" />
-                    New Time Slot on Same Date
+                  <span className="font-extrabold text-slate-900">{activeSession.subject}</span>
+                  <span className="font-bold text-amber-800">{activeSession.faculty_name}</span>
+                </div>
+                <p className="text-slate-600">
+                  Routine Slot: {activeSession.day_of_week}, {activeSession.start_time} - {activeSession.end_time}
+                  {activeSession.room ? ` (Room: ${activeSession.room})` : ''}
+                </p>
+                <div className="flex items-center justify-between pt-1 border-t border-amber-200/50">
+                  <span className="text-slate-500 font-medium">Course End Date:</span>
+                  <span className={`font-bold ${activeSession.end_date ? 'text-slate-800' : 'text-emerald-700'}`}>
+                    {activeSession.end_date ? formatDate(activeSession.end_date).split(',')[0] : 'Ongoing Course (No Limit)'}
                   </span>
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    Routine: {activeSession.start_time} - {activeSession.end_time}
-                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {activeSession.batchNames.map((b) => (
+                    <span key={b} className="px-2 py-0.5 rounded bg-white text-slate-700 text-[10px] font-semibold border border-amber-200">
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mode Selection Tabs / Presets */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Choose Reschedule Option:</label>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                  {/* Tomorrow Tab */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!tomorrowEligibility.isEligible) return;
+                      setReschedForm({
+                        ...reschedForm,
+                        mode: 'tomorrow',
+                        original_date: todayStr,
+                        new_date: tomorrowStr,
+                        reason: 'Shifted from today to tomorrow',
+                      });
+                    }}
+                    disabled={!tomorrowEligibility.isEligible}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                      reschedForm.mode === 'tomorrow'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 scale-[1.02]'
+                        : tomorrowEligibility.isEligible
+                        ? 'text-slate-700 hover:bg-white hover:text-slate-900'
+                        : 'text-slate-400 bg-slate-200/50 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 text-amber-300" />
+                      To Tomorrow
+                    </span>
+                    <span className="text-[10px] font-medium opacity-85">
+                      {tomorrowEligibility.isEligible ? '+1 Day Shift' : 'End Date Passed'}
+                    </span>
+                  </button>
+
+                  {/* Same Date Tab */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReschedForm({
+                        ...reschedForm,
+                        mode: 'same_day',
+                        original_date: todayStr,
+                        new_date: todayStr,
+                        reason: 'Shifted to new slot on same date',
+                      });
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                      reschedForm.mode === 'same_day'
+                        ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 scale-[1.02]'
+                        : 'text-slate-700 hover:bg-white hover:text-slate-900'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      Same Date
+                    </span>
+                    <span className="text-[10px] font-medium opacity-85">New Time Slot</span>
+                  </button>
+
+                  {/* Custom Date Tab */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReschedForm({
+                        ...reschedForm,
+                        mode: 'custom',
+                      });
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                      reschedForm.mode === 'custom'
+                        ? 'bg-slate-800 text-white shadow-md scale-[1.02]'
+                        : 'text-slate-700 hover:bg-white hover:text-slate-900'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      Custom Date
+                    </span>
+                    <span className="text-[10px] font-medium opacity-85">Choose Any</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* End Date Status & Validation Alert */}
+              <div
+                className={`p-3 rounded-2xl border text-xs flex items-start gap-2.5 transition-all ${
+                  currentTargetEligibility.isEligible
+                    ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50/90 border-rose-200 text-rose-800'
+                }`}
+              >
+                {currentTargetEligibility.isEligible ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 animate-bounce" />
+                )}
+                <div>
+                  <p className="font-bold">
+                    {currentTargetEligibility.isEligible
+                      ? 'Course End Date Verification: Passed'
+                      : 'End Date Alert: Rescheduling Blocked'}
+                  </p>
+                  <p className="text-[11px] opacity-90 mt-0.5">{currentTargetEligibility.message}</p>
+                </div>
+              </div>
+
+              {/* Form Fields Based on Mode */}
+              <div className="space-y-3.5">
+                {reschedForm.mode === 'tomorrow' ? (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-emerald-600" />
+                        Shifting Lecture from Today to Tomorrow
+                      </span>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded-full">
+                        Tomorrow (+1 Day)
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-white p-2 rounded-xl border border-emerald-200/60">
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Original Date (Today)</p>
+                        <p className="font-bold text-slate-800">{formatDate(reschedForm.original_date)}</p>
+                      </div>
+                      <div className="bg-white p-2 rounded-xl border border-emerald-300">
+                        <p className="text-[10px] uppercase font-bold text-emerald-600">New Date (Tomorrow)</p>
+                        <p className="font-bold text-emerald-900">{formatDate(reschedForm.new_date)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : reschedForm.mode === 'same_day' ? (
+                  <Field label="Lecture Date * (Reschedule on same date)">
+                    <input
+                      type="date"
+                      required
+                      value={reschedForm.new_date}
+                      onChange={(e) =>
+                        setReschedForm({ ...reschedForm, original_date: e.target.value, new_date: e.target.value })
+                      }
+                      className={inputCls()}
+                    />
+                  </Field>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="Original Date *">
+                      <input
+                        type="date"
+                        required
+                        value={reschedForm.original_date}
+                        onChange={(e) => setReschedForm({ ...reschedForm, original_date: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                    <Field label="Rescheduled To Date *">
+                      <input
+                        type="date"
+                        required
+                        value={reschedForm.new_date}
+                        onChange={(e) => setReschedForm({ ...reschedForm, new_date: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                {/* Time slot fields */}
+                <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/70 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      Rescheduled Time Slot
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      Routine: {activeSession.start_time} - {activeSession.end_time}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="New Start Time *">
+                      <input
+                        type="time"
+                        required
+                        value={reschedForm.new_start_time}
+                        onChange={(e) => setReschedForm({ ...reschedForm, new_start_time: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                    <Field label="New End Time *">
+                      <input
+                        type="time"
+                        required
+                        value={reschedForm.new_end_time}
+                        onChange={(e) => setReschedForm({ ...reschedForm, new_end_time: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="New Start Time *">
+                  <Field label="Room (optional)">
                     <input
-                      type="time"
-                      required
-                      value={reschedForm.new_start_time}
-                      onChange={(e) => setReschedForm({ ...reschedForm, new_start_time: e.target.value })}
+                      type="text"
+                      placeholder="e.g. Room 204"
+                      value={reschedForm.room}
+                      onChange={(e) => setReschedForm({ ...reschedForm, room: e.target.value })}
                       className={inputCls()}
                     />
                   </Field>
-                  <Field label="New End Time *">
+                  <Field label="Reason (optional)">
                     <input
-                      type="time"
-                      required
-                      value={reschedForm.new_end_time}
-                      onChange={(e) => setReschedForm({ ...reschedForm, new_end_time: e.target.value })}
+                      type="text"
+                      placeholder="e.g. Shifted from today to tomorrow"
+                      value={reschedForm.reason}
+                      onChange={(e) => setReschedForm({ ...reschedForm, reason: e.target.value })}
                       className={inputCls()}
                     />
                   </Field>
                 </div>
+
+                {/* Quick reason chips */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['Shifted to tomorrow', 'Postponed by 1 day', 'Morning slot conflict', 'Special makeup session'].map(
+                    (rTag) => (
+                      <button
+                        key={rTag}
+                        type="button"
+                        onClick={() => setReschedForm({ ...reschedForm, reason: rTag })}
+                        className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                      >
+                        + {rTag}
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Room (optional)">
-                  <input
-                    type="text"
-                    placeholder="e.g. Room 204"
-                    value={reschedForm.room}
-                    onChange={(e) => setReschedForm({ ...reschedForm, room: e.target.value })}
-                    className={inputCls()}
-                  />
-                </Field>
-                <Field label="Reason (optional)">
-                  <input
-                    type="text"
-                    placeholder="e.g. Shifted due to morning meeting / faculty slot change"
-                    value={reschedForm.reason}
-                    onChange={(e) => setReschedForm({ ...reschedForm, reason: e.target.value })}
-                    className={inputCls()}
-                  />
-                </Field>
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isSubmitting}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRescheduleSubmit}
+                  disabled={
+                    isSubmitting ||
+                    !currentTargetEligibility.isEligible ||
+                    !reschedForm.original_date ||
+                    !reschedForm.new_date ||
+                    !reschedForm.new_start_time ||
+                    !reschedForm.new_end_time
+                  }
+                  className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-lg disabled:opacity-50 transition-all hover:scale-105 active:scale-95 ${
+                    reschedForm.mode === 'tomorrow'
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-500/25'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/25'
+                  }`}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
+                  {isSubmitting
+                    ? 'Rescheduling...'
+                    : reschedForm.mode === 'tomorrow'
+                    ? `Confirm Shift to Tomorrow (${activeSession.batch_ids.length} Batches)`
+                    : `Reschedule for all ${activeSession.batch_ids.length} Batches`}
+                </button>
               </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={isSubmitting}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleRescheduleSubmit}
-                disabled={isSubmitting || !reschedForm.date || !reschedForm.new_start_time || !reschedForm.new_end_time}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold shadow-lg shadow-amber-500/25 disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                {isSubmitting ? 'Rescheduling...' : `Reschedule for all ${activeSession.batch_ids.length} Batches`}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ================= MODAL: Add Extra Class ================= */}
       {modalType === 'extra' && activeSession && (
@@ -3002,7 +3297,9 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
   const sessions = extractClassSessions(loads);
   const [selectedSession, setSelectedSession] = useState<LiveClassSession | null>(null);
   const [form, setForm] = useState({
-    date: '',
+    original_date: getTodayStr(),
+    new_date: getTomorrowStr(),
+    rescheduleMode: 'tomorrow' as 'tomorrow' | 'same_day' | 'custom',
     new_start_time: '09:00',
     new_end_time: '10:00',
     room: '',
@@ -3010,7 +3307,14 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
   });
   const [saving, setSaving] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ date: '', new_start_time: '', new_end_time: '', room: '', reason: '' });
+  const [editForm, setEditForm] = useState({
+    original_date: '',
+    date: '',
+    new_start_time: '',
+    new_end_time: '',
+    room: '',
+    reason: '',
+  });
   const [savingEdit, setSavingEdit] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFacultyId, setSelectedFacultyId] = useState<string>('all');
@@ -3046,42 +3350,61 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
       );
     });
   }, [groupedItems, selectedFacultyId, searchQuery]);
-  const isValid = selectedSession && form.date && form.new_start_time && form.new_end_time;
+
+  const currentCheck = selectedSession
+    ? checkClassEndDateEligibility(selectedSession.end_date, form.new_date)
+    : { isEligible: true, message: '' };
+
+  const isValid =
+    selectedSession &&
+    form.original_date &&
+    form.new_date &&
+    form.new_start_time &&
+    form.new_end_time &&
+    currentCheck.isEligible;
 
   const handleSelectSession = (s: LiveClassSession | null) => {
     setSelectedSession(s);
     if (s) {
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
+      const todayStr = getTodayStr();
+      const tomorrowStr = getTomorrowStr();
+      const tomorrowCheck = checkClassEndDateEligibility(s.end_date, tomorrowStr);
+      const mode = tomorrowCheck.isEligible ? 'tomorrow' : 'same_day';
       setForm((prev) => ({
         ...prev,
-        date: prev.date || `${y}-${m}-${d}`,
+        original_date: todayStr,
+        new_date: mode === 'tomorrow' ? tomorrowStr : todayStr,
+        rescheduleMode: mode,
         new_start_time: s.start_time || prev.new_start_time,
         new_end_time: s.end_time || prev.new_end_time,
         room: s.room || prev.room,
+        reason: mode === 'tomorrow' ? 'Shifted from today to tomorrow' : 'Shifted to new slot on same date',
       }));
     }
   };
 
   const handleSubmit = async () => {
     if (!isValid || !selectedSession) return;
+    const dateCheck = checkClassEndDateEligibility(selectedSession.end_date, form.new_date);
+    if (!dateCheck.isEligible) {
+      alert(`Cannot reschedule: ${dateCheck.message}`);
+      return;
+    }
+
     setSaving(true);
-    const d = new Date(form.date + 'T00:00:00');
-    const dayIdx = d.getDay();
-    const dayName = !isNaN(d.getTime()) ? DAYS[dayIdx === 0 ? 6 : dayIdx - 1] : (selectedSession.day_of_week || 'Monday');
+    const origDayName = getDayOfWeekName(form.original_date);
+    const newDayName = getDayOfWeekName(form.new_date);
 
     const records = selectedSession.batch_ids.map((batch_id) => ({
       faculty_id: selectedSession.faculty_id,
       batch_id,
       subject: selectedSession.subject.trim(),
-      original_day: selectedSession.day_of_week || dayName,
-      original_date: form.date,
+      original_day: selectedSession.day_of_week || origDayName,
+      original_date: form.original_date,
       original_start_time: selectedSession.start_time || null,
       original_end_time: selectedSession.end_time || null,
-      new_day: dayName,
-      new_date: form.date,
+      new_day: newDayName,
+      new_date: form.new_date,
       new_start_time: form.new_start_time,
       new_end_time: form.new_end_time,
       room: form.room.trim() || null,
@@ -3090,7 +3413,15 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
     await supabase.from('rescheduled_classes').insert(records);
     setSaving(false);
     setSelectedSession(null);
-    setForm({ date: '', new_start_time: '09:00', new_end_time: '10:00', room: '', reason: '' });
+    setForm({
+      original_date: getTodayStr(),
+      new_date: getTomorrowStr(),
+      rescheduleMode: 'tomorrow',
+      new_start_time: '09:00',
+      new_end_time: '10:00',
+      room: '',
+      reason: '',
+    });
     onChange();
   };
 
@@ -3137,6 +3468,7 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
   const startEdit = (g: GroupedReschedule) => {
     setEditingKey(g.key);
     setEditForm({
+      original_date: g.original_date || g.new_date || getTodayStr(),
       date: g.new_date || g.original_date || '',
       new_start_time: g.new_start_time,
       new_end_time: g.new_end_time,
@@ -3147,13 +3479,13 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
 
   const saveEdit = async (ids: string[]) => {
     setSavingEdit(true);
-    const d = new Date(editForm.date + 'T00:00:00');
-    const dayIdx = d.getDay();
-    const dayName = !isNaN(d.getTime()) ? DAYS[dayIdx === 0 ? 6 : dayIdx - 1] : 'Monday';
+    const newDayName = getDayOfWeekName(editForm.date);
+    const origDayName = editForm.original_date ? getDayOfWeekName(editForm.original_date) : newDayName;
 
     await supabase.from('rescheduled_classes').update({
-      original_date: editForm.date,
-      new_day: dayName,
+      original_date: editForm.original_date || editForm.date,
+      original_day: origDayName,
+      new_day: newDayName,
       new_date: editForm.date,
       new_start_time: editForm.new_start_time,
       new_end_time: editForm.new_end_time,
@@ -3169,7 +3501,15 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
 
   return (
     <div className="space-y-6">
-      <FormCard title="Add Rescheduled Class (New Time on Same Date)" icon={RefreshCw} color="amber" onSave={handleSubmit} isValid={!!isValid} saving={saving} saveLabel="Add Rescheduled Class">
+      <FormCard
+        title="Add Rescheduled Class (Shift to Tomorrow or Same Date)"
+        icon={RefreshCw}
+        color="amber"
+        onSave={handleSubmit}
+        isValid={!!isValid}
+        saving={saving}
+        saveLabel={form.rescheduleMode === 'tomorrow' ? '⚡ Confirm Shift to Tomorrow' : 'Add Rescheduled Class'}
+      >
         <div className="space-y-4">
           <Field label="Live Scheduled Class to Reschedule (select to link faculty, subject & all batches)">
             <LiveClassSelect
@@ -3180,72 +3520,234 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
             />
           </Field>
 
-          {selectedSession && (
-            <div className="space-y-4 animate-fade-in-up">
-              <div>
-                <Field label="Lecture Date * (Reschedule on same date)">
-                  <input
-                    type="date"
-                    required
-                    value={form.date}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className={inputCls()}
-                  />
-                </Field>
-              </div>
+          {selectedSession && (() => {
+            const todayStr = getTodayStr();
+            const tomorrowStr = getTomorrowStr();
+            const tomorrowEligibility = checkClassEndDateEligibility(selectedSession.end_date, tomorrowStr);
 
-              <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-200/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-amber-600" />
-                    New Time Slot on Same Date
-                  </p>
-                  <span className="text-xs text-slate-500 font-mono">
-                    Routine: {selectedSession.day_of_week}, {selectedSession.start_time} - {selectedSession.end_time}
+            return (
+              <div className="space-y-4 animate-fade-in-up">
+                {/* Course End Date & Eligibility Badge */}
+                <div
+                  className={`p-3.5 rounded-2xl border text-xs flex items-start justify-between gap-3 ${
+                    currentCheck.isEligible
+                      ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50/90 border-rose-200 text-rose-800'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    {currentCheck.isEligible ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 animate-bounce" />
+                    )}
+                    <div>
+                      <p className="font-bold">
+                        {currentCheck.isEligible
+                          ? 'Course End Date Verification: Active & Eligible'
+                          : 'End Date Alert: Rescheduling Blocked'}
+                      </p>
+                      <p className="text-[11px] opacity-90 mt-0.5">{currentCheck.message}</p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 px-2 py-0.5 bg-white/80 rounded-lg font-bold border border-current text-[10px]">
+                    End Date: {selectedSession.end_date ? formatDate(selectedSession.end_date).split(',')[0] : 'Ongoing'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="New Start Time *">
-                    <input
-                      type="time"
-                      required
-                      value={form.new_start_time}
-                      onChange={(e) => setForm({ ...form, new_start_time: e.target.value })}
-                      className={inputCls()}
-                    />
-                  </Field>
-                  <Field label="New End Time *">
-                    <input
-                      type="time"
-                      required
-                      value={form.new_end_time}
-                      onChange={(e) => setForm({ ...form, new_end_time: e.target.value })}
-                      className={inputCls()}
-                    />
-                  </Field>
-                  <Field label="Room (optional)">
-                    <input
-                      type="text"
-                      placeholder="e.g., Room 101"
-                      value={form.room}
-                      onChange={(e) => setForm({ ...form, room: e.target.value })}
-                      className={inputCls()}
-                    />
-                  </Field>
-                  <Field label="Reason (optional)">
-                    <input
-                      type="text"
-                      placeholder="e.g., Shifted due to morning meeting / faculty slot change"
-                      value={form.reason}
-                      onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                      className={inputCls()}
-                    />
-                  </Field>
+                {/* Reschedule Mode Presets */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Reschedule Preset:</label>
+                  <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 rounded-2xl">
+                    <button
+                      type="button"
+                      disabled={!tomorrowEligibility.isEligible}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          rescheduleMode: 'tomorrow',
+                          original_date: todayStr,
+                          new_date: tomorrowStr,
+                          reason: 'Shifted from today to tomorrow',
+                        })
+                      }
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        form.rescheduleMode === 'tomorrow'
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 scale-[1.02]'
+                          : tomorrowEligibility.isEligible
+                          ? 'text-slate-700 hover:bg-white hover:text-slate-900'
+                          : 'text-slate-400 bg-slate-200/50 cursor-not-allowed opacity-60'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-300" />
+                        Shift to Tomorrow
+                      </span>
+                      <span className="text-[10px] font-medium opacity-85">
+                        {tomorrowEligibility.isEligible ? '+1 Day Shift' : 'End Date Passed'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          rescheduleMode: 'same_day',
+                          original_date: todayStr,
+                          new_date: todayStr,
+                          reason: 'Shifted to new slot on same date',
+                        })
+                      }
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        form.rescheduleMode === 'same_day'
+                          ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 scale-[1.02]'
+                          : 'text-slate-700 hover:bg-white hover:text-slate-900'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        Same Date
+                      </span>
+                      <span className="text-[10px] font-medium opacity-85">New Time Slot</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          rescheduleMode: 'custom',
+                        })
+                      }
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        form.rescheduleMode === 'custom'
+                          ? 'bg-slate-800 text-white shadow-md scale-[1.02]'
+                          : 'text-slate-700 hover:bg-white hover:text-slate-900'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Custom Date
+                      </span>
+                      <span className="text-[10px] font-medium opacity-85">Select Any Date</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Date Fields */}
+                {form.rescheduleMode === 'tomorrow' ? (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-emerald-600" />
+                        Shifting Routine Session to Tomorrow
+                      </span>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded-full">
+                        Tomorrow (+1 Day)
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-white p-2 rounded-xl border border-emerald-200/60">
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Original Date (Today)</p>
+                        <p className="font-bold text-slate-800">{formatDate(form.original_date)}</p>
+                      </div>
+                      <div className="bg-white p-2 rounded-xl border border-emerald-300">
+                        <p className="text-[10px] uppercase font-bold text-emerald-600">New Date (Tomorrow)</p>
+                        <p className="font-bold text-emerald-900">{formatDate(form.new_date)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : form.rescheduleMode === 'same_day' ? (
+                  <div>
+                    <Field label="Lecture Date * (Reschedule on same date)">
+                      <input
+                        type="date"
+                        required
+                        value={form.new_date}
+                        onChange={(e) =>
+                          setForm({ ...form, original_date: e.target.value, new_date: e.target.value })
+                        }
+                        className={inputCls()}
+                      />
+                    </Field>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="Original Date *">
+                      <input
+                        type="date"
+                        required
+                        value={form.original_date}
+                        onChange={(e) => setForm({ ...form, original_date: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                    <Field label="Rescheduled To Date *">
+                      <input
+                        type="date"
+                        required
+                        value={form.new_date}
+                        onChange={(e) => setForm({ ...form, new_date: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      Rescheduled Time Slot
+                    </p>
+                    <span className="text-xs text-slate-500 font-mono">
+                      Routine: {selectedSession.day_of_week}, {selectedSession.start_time} - {selectedSession.end_time}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="New Start Time *">
+                      <input
+                        type="time"
+                        required
+                        value={form.new_start_time}
+                        onChange={(e) => setForm({ ...form, new_start_time: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                    <Field label="New End Time *">
+                      <input
+                        type="time"
+                        required
+                        value={form.new_end_time}
+                        onChange={(e) => setForm({ ...form, new_end_time: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                    <Field label="Room (optional)">
+                      <input
+                        type="text"
+                        placeholder="e.g., Room 101"
+                        value={form.room}
+                        onChange={(e) => setForm({ ...form, room: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                    <Field label="Reason (optional)">
+                      <input
+                        type="text"
+                        placeholder="e.g., Shifted from today to tomorrow"
+                        value={form.reason}
+                        onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                        className={inputCls()}
+                      />
+                    </Field>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </FormCard>
 
@@ -3329,37 +3831,61 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                 {isEditing ? (
                   <div className="space-y-3 animate-fade-back">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <Field label="Class Date"><input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} className={inputCls()} /></Field>
+                      <Field label="Original Date"><input type="date" value={editForm.original_date} onChange={(e) => setEditForm({ ...editForm, original_date: e.target.value })} className={inputCls()} /></Field>
+                      <Field label="Rescheduled Date"><input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} className={inputCls()} /></Field>
                       <Field label="New Start Time"><input type="time" value={editForm.new_start_time} onChange={(e) => setEditForm({ ...editForm, new_start_time: e.target.value })} className={inputCls()} /></Field>
                       <Field label="New End Time"><input type="time" value={editForm.new_end_time} onChange={(e) => setEditForm({ ...editForm, new_end_time: e.target.value })} className={inputCls()} /></Field>
                       <Field label="Room"><input type="text" value={editForm.room} onChange={(e) => setEditForm({ ...editForm, room: e.target.value })} className={inputCls()} /></Field>
-                      <div className="sm:col-span-2">
-                        <Field label="Reason"><input type="text" value={editForm.reason} onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })} className={inputCls()} /></Field>
-                      </div>
+                      <Field label="Reason"><input type="text" value={editForm.reason} onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })} className={inputCls()} /></Field>
                     </div>
                     <EditBar onSave={() => saveEdit(g.ids)} onCancel={() => setEditingKey(null)} saving={savingEdit} color="amber" />
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                        <BookOpen className="w-5.5 h-5.5 text-amber-600" />
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                          <BookOpen className="w-5.5 h-5.5 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-base">{g.subject}</p>
+                          <p className="text-xs text-slate-500 font-medium">Faculty: <strong className="text-slate-800">{g.faculty.name}</strong></p>
+                        </div>
                       </div>
-                      <p className="font-bold text-slate-900 text-base">{g.subject}</p>
+
+                      {g.original_date && g.original_date !== g.new_date ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-2xs">
+                          <Zap className="w-3 h-3 text-emerald-600" />
+                          {g.new_date === getTomorrowStr() ? 'SHIFTED TO TOMORROW' : 'DATE SHIFTED'}
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-600" />
+                          SAME DATE SLOT
+                        </span>
+                      )}
                     </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                      <DetailBox label="Original Schedule">
+                      <DetailBox label="Original Routine Schedule">
                         <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                          {formatDate(g.new_date)} ({g.original_day || g.new_day})
+                          {formatDate(g.original_date || g.new_date)} ({g.original_day || g.new_day})
                         </p>
                         <p className="text-sm text-slate-600 flex items-center gap-1.5 mt-0.5">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           Routine Time: {g.original_start_time && g.original_end_time ? `${g.original_start_time} - ${g.original_end_time}` : 'Original time'}
                         </p>
                       </DetailBox>
-                      <DetailBox label="New Time on Same Date" accent="bg-amber-50/80 border-amber-200/60">
+                      <DetailBox
+                        label={g.original_date && g.original_date !== g.new_date ? "Rescheduled Date & Time" : "New Time on Same Date"}
+                        accent="bg-amber-50/80 border-amber-200/60"
+                      >
                         <p className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                          {formatDate(g.new_date)} ({g.new_day})
+                        </p>
+                        <p className="text-sm font-bold text-amber-900 flex items-center gap-1.5 mt-0.5">
                           <Clock className="w-3.5 h-3.5 text-amber-600" />
                           New Time: {g.new_start_time} - {g.new_end_time}
                         </p>

@@ -1650,6 +1650,20 @@ export function AIAssistant({
         return;
       }
 
+      if (
+        q.includes('kal') ||
+        q.includes('tomorrow') ||
+        q.includes('shift') ||
+        q.includes('कल')
+      ) {
+        window.dispatchEvent(new CustomEvent('ai-extra-subtab', { detail: { subTab: 'liveManager' } }));
+        releaseLockWithSuccess(
+          '[Mission Executed] Switched to Live Classes Manager with Shift-to-Tomorrow active, Sensei!',
+          'सेन्सेई! आज की क्लास को कल शिफ्ट करने का वन-क्लिक ऑप्शन लाइव क्लासेस मैनेजर में एक्टिव है!'
+        );
+        return;
+      }
+
       if (q.includes('reschedule') || q.includes('रीशेड्यूल')) {
         window.dispatchEvent(new CustomEvent('ai-extra-subtab', { detail: { subTab: 'reschedule' } }));
         releaseLockWithSuccess(
@@ -2401,15 +2415,29 @@ export function AIAssistant({
     }
 
     if (
+      q.includes('kal') ||
+      q.includes('tomorrow') ||
       q.includes('reschedule') || 
-      q.includes('रीशेड्यूल')
+      q.includes('रीशेड्यूल') ||
+      q.includes('कल') ||
+      q.includes('shift')
     ) {
+      const isTomorrow = q.includes('kal') || q.includes('tomorrow') || q.includes('कल') || q.includes('shift');
       if (onNavigateTabRef.current) onNavigateTabRef.current('extraReschedule');
-      window.dispatchEvent(new CustomEvent('ai-extra-subtab', { detail: { subTab: 'reschedule' } }));
-      releaseLockWithSuccess(
-        '[Mission Executed] Switched to Rescheduled Classes section, Sensei!',
-        'सेन्सेई! रीशेड्यूल क्लासेज सेक्शन ओपन कर दिया है!'
+      window.dispatchEvent(
+        new CustomEvent('ai-extra-subtab', { detail: { subTab: isTomorrow ? 'liveManager' : 'reschedule' } })
       );
+      if (isTomorrow) {
+        releaseLockWithSuccess(
+          '[Mission Executed] Switched to Live Classes with Shift-to-Tomorrow active, Sensei!',
+          'सेन्सेई! आज की क्लास को कल रीशेड्यूल करने का ऑप्शन ओपन कर दिया है। कोर्स एंड डेट चेक करके क्लास कल के लिए शिफ्ट हो जाएगी!'
+        );
+      } else {
+        releaseLockWithSuccess(
+          '[Mission Executed] Switched to Rescheduled Classes section, Sensei!',
+          'सेन्सेई! रीशेड्यूल क्लासेज सेक्शन ओपन कर दिया है!'
+        );
+      }
       return;
     }
 
