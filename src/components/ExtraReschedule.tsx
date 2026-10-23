@@ -44,7 +44,7 @@ function formatDate(dateStr: string): string {
   return `${day} ${month} ${year}, ${weekday}`;
 }
 
-export function getTodayStr(): string {
+function getTodayStr(): string {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -52,7 +52,7 @@ export function getTodayStr(): string {
   return `${y}-${m}-${day}`;
 }
 
-export function getTomorrowStr(): string {
+function getTomorrowStr(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   const y = d.getFullYear();
@@ -61,13 +61,13 @@ export function getTomorrowStr(): string {
   return `${y}-${m}-${day}`;
 }
 
-export function getDayOfWeekName(dateStr: string): string {
+function getDayOfWeekName(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   const dayIdx = d.getDay();
   return !isNaN(d.getTime()) ? DAYS[dayIdx === 0 ? 6 : dayIdx - 1] : 'Monday';
 }
 
-export function checkClassEndDateEligibility(endDateStr?: string | null, targetDateStr?: string): {
+function checkClassEndDateEligibility(endDateStr?: string | null, targetDateStr?: string): {
   isEligible: boolean;
   message: string;
 } {
@@ -786,8 +786,8 @@ export function ExtraRescheduleView({
   const tabs: { id: SubTab; label: string; icon: typeof CalendarPlus; count: number; color: string }[] = [
     { id: 'liveManager', label: 'Faculty Live Classes', icon: Zap, count: runningSessions.length, color: 'emerald' },
     { id: 'extra', label: 'Extra Classes', icon: CalendarPlus, count: groupedExtra.length, color: 'blue' },
-    { id: 'reschedule', label: 'Rescheduled', icon: RefreshCw, count: groupedResched.length, color: 'amber' },
-    { id: 'cancelled', label: 'Cancelled', icon: XCircle, count: groupedCancel.length, color: 'red' },
+    { id: 'reschedule', label: 'Prepone & Reschedule', icon: RefreshCw, count: groupedResched.length, color: 'amber' },
+    { id: 'cancelled', label: 'Cancelled Classes', icon: XCircle, count: groupedCancel.length, color: 'red' },
     { id: 'holidays', label: 'Indian Holidays & Special Classes', icon: Sparkles, count: holidaySpecialCount, color: 'purple' },
   ];
 
@@ -1193,7 +1193,8 @@ function FacultyLiveClassManager({
   const [reschedForm, setReschedForm] = useState({
     original_date: getTodayStr(),
     new_date: getTomorrowStr(),
-    mode: 'tomorrow' as 'tomorrow' | 'same_day' | 'custom',
+    mode: 'tomorrow' as 'tomorrow' | 'prepone' | 'same_day' | 'custom',
+    markTodayNotHeld: true,
     new_start_time: '09:00',
     new_end_time: '10:00',
     room: '',
@@ -1287,23 +1288,33 @@ function FacultyLiveClassManager({
   }, [feedback]);
 
   // Handlers to open modals
-  const openRescheduleModal = (sess: LiveClassSession, preferredMode?: 'tomorrow' | 'same_day' | 'custom') => {
+  const openRescheduleModal = (
+    sess: LiveClassSession,
+    preferredMode?: 'tomorrow' | 'prepone' | 'same_day' | 'custom'
+  ) => {
     setActiveSession(sess);
     const todayStr = getTodayStr();
     const tomorrowStr = getTomorrowStr();
     const tomorrowCheck = checkClassEndDateEligibility(sess.end_date, tomorrowStr);
 
     const mode = preferredMode || (tomorrowCheck.isEligible ? 'tomorrow' : 'same_day');
+    const origDate = mode === 'prepone' ? tomorrowStr : todayStr;
     const targetNewDate = mode === 'tomorrow' ? tomorrowStr : todayStr;
 
     setReschedForm({
-      original_date: todayStr,
+      original_date: origDate,
       new_date: targetNewDate,
       mode,
+      markTodayNotHeld: mode === 'tomorrow',
       new_start_time: sess.start_time || '09:00',
       new_end_time: sess.end_time || '10:00',
       room: sess.room || '',
-      reason: mode === 'tomorrow' ? 'Shifted from today to tomorrow' : 'Shifted to new slot on same date',
+      reason:
+        mode === 'tomorrow'
+          ? 'Class not held today, postponed to tomorrow'
+          : mode === 'prepone'
+          ? 'Future lecture taken ahead of schedule (Prepone)'
+          : 'Time slot adjusted on same date',
     });
     setModalType('reschedule');
   };
@@ -1349,9 +1360,16 @@ function FacultyLiveClassManager({
     setActiveSession(null);
   };
 
-  // Reschedule Submit Handler (Supports Tomorrow, Same Date, or Custom Date with End-Date Guard)
+  // Reschedule / Prepone / Postpone Submit Handler
   const handleRescheduleSubmit = async () => {
-    if (!activeSession || !reschedForm.original_date || !reschedForm.new_date || !reschedForm.new_start_time || !reschedForm.new_end_time) return;
+    if (
+      !activeSession ||
+      !reschedForm.original_date ||
+      !reschedForm.new_date ||
+      !reschedForm.new_start_time ||
+      !reschedForm.new_end_time
+    )
+      return;
 
     // Guard: Class End Date Validation
     const dateCheck = checkClassEndDateEligibility(activeSession.end_date, reschedForm.new_date);
@@ -1368,6 +1386,27 @@ function FacultyLiveClassManager({
       const origDayName = getDayOfWeekName(reschedForm.original_date);
       const newDayName = getDayOfWeekName(reschedForm.new_date);
 
+      // 1. If today's class didn't happen and markTodayNotHeld is true, record in cancelled_classes for today
+      if (
+        reschedForm.markTodayNotHeld &&
+        reschedForm.original_date === getTodayStr() &&
+        reschedForm.new_date !== getTodayStr()
+      ) {
+        const notHeldRecords = activeSession.batch_ids.map((bId) => ({
+          faculty_id: activeSession.faculty_id,
+          batch_id: bId,
+          subject: activeSession.subject.trim(),
+          date: reschedForm.original_date,
+          day_of_week: activeSession.day_of_week || origDayName,
+          start_time: activeSession.start_time || null,
+          end_time: activeSession.end_time || null,
+          room: activeSession.room || null,
+          reason: `[Not Held Today] Postponed to tomorrow ${formatDate(reschedForm.new_date).split(',')[0]} (${reschedForm.new_start_time} - ${reschedForm.new_end_time})`,
+        }));
+        await supabase.from('cancelled_classes').insert(notHeldRecords);
+      }
+
+      // 2. Insert into rescheduled_classes
       const records = activeSession.batch_ids.map((bId) => ({
         faculty_id: activeSession.faculty_id,
         batch_id: bId,
@@ -1388,10 +1427,15 @@ function FacultyLiveClassManager({
       if (error) throw error;
 
       const isTomorrow = reschedForm.new_date === getTomorrowStr();
-      const dateLabel = isTomorrow ? 'tomorrow' : `on ${formatDate(reschedForm.new_date)}`;
+      const actionTypeLabel =
+        reschedForm.mode === 'prepone'
+          ? 'preponed'
+          : isTomorrow
+          ? 'postponed to tomorrow'
+          : 'rescheduled';
       setFeedback({
         type: 'success',
-        message: `Successfully rescheduled "${activeSession.subject}" to ${dateLabel} (${reschedForm.new_start_time} - ${reschedForm.new_end_time}) across ${activeSession.batch_ids.length} batch(es)!`,
+        message: `Successfully ${actionTypeLabel} "${activeSession.subject}" (${reschedForm.new_start_time} - ${reschedForm.new_end_time}) across ${activeSession.batch_ids.length} batch(es)!`,
       });
       closeModal();
       onChange();
@@ -1809,18 +1853,18 @@ function FacultyLiveClassManager({
                         type="button"
                         onClick={() => openRescheduleModal(sess, 'tomorrow')}
                         disabled={!tomorrowCheck.isEligible}
-                        title={!tomorrowCheck.isEligible ? tomorrowCheck.message : "Shift today's lecture to tomorrow across all batches"}
-                        className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-black shadow-sm transition-all duration-200 ${
+                        title={!tomorrowCheck.isEligible ? tomorrowCheck.message : "Shift today's lecture to tomorrow if not held today"}
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs font-black shadow-sm transition-all duration-200 ${
                           tomorrowCheck.isEligible
-                            ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/20 hover:scale-[1.01] active:scale-98'
+                            ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/25 hover:scale-[1.01] active:scale-98 ring-2 ring-orange-400/30'
                             : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                         }`}
                       >
-                        <Zap className={`w-3.5 h-3.5 ${tomorrowCheck.isEligible ? 'text-amber-300 animate-pulse' : 'text-slate-400'}`} />
+                        <Zap className={`w-3.5 h-3.5 ${tomorrowCheck.isEligible ? 'text-amber-200 animate-pulse' : 'text-slate-400'}`} />
                         <span>
                           {tomorrowCheck.isEligible
-                            ? `⚡ Shift to Tomorrow (${formatDate(getTomorrowStr()).split(',')[0]})`
-                            : `Tomorrow Locked (End Date: ${sess.end_date ? formatDate(sess.end_date).split(',')[0] : 'Expired'})`}
+                            ? `⚡ Postpone to Tomorrow (${formatDate(getTomorrowStr()).split(',')[0]})`
+                            : `Tomorrow Locked (Course End Date: ${sess.end_date ? formatDate(sess.end_date).split(',')[0] : 'Expired'})`}
                         </span>
                       </button>
                     );
@@ -1833,7 +1877,7 @@ function FacultyLiveClassManager({
                       className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold shadow-sm shadow-amber-500/20 hover:scale-[1.02] active:scale-95 transition-all"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
-                      Reschedule
+                      Prepone / Reschedule
                     </button>
 
                     <button
@@ -2093,9 +2137,9 @@ function FacultyLiveClassManager({
 
               {/* Mode Selection Tabs / Presets */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Choose Reschedule Option:</label>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
-                  {/* Tomorrow Tab */}
+                <label className="text-xs font-bold text-slate-700">Choose Reschedule / Prepone Option:</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
+                  {/* Option 1: Postpone to Tomorrow */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2105,28 +2149,55 @@ function FacultyLiveClassManager({
                         mode: 'tomorrow',
                         original_date: todayStr,
                         new_date: tomorrowStr,
-                        reason: 'Shifted from today to tomorrow',
+                        markTodayNotHeld: true,
+                        reason: 'Class not held today, postponed to tomorrow',
                       });
                     }}
                     disabled={!tomorrowEligibility.isEligible}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                       reschedForm.mode === 'tomorrow'
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 scale-[1.02]'
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/25 scale-[1.02]'
                         : tomorrowEligibility.isEligible
                         ? 'text-slate-700 hover:bg-white hover:text-slate-900'
                         : 'text-slate-400 bg-slate-200/50 cursor-not-allowed opacity-60'
                     }`}
                   >
                     <span className="flex items-center gap-1">
-                      <Zap className="w-3.5 h-3.5 text-amber-300" />
-                      To Tomorrow
+                      <Zap className="w-3.5 h-3.5 text-amber-200" />
+                      Postpone to Tomorrow
                     </span>
                     <span className="text-[10px] font-medium opacity-85">
-                      {tomorrowEligibility.isEligible ? '+1 Day Shift' : 'End Date Passed'}
+                      {tomorrowEligibility.isEligible ? 'Class not held (+1 Day)' : 'End Date Passed'}
                     </span>
                   </button>
 
-                  {/* Same Date Tab */}
+                  {/* Option 2: Prepone (Take Future Class Today) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReschedForm({
+                        ...reschedForm,
+                        mode: 'prepone',
+                        original_date: tomorrowStr,
+                        new_date: todayStr,
+                        markTodayNotHeld: false,
+                        reason: 'Future lecture taken ahead of schedule (Prepone)',
+                      });
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
+                      reschedForm.mode === 'prepone'
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 scale-[1.02]'
+                        : 'text-slate-700 hover:bg-white hover:text-slate-900'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-200" />
+                      Prepone (Take Today)
+                    </span>
+                    <span className="text-[10px] font-medium opacity-85">Ahead of schedule</span>
+                  </button>
+
+                  {/* Option 3: Same Date Tab */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2135,10 +2206,11 @@ function FacultyLiveClassManager({
                         mode: 'same_day',
                         original_date: todayStr,
                         new_date: todayStr,
-                        reason: 'Shifted to new slot on same date',
+                        markTodayNotHeld: false,
+                        reason: 'Time slot adjusted on same date',
                       });
                     }}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                       reschedForm.mode === 'same_day'
                         ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 scale-[1.02]'
                         : 'text-slate-700 hover:bg-white hover:text-slate-900'
@@ -2146,21 +2218,22 @@ function FacultyLiveClassManager({
                   >
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
-                      Same Date
+                      Same Day Slot
                     </span>
-                    <span className="text-[10px] font-medium opacity-85">New Time Slot</span>
+                    <span className="text-[10px] font-medium opacity-85">Adjust Time Slot</span>
                   </button>
 
-                  {/* Custom Date Tab */}
+                  {/* Option 4: Custom Date Tab */}
                   <button
                     type="button"
                     onClick={() => {
                       setReschedForm({
                         ...reschedForm,
                         mode: 'custom',
+                        markTodayNotHeld: false,
                       });
                     }}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                       reschedForm.mode === 'custom'
                         ? 'bg-slate-800 text-white shadow-md scale-[1.02]'
                         : 'text-slate-700 hover:bg-white hover:text-slate-900'
@@ -2170,7 +2243,7 @@ function FacultyLiveClassManager({
                       <Calendar className="w-3.5 h-3.5" />
                       Custom Date
                     </span>
-                    <span className="text-[10px] font-medium opacity-85">Choose Any</span>
+                    <span className="text-[10px] font-medium opacity-85">Choose Any Date</span>
                   </button>
                 </div>
               </div>
@@ -2191,7 +2264,7 @@ function FacultyLiveClassManager({
                 <div>
                   <p className="font-bold">
                     {currentTargetEligibility.isEligible
-                      ? 'Course End Date Verification: Passed'
+                      ? 'Course End Date Verification: Passed (Course Active)'
                       : 'End Date Alert: Rescheduling Blocked'}
                   </p>
                   <p className="text-[11px] opacity-90 mt-0.5">{currentTargetEligibility.message}</p>
@@ -2201,24 +2274,77 @@ function FacultyLiveClassManager({
               {/* Form Fields Based on Mode */}
               <div className="space-y-3.5">
                 {reschedForm.mode === 'tomorrow' ? (
-                  <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
+                  <div className="space-y-3">
+                    <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-orange-900 flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-orange-600" />
+                          Class Not Held Today ➔ Postponed to Tomorrow
+                        </span>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-orange-200 text-orange-900 rounded-full">
+                          Postponed to Tomorrow
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white p-2.5 rounded-xl border border-rose-200">
+                          <p className="text-[10px] uppercase font-bold text-rose-600 flex items-center gap-1">
+                            <XCircle className="w-3 h-3 text-rose-500" />
+                            Original Date (Not Held Today)
+                          </p>
+                          <p className="font-bold text-slate-800 mt-0.5">{formatDate(reschedForm.original_date)}</p>
+                          <p className="text-[11px] text-rose-700 font-medium">Class not conducted today</p>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-xl border border-emerald-300">
+                          <p className="text-[10px] uppercase font-bold text-emerald-600 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            Tomorrow's Slot (Rescheduled)
+                          </p>
+                          <p className="font-bold text-emerald-950 mt-0.5">{formatDate(reschedForm.new_date)}</p>
+                          <p className="text-[11px] text-emerald-700 font-medium">Scheduled for tomorrow</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Checkbox to also record today's cancellation */}
+                    <label className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-orange-50/50 hover:border-orange-200 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={reschedForm.markTodayNotHeld}
+                        onChange={(e) =>
+                          setReschedForm({ ...reschedForm, markTodayNotHeld: e.target.checked })
+                        }
+                        className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <span className="font-bold text-slate-900 flex items-center gap-1">
+                          <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                          Mark today's routine lecture as 'Not Held / Cancelled'
+                        </span>
+                        <p className="text-[11px] text-slate-500 font-normal mt-0.5">
+                          Records "Not Held Today - Postponed to Tomorrow" in today's log, and creates the tomorrow replacement entry.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                ) : reschedForm.mode === 'prepone' ? (
+                  <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200/80 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-                        <Zap className="w-4 h-4 text-emerald-600" />
-                        Shifting Lecture from Today to Tomorrow
+                      <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-purple-600" />
+                        Prepone: Future lecture conducted today ahead of time
                       </span>
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded-full">
-                        Tomorrow (+1 Day)
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-purple-200 text-purple-900 rounded-full">
+                        Preponed to Today
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-white p-2 rounded-xl border border-emerald-200/60">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Original Date (Today)</p>
-                        <p className="font-bold text-slate-800">{formatDate(reschedForm.original_date)}</p>
+                      <div className="bg-white p-2.5 rounded-xl border border-purple-200">
+                        <p className="text-[10px] uppercase font-bold text-purple-600">Original Scheduled Date</p>
+                        <p className="font-bold text-slate-800 mt-0.5">{formatDate(reschedForm.original_date)}</p>
                       </div>
-                      <div className="bg-white p-2 rounded-xl border border-emerald-300">
-                        <p className="text-[10px] uppercase font-bold text-emerald-600">New Date (Tomorrow)</p>
-                        <p className="font-bold text-emerald-900">{formatDate(reschedForm.new_date)}</p>
+                      <div className="bg-white p-2.5 rounded-xl border border-purple-300">
+                        <p className="text-[10px] uppercase font-bold text-purple-800">Preponed Date (Today)</p>
+                        <p className="font-bold text-purple-950 mt-0.5">{formatDate(reschedForm.new_date)}</p>
                       </div>
                     </div>
                   </div>
@@ -3299,7 +3425,8 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
   const [form, setForm] = useState({
     original_date: getTodayStr(),
     new_date: getTomorrowStr(),
-    rescheduleMode: 'tomorrow' as 'tomorrow' | 'same_day' | 'custom',
+    rescheduleMode: 'tomorrow' as 'tomorrow' | 'prepone' | 'same_day' | 'custom',
+    markTodayNotHeld: true,
     new_start_time: '09:00',
     new_end_time: '10:00',
     room: '',
@@ -3318,6 +3445,7 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
   const [savingEdit, setSavingEdit] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFacultyId, setSelectedFacultyId] = useState<string>('all');
+  const [classTypeFilter, setClassTypeFilter] = useState<'all' | 'postponed' | 'preponed' | 'same_day'>('all');
 
   // Cancellation State
   const [cancellingGroup, setCancellingGroup] = useState<GroupedReschedule | null>(null);
@@ -3335,9 +3463,44 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
       .sort((a, b) => b.count - a.count || (a.name || '').localeCompare(b.name || ''));
   }, [faculty, groupedItems]);
 
+  const typeCounts = useMemo(() => {
+    let postponed = 0;
+    let preponed = 0;
+    let same_day = 0;
+    groupedItems.forEach((g) => {
+      const isPrep =
+        String(g.reason || '').toLowerCase().includes('prepone') ||
+        String(g.reason || '').includes('प्रीपोन') ||
+        (Boolean(g.original_date) && g.new_date < g.original_date);
+      const isPost =
+        String(g.reason || '').toLowerCase().includes('not held') ||
+        String(g.reason || '').toLowerCase().includes('postpone') ||
+        String(g.reason || '').includes('आज नहीं हुई') ||
+        (Boolean(g.original_date) && g.new_date > g.original_date);
+      if (isPrep) preponed += 1;
+      else if (isPost) postponed += 1;
+      else same_day += 1;
+    });
+    return { all: groupedItems.length, postponed, preponed, same_day };
+  }, [groupedItems]);
+
   const filtered = useMemo(() => {
     return groupedItems.filter((g) => {
       if (selectedFacultyId !== 'all' && g.faculty.id !== selectedFacultyId) return false;
+      const isPrep =
+        String(g.reason || '').toLowerCase().includes('prepone') ||
+        String(g.reason || '').includes('प्रीपोन') ||
+        (Boolean(g.original_date) && g.new_date < g.original_date);
+      const isPost =
+        String(g.reason || '').toLowerCase().includes('not held') ||
+        String(g.reason || '').toLowerCase().includes('postpone') ||
+        String(g.reason || '').includes('आज नहीं हुई') ||
+        (Boolean(g.original_date) && g.new_date > g.original_date);
+
+      if (classTypeFilter === 'postponed' && !isPost) return false;
+      if (classTypeFilter === 'preponed' && !isPrep) return false;
+      if (classTypeFilter === 'same_day' && (isPrep || isPost)) return false;
+
       const q = searchQuery.toLowerCase().trim();
       if (!q) return true;
       return (
@@ -3349,7 +3512,7 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
         g.batchNames.some((b) => b.toLowerCase().includes(q))
       );
     });
-  }, [groupedItems, selectedFacultyId, searchQuery]);
+  }, [groupedItems, selectedFacultyId, classTypeFilter, searchQuery]);
 
   const currentCheck = selectedSession
     ? checkClassEndDateEligibility(selectedSession.end_date, form.new_date)
@@ -3375,10 +3538,14 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
         original_date: todayStr,
         new_date: mode === 'tomorrow' ? tomorrowStr : todayStr,
         rescheduleMode: mode,
+        markTodayNotHeld: mode === 'tomorrow',
         new_start_time: s.start_time || prev.new_start_time,
         new_end_time: s.end_time || prev.new_end_time,
         room: s.room || prev.room,
-        reason: mode === 'tomorrow' ? 'Shifted from today to tomorrow' : 'Shifted to new slot on same date',
+        reason:
+          mode === 'tomorrow'
+            ? 'Class not held today, postponed to tomorrow'
+            : 'Time slot adjusted on same date',
       }));
     }
   };
@@ -3395,6 +3562,27 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
     const origDayName = getDayOfWeekName(form.original_date);
     const newDayName = getDayOfWeekName(form.new_date);
 
+    // 1. If today's class didn't happen and markTodayNotHeld is true
+    if (
+      form.markTodayNotHeld &&
+      form.original_date === getTodayStr() &&
+      form.new_date !== getTodayStr()
+    ) {
+      const notHeldRecords = selectedSession.batch_ids.map((bId) => ({
+        faculty_id: selectedSession.faculty_id,
+        batch_id: bId,
+        subject: selectedSession.subject.trim(),
+        date: form.original_date,
+        day_of_week: selectedSession.day_of_week || origDayName,
+        start_time: selectedSession.start_time || null,
+        end_time: selectedSession.end_time || null,
+        room: selectedSession.room || null,
+        reason: `[Not Held Today] Postponed to tomorrow ${formatDate(form.new_date).split(',')[0]} (${form.new_start_time} - ${form.new_end_time})`,
+      }));
+      await supabase.from('cancelled_classes').insert(notHeldRecords);
+    }
+
+    // 2. Insert into rescheduled_classes
     const records = selectedSession.batch_ids.map((batch_id) => ({
       faculty_id: selectedSession.faculty_id,
       batch_id,
@@ -3417,6 +3605,7 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
       original_date: getTodayStr(),
       new_date: getTomorrowStr(),
       rescheduleMode: 'tomorrow',
+      markTodayNotHeld: true,
       new_start_time: '09:00',
       new_end_time: '10:00',
       room: '',
@@ -3502,16 +3691,22 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
   return (
     <div className="space-y-6">
       <FormCard
-        title="Add Rescheduled Class (Shift to Tomorrow or Same Date)"
+        title="Add Prepone / Postpone / Rescheduled Class"
         icon={RefreshCw}
         color="amber"
         onSave={handleSubmit}
         isValid={!!isValid}
         saving={saving}
-        saveLabel={form.rescheduleMode === 'tomorrow' ? '⚡ Confirm Shift to Tomorrow' : 'Add Rescheduled Class'}
+        saveLabel={
+          form.rescheduleMode === 'tomorrow'
+            ? '⚡ Postpone to Tomorrow'
+            : form.rescheduleMode === 'prepone'
+            ? '⏪ Save Preponed Class'
+            : 'Add Rescheduled Class'
+        }
       >
         <div className="space-y-4">
-          <Field label="Live Scheduled Class to Reschedule (select to link faculty, subject & all batches)">
+          <Field label="Live Scheduled Class to Reschedule / Prepone (select to link faculty, subject & all batches)">
             <LiveClassSelect
               sessions={sessions}
               selectedSession={selectedSession}
@@ -3557,8 +3752,9 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
 
                 {/* Reschedule Mode Presets */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Reschedule Preset:</label>
-                  <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 rounded-2xl">
+                  <label className="text-xs font-bold text-slate-700">Choose Operation Type:</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 bg-slate-100 rounded-2xl">
+                    {/* Option 1: Postpone */}
                     <button
                       type="button"
                       disabled={!tomorrowEligibility.isEligible}
@@ -3568,26 +3764,54 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                           rescheduleMode: 'tomorrow',
                           original_date: todayStr,
                           new_date: tomorrowStr,
-                          reason: 'Shifted from today to tomorrow',
+                          markTodayNotHeld: true,
+                          reason: 'Class not held today, postponed to tomorrow',
                         })
                       }
-                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                         form.rescheduleMode === 'tomorrow'
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 scale-[1.02]'
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/25 scale-[1.02]'
                           : tomorrowEligibility.isEligible
                           ? 'text-slate-700 hover:bg-white hover:text-slate-900'
                           : 'text-slate-400 bg-slate-200/50 cursor-not-allowed opacity-60'
                       }`}
                     >
                       <span className="flex items-center gap-1">
-                        <Zap className="w-3.5 h-3.5 text-amber-300" />
-                        Shift to Tomorrow
+                        <Zap className="w-3.5 h-3.5 text-amber-200" />
+                        Postpone to Tomorrow
                       </span>
                       <span className="text-[10px] font-medium opacity-85">
-                        {tomorrowEligibility.isEligible ? '+1 Day Shift' : 'End Date Passed'}
+                        {tomorrowEligibility.isEligible ? 'Class not held (+1 Day)' : 'End Date Passed'}
                       </span>
                     </button>
 
+                    {/* Option 2: Prepone */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          rescheduleMode: 'prepone',
+                          original_date: tomorrowStr,
+                          new_date: todayStr,
+                          markTodayNotHeld: false,
+                          reason: 'Future lecture taken ahead of schedule (Prepone)',
+                        })
+                      }
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
+                        form.rescheduleMode === 'prepone'
+                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 scale-[1.02]'
+                          : 'text-slate-700 hover:bg-white hover:text-slate-900'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-200" />
+                        Prepone (Take Today)
+                      </span>
+                      <span className="text-[10px] font-medium opacity-85">Ahead of schedule</span>
+                    </button>
+
+                    {/* Option 3: Same Day */}
                     <button
                       type="button"
                       onClick={() =>
@@ -3596,10 +3820,11 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                           rescheduleMode: 'same_day',
                           original_date: todayStr,
                           new_date: todayStr,
-                          reason: 'Shifted to new slot on same date',
+                          markTodayNotHeld: false,
+                          reason: 'Time slot adjusted on same date',
                         })
                       }
-                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                         form.rescheduleMode === 'same_day'
                           ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 scale-[1.02]'
                           : 'text-slate-700 hover:bg-white hover:text-slate-900'
@@ -3607,20 +3832,22 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                     >
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
-                        Same Date
+                        Same Day Slot
                       </span>
-                      <span className="text-[10px] font-medium opacity-85">New Time Slot</span>
+                      <span className="text-[10px] font-medium opacity-85">Adjust Time Slot</span>
                     </button>
 
+                    {/* Option 4: Custom Date */}
                     <button
                       type="button"
                       onClick={() =>
                         setForm({
                           ...form,
                           rescheduleMode: 'custom',
+                          markTodayNotHeld: false,
                         })
                       }
-                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                         form.rescheduleMode === 'custom'
                           ? 'bg-slate-800 text-white shadow-md scale-[1.02]'
                           : 'text-slate-700 hover:bg-white hover:text-slate-900'
@@ -3635,26 +3862,77 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                   </div>
                 </div>
 
-                {/* Date Fields */}
+                {/* Date Fields & Not-Held Toggle */}
                 {form.rescheduleMode === 'tomorrow' ? (
-                  <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
+                  <div className="space-y-3">
+                    <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-orange-900 flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-orange-600" />
+                          Class Not Held Today ➔ Postponed to Tomorrow
+                        </span>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-orange-200 text-orange-900 rounded-full">
+                          Postponed to Tomorrow
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white p-2.5 rounded-xl border border-rose-200">
+                          <p className="text-[10px] uppercase font-bold text-rose-600 flex items-center gap-1">
+                            <XCircle className="w-3 h-3 text-rose-500" />
+                            Original Date (Not Held Today)
+                          </p>
+                          <p className="font-bold text-slate-800 mt-0.5">{formatDate(form.original_date)}</p>
+                          <p className="text-[11px] text-rose-700 font-medium">Class not conducted today</p>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-xl border border-emerald-300">
+                          <p className="text-[10px] uppercase font-bold text-emerald-600 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            Tomorrow's Slot (Rescheduled)
+                          </p>
+                          <p className="font-bold text-emerald-950 mt-0.5">{formatDate(form.new_date)}</p>
+                          <p className="text-[11px] text-emerald-700 font-medium">Scheduled for tomorrow</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Checkbox to mark today as not held */}
+                    <label className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-orange-50/50 hover:border-orange-200 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={form.markTodayNotHeld}
+                        onChange={(e) => setForm({ ...form, markTodayNotHeld: e.target.checked })}
+                        className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <span className="font-bold text-slate-900 flex items-center gap-1">
+                          <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                          Mark today's routine lecture as 'Not Held / Cancelled'
+                        </span>
+                        <p className="text-[11px] text-slate-500 font-normal mt-0.5">
+                          Records "Not Held Today - Postponed to Tomorrow" in today's log, and creates the tomorrow replacement entry.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                ) : form.rescheduleMode === 'prepone' ? (
+                  <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200/80 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-                        <Zap className="w-4 h-4 text-emerald-600" />
-                        Shifting Routine Session to Tomorrow
+                      <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-purple-600" />
+                        Prepone: Future lecture conducted today ahead of time
                       </span>
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded-full">
-                        Tomorrow (+1 Day)
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-purple-200 text-purple-900 rounded-full">
+                        Preponed to Today
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-white p-2 rounded-xl border border-emerald-200/60">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Original Date (Today)</p>
-                        <p className="font-bold text-slate-800">{formatDate(form.original_date)}</p>
+                      <div className="bg-white p-2.5 rounded-xl border border-purple-200">
+                        <p className="text-[10px] uppercase font-bold text-purple-600">Original Scheduled Date</p>
+                        <p className="font-bold text-slate-800 mt-0.5">{formatDate(form.original_date)}</p>
                       </div>
-                      <div className="bg-white p-2 rounded-xl border border-emerald-300">
-                        <p className="text-[10px] uppercase font-bold text-emerald-600">New Date (Tomorrow)</p>
-                        <p className="font-bold text-emerald-900">{formatDate(form.new_date)}</p>
+                      <div className="bg-white p-2.5 rounded-xl border border-purple-300">
+                        <p className="text-[10px] uppercase font-bold text-purple-800">Preponed Date (Today)</p>
+                        <p className="font-bold text-purple-950 mt-0.5">{formatDate(form.new_date)}</p>
                       </div>
                     </div>
                   </div>
@@ -3752,45 +4030,129 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
       </FormCard>
 
       {groupedItems.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-fade-in-up bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex-1">
-            <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search subject, faculty, batch, room..." />
+        <div className="space-y-3 animate-fade-in-up">
+          {/* Category Filter Pills: All / Postponed / Preponed / Same Day */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setClassTypeFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                classTypeFilter === 'all'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <span>All Classes</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                  classTypeFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {typeCounts.all}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setClassTypeFilter('postponed')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                classTypeFilter === 'postponed'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm'
+                  : 'bg-orange-50/70 hover:bg-orange-100/70 text-orange-800 border border-orange-200'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-300" />
+              <span>⏩ Postponed to Tomorrow</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                  classTypeFilter === 'postponed' ? 'bg-white/25 text-white' : 'bg-orange-200/60 text-orange-900'
+                }`}
+              >
+                {typeCounts.postponed}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setClassTypeFilter('preponed')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                classTypeFilter === 'preponed'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm'
+                  : 'bg-purple-50/70 hover:bg-purple-100/70 text-purple-800 border border-purple-200'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-200" />
+              <span>⏪ Preponed (Ahead of Time)</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                  classTypeFilter === 'preponed' ? 'bg-white/25 text-white' : 'bg-purple-200/60 text-purple-900'
+                }`}
+              >
+                {typeCounts.preponed}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setClassTypeFilter('same_day')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                classTypeFilter === 'same_day'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'bg-amber-50/70 hover:bg-amber-100/70 text-amber-800 border border-amber-200'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>🕒 Same Day New Slot</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                  classTypeFilter === 'same_day' ? 'bg-white/25 text-white' : 'bg-amber-200/60 text-amber-900'
+                }`}
+              >
+                {typeCounts.same_day}
+              </span>
+            </button>
           </div>
 
-          {facultyOptions.length > 0 && (
-            <div className="relative shrink-0 min-w-[200px]">
-              <select
-                value={selectedFacultyId}
-                onChange={(e) => setSelectedFacultyId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all appearance-none cursor-pointer"
-              >
-                <option value="all">👥 All Faculty ({groupedItems.length})</option>
-                {facultyOptions.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name} ({f.count})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div className="flex-1">
+              <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search subject, faculty, batch, room..." />
             </div>
-          )}
 
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-slate-500 font-semibold whitespace-nowrap bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200">
-              {filtered.length} of {groupedItems.length}
-            </span>
-            {(selectedFacultyId !== 'all' || searchQuery.trim()) && (
-              <button
-                type="button"
-                onClick={() => { setSelectedFacultyId('all'); setSearchQuery(''); }}
-                className="text-xs font-bold text-amber-700 hover:text-amber-800 hover:underline px-1 py-1"
-              >
-                Clear
-              </button>
+            {facultyOptions.length > 0 && (
+              <div className="relative shrink-0 min-w-[200px]">
+                <select
+                  value={selectedFacultyId}
+                  onChange={(e) => setSelectedFacultyId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="all">👥 All Faculty ({groupedItems.length})</option>
+                  {facultyOptions.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({f.count})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              </div>
             )}
-          </div>
 
-          <ExportButtons onBulk={() => exportRescheduledToExcel(filtered)} onSingle={() => filtered[0] && exportRescheduledToExcel(filtered, filtered[0])} singleDisabled={filtered.length === 0} />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-slate-500 font-semibold whitespace-nowrap bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200">
+                {filtered.length} of {groupedItems.length}
+              </span>
+              {(selectedFacultyId !== 'all' || searchQuery.trim() || classTypeFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedFacultyId('all'); setSearchQuery(''); setClassTypeFilter('all'); }}
+                  className="text-xs font-bold text-amber-700 hover:text-amber-800 hover:underline px-1 py-1"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <ExportButtons onBulk={() => exportRescheduledToExcel(filtered)} onSingle={() => filtered[0] && exportRescheduledToExcel(filtered, filtered[0])} singleDisabled={filtered.length === 0} />
+          </div>
         </div>
       )}
 
@@ -3803,7 +4165,7 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
           <p className="text-xs text-slate-500">Try selecting another faculty member or clearing the search query.</p>
           <button
             type="button"
-            onClick={() => { setSelectedFacultyId('all'); setSearchQuery(''); }}
+            onClick={() => { setSelectedFacultyId('all'); setSearchQuery(''); setClassTypeFilter('all'); }}
             className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-all"
           >
             Show All Rescheduled Classes
@@ -3813,19 +4175,29 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
         <div className="space-y-4 animate-card-stagger">
           {filtered.map((g) => {
             const isEditing = editingKey === g.key;
+            const isPrep =
+              String(g.reason || '').toLowerCase().includes('prepone') ||
+              String(g.reason || '').includes('प्रीपोन') ||
+              (Boolean(g.original_date) && g.new_date < g.original_date);
+            const isPost =
+              String(g.reason || '').toLowerCase().includes('not held') ||
+              String(g.reason || '').toLowerCase().includes('postpone') ||
+              String(g.reason || '').includes('आज नहीं हुई') ||
+              (Boolean(g.original_date) && g.new_date > g.original_date);
+
             return (
               <CardShell
                 key={g.key}
-                gradient="from-amber-50/80 to-orange-50/80"
+                gradient={isPrep ? "from-purple-50/80 to-indigo-50/80" : isPost ? "from-orange-50/80 to-amber-50/80" : "from-amber-50/80 to-orange-50/80"}
                 icon={RefreshCw}
                 facultyName={g.faculty.name}
                 department={g.faculty.department}
                 batchNames={g.batchNames}
-                badgeColor="bg-amber-100 text-amber-700"
+                badgeColor={isPrep ? "bg-purple-100 text-purple-800" : isPost ? "bg-orange-100 text-orange-800" : "bg-amber-100 text-amber-700"}
                 onCancel={() => { setCancellingGroup(g); setCancelReason(''); }}
                 onEdit={() => startEdit(g)}
                 onDelete={() => handleDeleteGroup(g.ids)}
-                glowClass="anime-glow-amber"
+                glowClass={isPrep ? "anime-glow-purple" : isPost ? "anime-glow-orange" : "anime-glow-amber"}
                 extraButtons={<button onClick={() => exportRescheduledToExcel([], g)} title="Export this entry" className="p-2 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200 hover:scale-125 hover:rotate-6"><Download className="w-4 h-4" /></button>}
               >
                 {isEditing ? (
@@ -3844,8 +4216,14 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                   <>
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                          <BookOpen className="w-5.5 h-5.5 text-amber-600" />
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 ${
+                          isPrep
+                            ? 'bg-gradient-to-br from-purple-100 to-indigo-100 text-purple-700'
+                            : isPost
+                            ? 'bg-gradient-to-br from-orange-100 to-amber-100 text-orange-700'
+                            : 'bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600'
+                        }`}>
+                          <BookOpen className="w-5.5 h-5.5" />
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-base">{g.subject}</p>
@@ -3853,10 +4231,15 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                         </div>
                       </div>
 
-                      {g.original_date && g.original_date !== g.new_date ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-2xs">
-                          <Zap className="w-3 h-3 text-emerald-600" />
-                          {g.new_date === getTomorrowStr() ? 'SHIFTED TO TOMORROW' : 'DATE SHIFTED'}
+                      {isPrep ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-300 flex items-center gap-1 shadow-2xs">
+                          <Sparkles className="w-3 h-3 text-purple-600" />
+                          PREPONED: Ahead of Schedule
+                        </span>
+                      ) : isPost ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-orange-100 text-orange-900 border border-orange-300 flex items-center gap-1 shadow-2xs">
+                          <Zap className="w-3 h-3 text-orange-600" />
+                          {g.new_date === getTomorrowStr() ? 'POSTPONED TO TOMORROW' : 'POSTPONED / RESCHEDULED'}
                         </span>
                       ) : (
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
@@ -3867,7 +4250,7 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                      <DetailBox label="Original Routine Schedule">
+                      <DetailBox label={isPost ? "Routine Slot (Not Held Today)" : isPrep ? "Original Scheduled Slot" : "Original Routine Schedule"}>
                         <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-slate-500" />
                           {formatDate(g.original_date || g.new_date)} ({g.original_day || g.new_day})
@@ -3878,10 +4261,24 @@ function RescheduledClassesManager({ faculty, batches, loads, groupedItems, onCh
                         </p>
                       </DetailBox>
                       <DetailBox
-                        label={g.original_date && g.original_date !== g.new_date ? "Rescheduled Date & Time" : "New Time on Same Date"}
-                        accent="bg-amber-50/80 border-amber-200/60"
+                        label={
+                          isPost
+                            ? "Tomorrow's Rescheduled Slot"
+                            : isPrep
+                            ? "Preponed Slot (Held Today)"
+                            : g.original_date && g.original_date !== g.new_date
+                            ? "Rescheduled Date & Time"
+                            : "New Time on Same Date"
+                        }
+                        accent={
+                          isPrep
+                            ? "bg-purple-50/80 border-purple-200/60"
+                            : isPost
+                            ? "bg-orange-50/80 border-orange-200/60"
+                            : "bg-amber-50/80 border-amber-200/60"
+                        }
                       >
-                        <p className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-amber-600" />
                           {formatDate(g.new_date)} ({g.new_day})
                         </p>
