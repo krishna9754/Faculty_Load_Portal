@@ -879,11 +879,11 @@ export function AIAssistant({
     }
   };
 
-  // 🎙️ Sarvam AI (India's #1 Native Hindi Female Voice: "meera" / "ishita" - True Desi Human Accent)
+  // 🎙️ Sarvam AI (India's #1 Native Hindi Female Voice: "ishita_enhi_companion" / "kavya_hi_conversational" - True Desi Human Accent)
   const playSarvamVoice = async (
     text: string,
     apiKey: string,
-    speaker: string = 'meera',
+    speaker: string = 'ishita_enhi_companion',
     onEnd: () => void
   ): Promise<boolean> => {
     try {
@@ -904,7 +904,7 @@ export function AIAssistant({
           inputs: [clean],
           target_language_code: 'hi-IN',
           model: 'bulbul:v4-flash',
-          speaker: speaker || 'meera',
+          speaker: speaker || 'ishita_enhi_companion',
           pace: 1.0,
           speech_sample_rate: 24000,
           audio_format: 'mp3',
@@ -943,7 +943,7 @@ export function AIAssistant({
     }
   };
 
-  // 🧠 Conversational LLM Engine (Answers ANYTHING - powered by Groq Llama 3 or Google Gemini)
+  // 🧠 Conversational LLM Engine (Answers ANYTHING - powered by Google Gemini, Groq, or fallback)
   const queryConversationalLLM = async (
     userQuery: string,
     keys: { geminiKey?: string; groqKey?: string }
@@ -958,35 +958,38 @@ Your personality:
 
     // 1. Try Google Gemini (Official Google AI Brain)
     if (keys.geminiKey) {
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${keys.geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    { text: `${systemPrompt}\n\nUser: ${userQuery}\nMayra:` }
-                  ]
+      const geminiModels = ['gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-1.5-flash'];
+      for (const model of geminiModels) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keys.geminiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [
+                      { text: `${systemPrompt}\n\nUser: ${userQuery}\nMayra:` }
+                    ]
+                  }
+                ],
+                generationConfig: {
+                  maxOutputTokens: 120,
+                  temperature: 0.75
                 }
-              ],
-              generationConfig: {
-                maxOutputTokens: 120,
-                temperature: 0.75
-              }
-            })
+              })
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (text) return text;
           }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text) return text;
+        } catch (e) {
+          console.warn(`Gemini API error with model ${model}:`, e);
         }
-      } catch (e) {
-        console.warn('Gemini API error:', e);
       }
     }
 
