@@ -1089,7 +1089,7 @@ Your personality:
         const played = await playSarvamVoice(
           fullText,
           sarvamKey,
-          'meera',
+          'ishita_enhi_companion',
           () => {
             if (speechSessionIdRef.current === thisSessionId) {
               setIsSpeaking(false);
