@@ -385,6 +385,13 @@ export function AIAssistant({
       return '';
     }
   });
+  const [sarvamApiKey, setSarvamApiKey] = useState<string>(() => {
+    try {
+      return localStorage.getItem('ai_mayra_sarvam_key') || import.meta.env.VITE_SARVAM_API_KEY || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [groqApiKey, setGroqApiKey] = useState<string>(() => {
     try {
       return localStorage.getItem('ai_mayra_groq_key') || import.meta.env.VITE_GROQ_API_KEY || '';
@@ -872,6 +879,70 @@ export function AIAssistant({
     }
   };
 
+  // 🎙️ Sarvam AI (India's #1 Native Hindi Female Voice: "meera" / "ishita" - True Desi Human Accent)
+  const playSarvamVoice = async (
+    text: string,
+    apiKey: string,
+    speaker: string = 'meera',
+    onEnd: () => void
+  ): Promise<boolean> => {
+    try {
+      const clean = text
+        .replace(/https?:\/\/\S+/g, '')
+        .replace(/[*_#`~•—–]/g, ' ')
+        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+        .trim();
+      if (!clean) return false;
+
+      const res = await fetch('https://api.sarvam.ai/text-to-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-subscription-key': apiKey,
+        },
+        body: JSON.stringify({
+          inputs: [clean],
+          target_language_code: 'hi-IN',
+          model: 'bulbul:v4-flash',
+          speaker: speaker || 'meera',
+          pace: 1.0,
+          speech_sample_rate: 24000,
+          audio_format: 'mp3',
+        }),
+      });
+
+      if (!res.ok) {
+        console.warn('Sarvam AI error:', res.status, await res.text());
+        return false;
+      }
+
+      const data = await res.json();
+      const base64Audio = data.audios?.[0];
+      if (!base64Audio) return false;
+
+      const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64Audio}`)).blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      activeAudioElementRef.current = audio;
+
+      audio.onended = () => {
+        try { URL.revokeObjectURL(audioUrl); } catch (e) {}
+        activeAudioElementRef.current = null;
+        onEnd();
+      };
+      audio.onerror = () => {
+        try { URL.revokeObjectURL(audioUrl); } catch (e) {}
+        activeAudioElementRef.current = null;
+        onEnd();
+      };
+      await audio.play();
+      return true;
+    } catch (e) {
+      console.warn('Sarvam AI playback caught error:', e);
+      return false;
+    }
+  };
+
   // 🧠 Conversational LLM Engine (Answers ANYTHING - powered by Groq Llama 3 or Google Gemini)
   const queryConversationalLLM = async (
     userQuery: string,
@@ -1008,14 +1079,37 @@ Your personality:
     isSpeakingRef.current = true;
     echoCooldownUntilRef.current = Date.now() + 1500;
 
-    // ⚡ 1. ELEVENLABS HIGH-FIDELITY STUDIO VOICE (If ElevenLabs Key is configured)
+    // ⚡ 1. SARVAM AI NATIVE INDIAN HINDI FEMALE VOICE (India's Best Authentic Accent)
+    const sarvamKey = sarvamApiKey.trim();
+    if (sarvamKey) {
+      try {
+        const played = await playSarvamVoice(
+          fullText,
+          sarvamKey,
+          'meera',
+          () => {
+            if (speechSessionIdRef.current === thisSessionId) {
+              setIsSpeaking(false);
+              isSpeakingRef.current = false;
+              echoCooldownUntilRef.current = Date.now() + 300;
+              setTimeout(() => setEmotion('normal'), 1200);
+            }
+          }
+        );
+        if (played) return;
+      } catch (err) {
+        console.warn('Sarvam AI playback failed, trying ElevenLabs / Browser:', err);
+      }
+    }
+
+    // ⚡ 2. ELEVENLABS HIGH-FIDELITY STUDIO VOICE (If ElevenLabs Key is configured)
     const elevenKey = elevenLabsApiKey.trim();
     if (elevenKey) {
       try {
         const played = await playElevenLabsVoice(
           romanFallbackText || fullText,
           elevenKey,
-          elevenLabsVoiceId.trim() || '21m00Tcm4TlvDq8ikWAM',
+          elevenLabsVoiceId.trim() || '2F1KINpxsttim2WfMbVs',
           () => {
             if (speechSessionIdRef.current === thisSessionId) {
               setIsSpeaking(false);
@@ -4461,11 +4555,44 @@ Your personality:
 
             {/* Body */}
             <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-xs text-slate-700">
+              {/* Sarvam AI Section (India's #1 Real Hindi Voice) */}
+              <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5 text-[13px]">
+                    🇮🇳 Sarvam AI (Desi Indian Girl Voice - Recommended!)
+                  </span>
+                  <a
+                    href="https://dashboard.sarvam.ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-amber-700 font-bold hover:underline flex items-center gap-0.5"
+                  >
+                    <span>Free Sarvam Key</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Sarvam AI (Bulbul v4) भारत का अपना AI है जो बिल्कुल असली देसी लड़की ("Meera" / "Ishita") की तरह शुद्ध हिंदी और हिंग्लिश बोलता है।
+                </p>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Sarvam API Subscription Key
+                  </label>
+                  <input
+                    type="password"
+                    value={sarvamApiKey}
+                    onChange={(e) => setSarvamApiKey(e.target.value)}
+                    placeholder="e.g. sk_... (from dashboard.sarvam.ai)"
+                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-amber-300 bg-white font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
+
               {/* ElevenLabs Section */}
               <div className="p-3.5 rounded-xl bg-sky-50/60 border border-sky-100 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 flex items-center gap-1.5 text-[13px]">
-                    🎙️ ElevenLabs Voice (Human Girl Speech)
+                    🎙️ ElevenLabs Voice (Ultra-Realistic Studio)
                   </span>
                   <a
                     href="https://elevenlabs.io"
@@ -4473,12 +4600,12 @@ Your personality:
                     rel="noopener noreferrer"
                     className="text-[10px] text-sky-600 hover:underline flex items-center gap-0.5"
                   >
-                    <span>Get Key</span>
+                    <span>ElevenLabs Key</span>
                     <ExternalLink className="w-2.5 h-2.5" />
                   </a>
                 </div>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Apna ElevenLabs API Key yahan paste karein taaki Mayra 100% real human studio voice me bole.
+                  ElevenLabs API Key paste karein. ⚠️ ध्यान रहे: Key बनाते वक्त "Text to Speech" permission ऑन रखें!
                 </p>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
@@ -4494,20 +4621,20 @@ Your personality:
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Voice ID (Presets ya Custom)
+                    Voice ID (Presets)
                   </label>
                   <div className="grid grid-cols-2 gap-1.5 mb-1.5">
                     {[
+                      { name: '🇮🇳 DB (Indian Girl)', id: '2F1KINpxsttim2WfMbVs' },
+                      { name: 'Jessica (Cute)', id: 'cgSgspJ2msm6clMCkdW9' },
                       { name: 'Rachel (Sweet)', id: '21m00Tcm4TlvDq8ikWAM' },
-                      { name: 'Freya (Expressive)', id: 'jsCqWAovK2LkecY7zXl4' },
-                      { name: 'Bella (Soft Cute)', id: 'EXAVITQu4vr4xnSDxMaL' },
-                      { name: 'Elli (Youthful)', id: 'MF3mGyEYCl7XYWbV9V6O' },
+                      { name: 'Bella (Soft)', id: 'EXAVITQu4vr4xnSDxMaL' },
                     ].map((v) => (
                       <button
                         key={v.id}
                         type="button"
                         onClick={() => setElevenLabsVoiceId(v.id)}
-                        className={`px-2 py-1 rounded text-[10px] font-medium border text-left transition-colors ${
+                        className={`px-2 py-1 rounded text-[10px] font-medium border text-left transition-colors cursor-pointer ${
                           elevenLabsVoiceId === v.id
                             ? 'bg-sky-600 text-white border-sky-600 font-bold'
                             : 'bg-white text-slate-700 border-slate-200 hover:bg-sky-50'
@@ -4531,7 +4658,7 @@ Your personality:
               <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-100 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 flex items-center gap-1.5 text-[13px]">
-                    🧠 AI Brain (Kuch Bhi Poochhein - Live Answers)
+                    🧠 Google Gemini AI Brain (Free - Answers Anything)
                   </span>
                   <a
                     href="https://aistudio.google.com/app/apikey"
@@ -4544,11 +4671,11 @@ Your personality:
                   </a>
                 </div>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Google Gemini (100% Free) ya Groq key daalein taaki Mayra har sawal ka intelligent answer real girl ki tarah de sake!
+                  Google Gemini (100% Free) की Key डालें ताकि मायरा हर बात समझकर असली इंसान की तरह तुरंत सोचकर नया जवाब दे!
                 </p>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Google Gemini API Key (Free - Recommended)
+                    Google Gemini API Key (AIzaSy...)
                   </label>
                   <input
                     type="password"
@@ -4586,13 +4713,14 @@ Your personality:
                 type="button"
                 onClick={() => {
                   try {
+                    localStorage.setItem('ai_mayra_sarvam_key', sarvamApiKey.trim());
                     localStorage.setItem('ai_mayra_elevenlabs_key', elevenLabsApiKey.trim());
                     localStorage.setItem('ai_mayra_elevenlabs_voice_id', elevenLabsVoiceId.trim());
                     localStorage.setItem('ai_mayra_gemini_key', geminiApiKey.trim());
                     localStorage.setItem('ai_mayra_groq_key', groqApiKey.trim());
                   } catch (e) {}
                   setShowAISettingsModal(false);
-                  const testGreeting = 'Settings save ho gayi hain! Main ab aur bhi smart tareeqe se aapse baat karne ke liye taiyar hoon.';
+                  const testGreeting = 'Settings save ho gayi hain! Main ab aur bhi natural tareeqe se aapse baat karne ke liye taiyar hoon.';
                   setLastSpeechResponse(testGreeting);
                   setShowSubtitleCard(true);
                   speakAnimeVoice(testGreeting, testGreeting);
