@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   Trash2,
   KeyRound,
+  RotateCcw,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -633,6 +634,7 @@ export function AIAssistant({
   const interimTimerRef = useRef<any>(null);
   const latestTranscriptRef = useRef<string>('');
   const lockTimeoutRef = useRef<any>(null);
+  const speechSafetyWatchdogRef = useRef<any>(null);
 
   // 🛡️ Loop Protection & Acoustic Echo Cancellation Refs
   const isSpeakingRef = useRef<boolean>(false);
@@ -709,8 +711,17 @@ export function AIAssistant({
   const pauseListeningForSpeech = () => {
     isSpeakingRef.current = true;
     setIsSpeaking(true);
-    // Block incoming speech during playback (up to 60s max; handleSpeechFinished resets this to 0 after cooldown)
-    echoCooldownUntilRef.current = Date.now() + 60000;
+    // Block incoming speech during playback (up to 15s max safety cap)
+    echoCooldownUntilRef.current = Date.now() + 15000;
+
+    // 🛡️ Automatic Watchdog: If audio stalls, finishes prematurely, or browser fails to fire onend, auto-unstick after 8.5s!
+    if (speechSafetyWatchdogRef.current) clearTimeout(speechSafetyWatchdogRef.current);
+    speechSafetyWatchdogRef.current = setTimeout(() => {
+      if (isSpeakingRef.current) {
+        console.warn('[WATCHDOG] Speech safety timeout reached. Auto-recovering listener.');
+        handleSpeechFinished(speechSessionIdRef.current);
+      }
+    }, 8500);
 
     if (interimTimerRef.current) {
       clearTimeout(interimTimerRef.current);
@@ -748,20 +759,28 @@ export function AIAssistant({
   const handleSpeechFinished = (thisSessionId: number) => {
     if (speechSessionIdRef.current !== thisSessionId) return;
 
+    if (speechSafetyWatchdogRef.current) {
+      clearTimeout(speechSafetyWatchdogRef.current);
+      speechSafetyWatchdogRef.current = null;
+    }
+
     setIsSpeaking(false);
     isSpeakingRef.current = false;
+
+    // Also ensure any lingering command lock is released cleanly
+    isCommandLockedRef.current = false;
+    setCommandLockState('IDLE');
 
     const isStrong = emotionRef.current === 'angry' || emotionRef.current === 'jealous' || emotionRef.current === 'sad' || emotionRef.current === 'blush';
     setTimeout(() => {
       setEmotion(prev => (prev === 'sleeping' ? prev : 'normal'));
     }, isStrong ? 6000 : 1500);
 
-    // 🛡️ Post-speech echo shield: reset cooldown to 1800ms from now
-    echoCooldownUntilRef.current = Date.now() + 1800;
+    // 🛡️ Snappy post-speech echo shield: 750ms gives plenty of acoustic damping while feeling instant and responsive
+    echoCooldownUntilRef.current = Date.now() + 750;
 
     // After cooldown, restart listener if in voice mode (not muted, not chat card open)
     setTimeout(() => {
-      // Reset the big 9999999 blocker set by pauseListeningForSpeech
       echoCooldownUntilRef.current = 0;
 
       if (
@@ -775,7 +794,7 @@ export function AIAssistant({
           startListenerRef.current?.();
         } catch (e) {}
       }
-    }, 1800);
+    }, 750);
   };
 
   // 🎵 Preload and decode custom studio voice & all section clips into Web Audio buffer
@@ -946,7 +965,7 @@ export function AIAssistant({
         pool = window.speechSynthesis.getVoices() || [];
       } catch (e) {}
     }
-    if (!pool.length) return { voice: null, pitch: 1.0, rate: 1.0 };
+    if (!pool.length) return { voice: null, pitch: 1.06, rate: 1.02 };
 
     const isExcluded = (v: SpeechSynthesisVoice) => {
       const n = v.name.toLowerCase();
@@ -960,7 +979,8 @@ export function AIAssistant({
         n.includes('kyoko') ||
         n.includes('otoya') ||
         n.includes('sinji') ||
-        n.includes('ting-ting')
+        n.includes('ting-ting') ||
+        n.includes('zira') // Windows robotic legacy voice
       );
     };
 
@@ -978,7 +998,7 @@ export function AIAssistant({
     );
 
     if (hindiFemale) {
-      return { voice: hindiFemale, pitch: 1.0, rate: 0.98 };
+      return { voice: hindiFemale, pitch: 1.08, rate: 1.02 };
     }
 
     // 2. Second Priority: Indian English Female Voices (Veena, Neerja, Aditi, Sangeeta, Priya)
@@ -997,31 +1017,35 @@ export function AIAssistant({
     );
 
     if (indianEnglishFemale) {
-      return { voice: indianEnglishFemale, pitch: 1.0, rate: 0.98 };
+      return { voice: indianEnglishFemale, pitch: 1.08, rate: 1.02 };
     }
 
-    // 3. Third Priority: Natural Sweet Female Voices (Google UK/US Female, Samantha, Victoria, Jenny)
+    // 3. Third Priority: Natural Sweet High-Fidelity Female Voices (Google UK/US Female, Natural Online)
     const naturalFemale = pool.find(v => 
       !isExcluded(v) && (
         v.name.includes('Google UK English Female') ||
         v.name.includes('Google US English Female') ||
-        v.name.includes('Samantha') || 
-        v.name.includes('Victoria') || 
-        v.name.includes('Karen') ||
+        v.name.includes('Natural') ||
+        v.name.includes('Online') ||
         v.name.includes('Jenny') ||
         v.name.includes('Aria') ||
         v.name.includes('Moira') ||
-        v.name.includes('Tessa') ||
+        v.name.includes('Tessa')
+      )
+    ) || pool.find(v =>
+      !isExcluded(v) && (
+        v.name.includes('Samantha') ||
+        v.name.includes('Victoria') ||
         v.name.toLowerCase().includes('female')
       )
     );
 
     if (naturalFemale) {
-      return { voice: naturalFemale, pitch: 1.0, rate: 0.98 };
+      return { voice: naturalFemale, pitch: 1.08, rate: 1.02 };
     }
 
     const fallback = pool.find(v => !isExcluded(v)) || pool[0];
-    return { voice: fallback || null, pitch: 1.0, rate: 0.98 };
+    return { voice: fallback || null, pitch: 1.08, rate: 1.02 };
   };
 
   // 🛑 Instant and unblockable speech stopper (Terminates all audio sources cleanly)
@@ -1216,32 +1240,43 @@ export function AIAssistant({
       if (!clean) return false;
       if (sessionId !== undefined && (speechSessionIdRef.current !== sessionId || isStoppedRef.current)) return false;
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      let res: Response | null = null;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), attempt === 1 ? 8000 : 5000);
 
-      const res = await fetch('https://api.sarvam.ai/text-to-speech', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'api-subscription-key': apiKey,
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          inputs: [clean],
-          target_language_code: 'hi-IN',
-          model: 'bulbul:v4-flash',
-          speaker: speaker || 'ishita_enhi_companion',
-          pace: 1.0,
-          speech_sample_rate: 24000,
-          audio_format: 'mp3',
-        }),
-      });
-      clearTimeout(timeoutId);
+          res = await fetch('https://api.sarvam.ai/text-to-speech', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'api-subscription-key': apiKey,
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              inputs: [clean.slice(0, 320)],
+              target_language_code: 'hi-IN',
+              model: 'bulbul:v4-flash',
+              speaker: speaker || 'ishita_enhi_companion',
+              pace: 1.0,
+              speech_sample_rate: 24000,
+              audio_format: 'mp3',
+            }),
+          });
+          clearTimeout(timeoutId);
+          if (res && res.ok) break;
+        } catch (fetchErr) {
+          if (attempt === 2) {
+            console.warn('Sarvam AI fetch attempts exhausted:', fetchErr);
+            return false;
+          }
+        }
+      }
 
       if (sessionId !== undefined && (speechSessionIdRef.current !== sessionId || isStoppedRef.current)) return false;
 
-      if (!res.ok) {
-        console.warn('Sarvam AI error:', res.status);
+      if (!res || !res.ok) {
+        console.warn('Sarvam AI error:', res?.status);
         return false;
       }
 
@@ -2200,6 +2235,97 @@ Core Personality & Rules:
     }
   };
 
+  // 🔄 Absolute Mayra Refresh Protocol: Instantly resets locks, audio, mic, and echo filters
+  const refreshMayra = (announce: boolean = true) => {
+    // 1. Terminate all active audio synthesis
+    stopSpeaking();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+
+    // 2. Unstick session IDs and audio state
+    speechSessionIdRef.current += 1;
+    isStoppedRef.current = false;
+    isSpeakingRef.current = false;
+    setIsSpeaking(false);
+    echoCooldownUntilRef.current = 0;
+    mayraRecentPhrasesRef.current = [];
+
+    // 3. Clear all execution and watchdog locks
+    isCommandLockedRef.current = false;
+    setCommandLockState('IDLE');
+    pendingConflictRef.current = null;
+    latestTranscriptRef.current = '';
+    setLiveHeardText('');
+    setIsDetectingSpeech(false);
+    setWakeWordDetected(false);
+    lastCommandTextRef.current = '';
+
+    if (lockTimeoutRef.current) {
+      clearTimeout(lockTimeoutRef.current);
+      lockTimeoutRef.current = null;
+    }
+    if (interimTimerRef.current) {
+      clearTimeout(interimTimerRef.current);
+      interimTimerRef.current = null;
+    }
+    if (speechSafetyWatchdogRef.current) {
+      clearTimeout(speechSafetyWatchdogRef.current);
+      speechSafetyWatchdogRef.current = null;
+    }
+
+    // 4. Force reset Speech Recognition
+    isMicMutedRef.current = false;
+    micActiveRef.current = true;
+    setIsMicMuted(false);
+    isStartingRecognitionRef.current = false;
+    isRecognizingRef.current = false;
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.abort();
+      } catch (e) {}
+      recognitionRef.current = null;
+    }
+    if ((window as any).__mayraActiveRecognition) {
+      try {
+        (window as any).__mayraActiveRecognition.abort();
+      } catch (e) {}
+      (window as any).__mayraActiveRecognition = null;
+    }
+
+    // 5. Update UI badge
+    setEmotion('happy');
+    setTerminalBadge({
+      status: 'UNLOCKED',
+      text: '[REFRESHED] Mayra system & microphone reset.',
+      subtext: 'Ready and listening for commands.',
+    });
+
+    if (announce) {
+      const spk = getSpeakerTitle();
+      const devMsg = `${spk.dev}! मैंने खुद को पूरी तरह रीफ्रेश कर लिया है। अब मैं आपकी हर बात बिल्कुल साफ़-साफ़ सुन रही हूँ, बोलिए क्या करना है?`;
+      const romMsg = `${spk.rom}! Maine khud ko poori tarah refresh kar liya hai. Ab main aapki har baat bilkul saaf-saaf sun rahi hoon, boliye kya karna hai?`;
+      setLastSpeechDevanagari(devMsg);
+      setLastSpeechResponse(romMsg);
+      setShowSubtitleCard(true);
+      setTimeout(() => {
+        speakAnimeVoice(devMsg, romMsg);
+      }, 250);
+    } else {
+      setTimeout(() => {
+        try {
+          startListenerRef.current?.();
+        } catch (e) {}
+      }, 300);
+    }
+  };
+
   // 🧠 Autonomous Operating Agent Knowledge & Intent Engine
   const processVoiceCommand = async (rawText: string, fromChat: boolean = false) => {
     commandSessionRef.current += 1;
@@ -2218,6 +2344,17 @@ Core Personality & Rules:
     const curMins = String(now.getMinutes()).padStart(2, '0');
     const curSecs = String(now.getSeconds()).padStart(2, '0');
     const curTimeStr = `${curHours}:${curMins}:${curSecs}`;
+
+    // 🔄 0.00 REFRESH MAYRA COMMAND ("mayra refresh", "refresh mayra", "assistant refresh", "restart mic", etc.)
+    const isRefreshCmd =
+      /\b(mayra refresh|refresh mayra|assistant refresh|system refresh|restart mic|mic reset|reset mayra|mayra ko refresh|refresh karo|assistant ko refresh|restart mayra|mayra restart)\b/i.test(q) ||
+      /(मायरा रीफ्रेश|रीफ्रेश करो|रिफ्रेश करो|सिस्टम रीफ्रेश|मायरा को रीफ्रेश|मायरा रिफ्रेश|रीस्टार्ट)/.test(q) ||
+      q === 'refresh' || q === 'रीफ्रेश' || q === 'रिफ्रेश';
+
+    if (isRefreshCmd) {
+      refreshMayra(true);
+      return;
+    }
 
     // 🛡️ 0.0 HIGH-SECURITY DATA WIPE & PIN LOCK PROTOCOL (Protected by 4-digit PIN: 9754)
     // 1. Voice attempt to speak PIN directly is strictly rejected!
@@ -5857,18 +5994,12 @@ Core Personality & Rules:
       s.includes('aapne hi toh mujhe banaya') ||
       s.includes('mere creator') ||
       s.includes('aapse milkar bohot accha') ||
-      s.includes('live schedule') ||
-      s.includes('planner screen') ||
-      s.includes('planer screen') ||
-      s.includes('directory screen') ||
-      s.includes('spending time screen') ||
       s.includes('kya karna hai mujhe bata dijiye') ||
       s.includes('isme aapko kya karna hai') ||
       s.includes('main kar deti hoon') ||
       s.includes('main kar deti hu') ||
       s.includes('par aa gayi hoon') ||
       s.includes('par aa gai hoon') ||
-      s.includes('screen par aa') ||
       s.includes('main mayra hoon') ||
       s.includes('soch rahi hai') ||
       s.includes('soch rahi hoon') ||
@@ -5878,6 +6009,13 @@ Core Personality & Rules:
   };
 
   const isEchoOfMayraSpoken = (heard: string): boolean => {
+    // 🛡️ ONLY filter echo if Mayra is currently speaking or in active echo cooldown!
+    const isMayraTalkingNow = isSpeakingRef.current || Date.now() < echoCooldownUntilRef.current;
+    if (!isMayraTalkingNow) {
+      // Mayra is silent — whatever user speaks is 100% intentional user speech!
+      return false;
+    }
+
     const h = heard
       .toLowerCase()
       .replace(/[^a-z0-9\u0900-\u097F\s]/gi, ' ')
@@ -5885,14 +6023,21 @@ Core Personality & Rules:
       .trim();
     if (!h || h.length < 3) return false;
 
+    // Never filter out navigation commands even during echo window!
+    const isActionCommand =
+      /\b(dashboard|mail|tracker|directory|faculty|batch|batches|load|search|clash|clashes|alert|alerts|extra|reschedule|spending|availability|planner|refresh|dark|light|mode|kholo|open|oren|dikhao|batao|kaun)\b/i.test(h) ||
+      /(डैशबोर्ड|मेल|ट्रैकर|डायरेक्टरी|फैकल्टी|बैच|लोड|सर्च|क्लैश|अलर्ट|एक्स्ट्रा|प्लानर|रीफ्रेश|खोलो|दिखाओ|बताओ)/.test(h);
+    if (isActionCommand) return false;
+
     if (isEchoOfMayra(h)) return true;
 
     for (const phrase of mayraRecentPhrasesRef.current) {
-      if (phrase.includes(h) || h.includes(phrase)) return true;
+      if (h.length > 15 && phrase.includes(h)) return true;
+      if (phrase.length > 15 && h.includes(phrase)) return true;
       const hWords = h.split(' ').filter(w => w.length > 2);
-      if (hWords.length >= 2) {
+      if (hWords.length >= 3) {
         const matchCount = hWords.filter(w => phrase.includes(w)).length;
-        if (matchCount / hWords.length >= 0.65) {
+        if (matchCount / hWords.length >= 0.8) {
           return true;
         }
       }
@@ -6582,6 +6727,20 @@ Core Personality & Rules:
               >
                 <MessageSquare className="w-3 h-3 text-sky-300" />
                 <span>{showSubtitleCard && isMicMuted ? 'CHAT OPEN' : 'CHAT / TEXT'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  unlockAudio();
+                  refreshMayra(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-purple-400/90 bg-purple-950/95 text-purple-300 text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 hover:bg-purple-900 hover:border-purple-300 hover:text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]"
+                title="Mayra & Mic Refresh / Reset (Click anytime if Mayra stops hearing or to refresh assistant)"
+              >
+                <RotateCcw className="w-3 h-3 text-purple-300" />
+                <span>REFRESH</span>
               </button>
             </div>
           </div>
