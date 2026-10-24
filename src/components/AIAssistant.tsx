@@ -348,7 +348,7 @@ export function AIAssistant({
   }, [showSubtitleCard]);
 
   // 🛡️ Spoken phrase history buffer to prevent Mayra from hearing and answering her own voice
-  const mayraRecentPhrasesRef = useRef<string[]>([]);
+  const mayraRecentPhrasesRef = useRef<{ text: string; ts: number }[]>([]);
   const recordMayraSpokenPhrase = (text: string) => {
     if (!text) return;
     const clean = text
@@ -357,7 +357,10 @@ export function AIAssistant({
       .replace(/\s+/g, ' ')
       .trim();
     if (clean.length > 2) {
-      mayraRecentPhrasesRef.current = [clean, ...mayraRecentPhrasesRef.current.slice(0, 15)];
+      mayraRecentPhrasesRef.current = [
+        { text: clean, ts: Date.now() },
+        ...mayraRecentPhrasesRef.current.filter(p => Date.now() - p.ts < 30000).slice(0, 12)
+      ];
     }
   };
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -711,17 +714,21 @@ export function AIAssistant({
   const pauseListeningForSpeech = () => {
     isSpeakingRef.current = true;
     setIsSpeaking(true);
-    // Block incoming speech during playback (up to 15s max safety cap)
-    echoCooldownUntilRef.current = Date.now() + 15000;
+    // Block incoming speech during playback (up to 30s max safety cap)
+    echoCooldownUntilRef.current = Date.now() + 30000;
 
-    // 🛡️ Automatic Watchdog: If audio stalls, finishes prematurely, or browser fails to fire onend, auto-unstick after 8.5s!
+    // 🛡️ Long Fallback Watchdog (25s): ONLY recovers if no audio is physically playing (e.g. stalled network)
     if (speechSafetyWatchdogRef.current) clearTimeout(speechSafetyWatchdogRef.current);
     speechSafetyWatchdogRef.current = setTimeout(() => {
-      if (isSpeakingRef.current) {
-        console.warn('[WATCHDOG] Speech safety timeout reached. Auto-recovering listener.');
+      const isAnyAudioActive =
+        Boolean(activeWebAudioSourceRef.current) ||
+        Boolean(activeAudioElementRef.current && !activeAudioElementRef.current.paused) ||
+        (typeof window !== 'undefined' && Boolean(window.speechSynthesis?.speaking));
+      if (isSpeakingRef.current && !isAnyAudioActive) {
+        console.warn('[WATCHDOG] Idle speech timeout reached with no audio playing. Auto-recovering listener.');
         handleSpeechFinished(speechSessionIdRef.current);
       }
-    }, 8500);
+    }, 25000);
 
     if (interimTimerRef.current) {
       clearTimeout(interimTimerRef.current);
@@ -776,17 +783,23 @@ export function AIAssistant({
       setEmotion(prev => (prev === 'sleeping' ? prev : 'normal'));
     }, isStrong ? 6000 : 1500);
 
-    // 🛡️ Snappy post-speech echo shield: 750ms gives plenty of acoustic damping while feeling instant and responsive
-    echoCooldownUntilRef.current = Date.now() + 750;
+    // 🛡️ Acoustic damping shield: 1200ms allows speaker sound and room reverb to completely fade before mic opens
+    echoCooldownUntilRef.current = Date.now() + 1200;
 
-    // After cooldown, restart listener if in voice mode (not muted, not chat card open)
+    // After cooldown, restart listener ONLY if no audio is physically active
     setTimeout(() => {
       echoCooldownUntilRef.current = 0;
+
+      const isAnyAudioActive =
+        Boolean(activeWebAudioSourceRef.current) ||
+        Boolean(activeAudioElementRef.current && !activeAudioElementRef.current.paused) ||
+        (typeof window !== 'undefined' && Boolean(window.speechSynthesis?.speaking));
 
       if (
         micActiveRef.current &&
         !isMicMutedRef.current &&
-        !isSpeakingRef.current
+        !isSpeakingRef.current &&
+        !isAnyAudioActive
       ) {
         isStartingRecognitionRef.current = false;
         isRecognizingRef.current = false;
@@ -794,7 +807,7 @@ export function AIAssistant({
           startListenerRef.current?.();
         } catch (e) {}
       }
-    }, 750);
+    }, 1200);
   };
 
   // 🎵 Preload and decode custom studio voice & all section clips into Web Audio buffer
@@ -1324,7 +1337,22 @@ export function AIAssistant({
           source.connect(ctx.destination);
           activeWebAudioSourceRef.current = source;
 
+          // 🛡️ Tailor safety watchdog to this EXACT audio duration (+3.5s safety buffer)
+          const bufferDurationMs = Math.round((audioBuffer.duration || 4) * 1000);
+          if (speechSafetyWatchdogRef.current) clearTimeout(speechSafetyWatchdogRef.current);
+          speechSafetyWatchdogRef.current = setTimeout(() => {
+            if (activeWebAudioSourceRef.current === source) {
+              console.warn('[WATCHDOG] Audio buffer source completed duration watchdog.');
+              activeWebAudioSourceRef.current = null;
+              onEnd();
+            }
+          }, bufferDurationMs + 3500);
+
           source.onended = () => {
+            if (speechSafetyWatchdogRef.current) {
+              clearTimeout(speechSafetyWatchdogRef.current);
+              speechSafetyWatchdogRef.current = null;
+            }
             if (activeWebAudioSourceRef.current === source) {
               activeWebAudioSourceRef.current = null;
             }
@@ -1796,7 +1824,21 @@ Core Personality & Rules:
           source.buffer = buffer;
           source.connect(ctx.destination);
           activeWebAudioSourceRef.current = source;
+
+          const bufferDurationMs = Math.round((buffer.duration || 3) * 1000);
+          if (speechSafetyWatchdogRef.current) clearTimeout(speechSafetyWatchdogRef.current);
+          speechSafetyWatchdogRef.current = setTimeout(() => {
+            if (activeWebAudioSourceRef.current === source) {
+              activeWebAudioSourceRef.current = null;
+              onAudioDone();
+            }
+          }, bufferDurationMs + 2500);
+
           source.onended = () => {
+            if (speechSafetyWatchdogRef.current) {
+              clearTimeout(speechSafetyWatchdogRef.current);
+              speechSafetyWatchdogRef.current = null;
+            }
             if (activeWebAudioSourceRef.current === source) {
               activeWebAudioSourceRef.current = null;
             }
@@ -6009,12 +6051,12 @@ Core Personality & Rules:
   };
 
   const isEchoOfMayraSpoken = (heard: string): boolean => {
-    // 🛡️ ONLY filter echo if Mayra is currently speaking or in active echo cooldown!
-    const isMayraTalkingNow = isSpeakingRef.current || Date.now() < echoCooldownUntilRef.current;
-    if (!isMayraTalkingNow) {
-      // Mayra is silent — whatever user speaks is 100% intentional user speech!
-      return false;
-    }
+    const isAudioPlaying =
+      isSpeakingRef.current ||
+      Boolean(activeWebAudioSourceRef.current) ||
+      Boolean(activeAudioElementRef.current && !activeAudioElementRef.current.paused) ||
+      (typeof window !== 'undefined' && Boolean(window.speechSynthesis?.speaking)) ||
+      Date.now() < echoCooldownUntilRef.current;
 
     const h = heard
       .toLowerCase()
@@ -6023,25 +6065,42 @@ Core Personality & Rules:
       .trim();
     if (!h || h.length < 3) return false;
 
-    // Never filter out navigation commands even during echo window!
+    // 🛑 1. If audio is physically coming out of the speakers right now or within echo cooldown:
+    if (isAudioPlaying) {
+      // Check if user is shouting an explicit stop command (e.g. "stop", "chup", "ruko")
+      const isExplicitStop = /^(stop|chup|shant|ruko|ruk ja|quiet|bas|स्टॉप|चुप|शांत|रुको|रुक|बस)$/i.test(h) ||
+        /\b(mayra stop|jarvis stop|chup ho jao|chup raho|bolna band karo|stop speaking|शांत हो जाओ)\b/i.test(h);
+      if (isExplicitStop) return false;
+      return true; // Drop all other speech while speakers are active!
+    }
+
+    // 🛑 2. Action command immunity: Direct user navigation commands are never treated as echo
     const isActionCommand =
       /\b(dashboard|mail|tracker|directory|faculty|batch|batches|load|search|clash|clashes|alert|alerts|extra|reschedule|spending|availability|planner|refresh|dark|light|mode|kholo|open|oren|dikhao|batao|kaun)\b/i.test(h) ||
       /(डैशबोर्ड|मेल|ट्रैकर|डायरेक्टरी|फैकल्टी|बैच|लोड|सर्च|क्लैश|अलर्ट|एक्स्ट्रा|प्लानर|रीफ्रेश|खोलो|दिखाओ|बताओ)/.test(h);
     if (isActionCommand) return false;
 
+    // 🛑 3. Common Mayra intro / response template phrases
     if (isEchoOfMayra(h)) return true;
 
-    for (const phrase of mayraRecentPhrasesRef.current) {
-      if (h.length > 15 && phrase.includes(h)) return true;
-      if (phrase.length > 15 && h.includes(phrase)) return true;
+    // 🛑 4. Check recently spoken phrases (within last 30 seconds)
+    const now = Date.now();
+    for (const item of mayraRecentPhrasesRef.current) {
+      if (now - item.ts > 30000) continue;
+      const phrase = item.text;
+
+      // Substring check
+      if (h.length >= 8 && phrase.includes(h)) return true;
+      if (phrase.length >= 8 && h.includes(phrase)) return true;
+
+      // Word overlap check (>= 50% words matching recent phrase)
       const hWords = h.split(' ').filter(w => w.length > 2);
-      if (hWords.length >= 3) {
+      if (hWords.length >= 2) {
         const matchCount = hWords.filter(w => phrase.includes(w)).length;
-        if (matchCount / hWords.length >= 0.8) {
-          return true;
-        }
+        if (matchCount / hWords.length >= 0.5) return true;
       }
     }
+
     return false;
   };
 
@@ -6135,7 +6194,16 @@ Core Personality & Rules:
             return;
           }
           // 🛡️ Loop Protection: Discard speech if Mayra is speaking or in cooldown period
-          if (isSpeakingRef.current || Date.now() < echoCooldownUntilRef.current) {
+          const isPhysicallySpeaking =
+            isSpeakingRef.current ||
+            Boolean(activeWebAudioSourceRef.current) ||
+            Boolean(activeAudioElementRef.current && !activeAudioElementRef.current.paused) ||
+            (typeof window !== 'undefined' && Boolean(window.speechSynthesis?.speaking)) ||
+            Date.now() < echoCooldownUntilRef.current;
+
+          if (isPhysicallySpeaking) {
+            console.log('🛡️ executeCommand dropped speech while audio physically playing:', cmdText);
+            setLiveHeardText('');
             return;
           }
 
@@ -6190,8 +6258,37 @@ Core Personality & Rules:
             return;
           }
 
-          // 🛡️ CRITICAL ECHO SHIELD: When Mayra is speaking or in echo cooldown, ignore speaker audio
-          if (isSpeakingRef.current || Date.now() < echoCooldownUntilRef.current) {
+          // 🛡️ CRITICAL HARDWARE & ACOUSTIC ECHO SHIELD:
+          const isPhysicallySpeaking =
+            isSpeakingRef.current ||
+            Boolean(activeWebAudioSourceRef.current) ||
+            Boolean(activeAudioElementRef.current && !activeAudioElementRef.current.paused) ||
+            (typeof window !== 'undefined' && Boolean(window.speechSynthesis?.speaking)) ||
+            Date.now() < echoCooldownUntilRef.current;
+
+          if (isPhysicallySpeaking) {
+            // Check for explicit stop command only to allow interruption
+            let chunkStr = '';
+            for (let i = 0; i < event.results.length; ++i) {
+              chunkStr += event.results[i][0].transcript + ' ';
+            }
+            const chunkLower = chunkStr.toLowerCase().trim();
+            const hasStop = /^(stop|chup|shant|ruko|ruk ja|quiet|bas|स्टॉप|चुप|शांत|रुको|रुक|बस)$/i.test(chunkLower) ||
+              /\b(mayra stop|jarvis stop|chup ho jao|chup raho|bolna band karo|stop speaking|शांत हो जाओ)\b/i.test(chunkLower);
+
+            if (hasStop) {
+              stopSpeaking();
+              setEmotion('normal');
+              setLastSpeechResponse('Ji Sir, chup ho gayi.');
+              setShowSubtitleCard(false);
+              setLiveHeardText('');
+              setWakeWordDetected(false);
+              if (interimTimerRef.current) {
+                clearTimeout(interimTimerRef.current);
+                interimTimerRef.current = null;
+              }
+            }
+            // 🛑 Drop all incoming sound while Mayra is speaking through speakers
             return;
           }
 
@@ -6246,8 +6343,22 @@ Core Personality & Rules:
           // ⚡ Natural Speech Pause Timeout (950ms):
           interimTimerRef.current = setTimeout(() => {
             if (isMicMutedRef.current || !micActiveRef.current) return;
+            const isPhysicallySpeakingNow =
+              isSpeakingRef.current ||
+              Boolean(activeWebAudioSourceRef.current) ||
+              Boolean(activeAudioElementRef.current && !activeAudioElementRef.current.paused) ||
+              (typeof window !== 'undefined' && Boolean(window.speechSynthesis?.speaking)) ||
+              Date.now() < echoCooldownUntilRef.current;
+
+            if (isPhysicallySpeakingNow) {
+              latestTranscriptRef.current = '';
+              setLiveHeardText('');
+              setIsDetectingSpeech(false);
+              return;
+            }
+
             const pending = latestTranscriptRef.current.trim();
-            if (pending && !isSpeakingRef.current && Date.now() >= echoCooldownUntilRef.current) {
+            if (pending) {
               if (isEchoOfMayraSpoken(pending)) {
                 latestTranscriptRef.current = '';
                 setLiveHeardText('');
