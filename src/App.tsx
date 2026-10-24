@@ -842,30 +842,36 @@ function Dashboard({
         ) : (
           <div className="divide-y divide-slate-100/80">
             {recentLoads.map((load) => (
-              <div key={load.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/80 transition-colors duration-200">
+              <div
+                key={load.id}
+                className="group px-6 py-4 flex items-center justify-between hover:bg-white dark:hover:bg-white transition-all duration-200 cursor-pointer border-b border-slate-100/80 dark:border-slate-800/80 last:border-b-0 hover:shadow-sm"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
-                    <BookOpen className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shrink-0 group-hover:from-blue-100 group-hover:to-cyan-100 transition-colors">
+                    <BookOpen className="w-5 h-5 text-blue-600 group-hover:text-blue-700" />
                   </div>
                   <div>
-                    <p className="font-medium text-slate-900">{load.subject}</p>
-                    <p className="text-sm text-slate-500">
+                    <p className="font-bold text-slate-900 dark:text-slate-100 group-hover:!text-black transition-colors">{load.subject}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 group-hover:!text-slate-800 transition-colors">
                       {load.faculty.name} • {load.batch.name}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-700">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:!text-black transition-colors">
                       {load.start_time} - {load.end_time}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-400 dark:text-slate-400 group-hover:!text-slate-700 transition-colors">
                       {formatDate(load.start_date)} to {formatDate(load.end_date)}
                     </p>
                   </div>
                   <button
-                    onClick={() => deleteLoad(load.id)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200 hover:scale-110"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteLoad(load.id);
+                    }}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all duration-200 hover:scale-110"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -970,11 +976,11 @@ function Dashboard({
                   const sRunning = subLoads.filter(l => getLoadStatus(l.start_date, l.end_date) === 'running').length;
                   const sExpired = subLoads.filter(l => getLoadStatus(l.start_date, l.end_date) === 'expired').length;
                   return (
-                    <div key={subject} className="px-6 py-3 border-b border-slate-50 hover:bg-slate-50 transition-all duration-200 hover:translate-x-1">
+                    <div key={subject} className="group px-6 py-3 border-b border-slate-50 dark:border-slate-800 hover:bg-white dark:hover:bg-white transition-all duration-200 hover:translate-x-1 cursor-pointer">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <BookOpen className="w-4 h-4 text-blue-500 shrink-0" />
-                          <span className="text-sm font-bold text-slate-800">{subject}</span>
+                          <span className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:!text-black transition-colors">{subject}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {sPending > 0 && <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700 anime-badge">{sPending} Pending</span>}
@@ -986,13 +992,13 @@ function Dashboard({
                         {subLoads.map((load, i) => {
                           const st = getLoadStatus(load.start_date, load.end_date);
                           return (
-                            <div key={i} className="flex items-center gap-3 text-xs text-slate-500">
+                            <div key={i} className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 group-hover:!text-slate-700 transition-colors">
                               <GraduationCap className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span className="font-medium text-slate-600">{load.faculty.name}</span>
+                              <span className="font-medium text-slate-600 dark:text-slate-300 group-hover:!text-slate-900 transition-colors">{load.faculty.name}</span>
                               <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>{load.start_time} - {load.end_time}</span>
+                              <span className="group-hover:!text-slate-800">{load.start_time} - {load.end_time}</span>
                               <CalendarClock className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>{formatDate(load.start_date)} - {formatDate(load.end_date)}</span>
+                              <span className="group-hover:!text-slate-800">{formatDate(load.start_date)} - {formatDate(load.end_date)}</span>
                             </div>
                           );
                         })}

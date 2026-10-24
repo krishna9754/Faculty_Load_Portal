@@ -797,4 +797,68 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.6);
 }
 
+/* =========================================================================
+   ✨ UNIVERSAL HIGH-CONTRAST HOVER RULE:
+   Whenever an element or row is hovered and turns white/light,
+   all sentence and word text inside turns sharp pitch-black!
+   ========================================================================= */
+
+/* On any hovered row/item with a light/white hover background */
+[class*="hover:bg-slate-50"]:hover p,
+[class*="hover:bg-slate-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+[class*="hover:bg-slate-100"]:hover p,
+[class*="hover:bg-slate-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+[class*="hover:bg-white"]:hover p,
+[class*="hover:bg-white"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+[class*="hover:bg-gray-50"]:hover p,
+[class*="hover:bg-gray-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+[class*="hover:bg-gray-100"]:hover p,
+[class*="hover:bg-gray-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+.hover\:bg-white:hover p,
+.hover\:bg-white:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]) {
+  color: #000000 !important;
+}
+
+/* Secondary descriptions, batches, faculty names, and dates turn clear dark slate on hover */
+[class*="hover:bg-slate-50"]:hover .text-slate-500,
+[class*="hover:bg-slate-50"]:hover .text-slate-400,
+[class*="hover:bg-slate-50"]:hover .text-slate-600,
+[class*="hover:bg-slate-100"]:hover .text-slate-500,
+[class*="hover:bg-slate-100"]:hover .text-slate-400,
+[class*="hover:bg-slate-100"]:hover .text-slate-600,
+[class*="hover:bg-white"]:hover .text-slate-500,
+[class*="hover:bg-white"]:hover .text-slate-400,
+[class*="hover:bg-white"]:hover .text-slate-600 {
+  color: #1e293b !important;
+}
+
+/* Force dark mode hover to turn crisp white with jet-black text */
+html.dark [class*="hover:bg-slate-50"]:hover,
+html.dark [class*="hover:bg-slate-100"]:hover,
+html.dark [class*="hover:bg-white"]:hover,
+html.dark [class*="hover:bg-gray-50"]:hover,
+html.dark [class*="hover:bg-gray-100"]:hover {
+  background-color: #ffffff !important;
+}
+
+html.dark [class*="hover:bg-slate-50"]:hover p,
+html.dark [class*="hover:bg-slate-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+html.dark [class*="hover:bg-slate-100"]:hover p,
+html.dark [class*="hover:bg-slate-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+html.dark [class*="hover:bg-white"]:hover p,
+html.dark [class*="hover:bg-white"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]),
+html.dark [class*="hover:bg-gray-50"]:hover p,
+html.dark [class*="hover:bg-gray-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-"]) {
+  color: #000000 !important;
+}
+
+html.dark [class*="hover:bg-slate-50"]:hover .text-slate-400,
+html.dark [class*="hover:bg-slate-50"]:hover .text-slate-500,
+html.dark [class*="hover:bg-slate-50"]:hover .text-slate-600,
+html.dark [class*="hover:bg-white"]:hover .text-slate-400,
+html.dark [class*="hover:bg-white"]:hover .text-slate-500,
+html.dark [class*="hover:bg-white"]:hover .text-slate-600 {
+  color: #334155 !important;
+}
+
 
