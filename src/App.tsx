@@ -48,6 +48,8 @@ import {
   Zap,
   Sparkles,
   Palette,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 type Tab = 'dashboard' | 'faculty' | 'batches' | 'addLoad' | 'search' | 'facultyAvailability' | 'batchSyllabus' | 'clashes' | 'alerts' | 'mailTracker' | 'extraReschedule';
@@ -126,6 +128,41 @@ export default function App() {
     const nextThemeId = themeKeys[(currentIndex + 1) % themeKeys.length];
     handleSelectAnimeTheme(nextThemeId);
   };
+
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('portal_theme_mode');
+    if (saved === 'dark' || saved === 'light') return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    if (themeMode === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('portal_theme_mode', themeMode);
+    window.dispatchEvent(new CustomEvent('portal-theme-mode-changed', { detail: { mode: themeMode } }));
+  }, [themeMode]);
+
+  const toggleThemeMode = () => {
+    setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  useEffect(() => {
+    const handleToggle = () => toggleThemeMode();
+    const handleSet = (e: any) => {
+      if (e.detail?.mode === 'dark' || e.detail?.mode === 'light') {
+        setThemeMode(e.detail.mode);
+      }
+    };
+    window.addEventListener('toggle-portal-theme-mode', handleToggle);
+    window.addEventListener('set-portal-theme-mode', handleSet);
+    return () => {
+      window.removeEventListener('toggle-portal-theme-mode', handleToggle);
+      window.removeEventListener('set-portal-theme-mode', handleSet);
+    };
+  }, []);
 
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -216,15 +253,17 @@ export default function App() {
 
   const sidebarContent = (
     <div
-      className="relative flex flex-col h-full overflow-hidden bg-white/80"
+      className="relative flex flex-col h-full overflow-hidden bg-white/80 dark:bg-slate-900/90"
       style={{
-        backgroundImage: `linear-gradient(to bottom, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 52%, ${animeTheme.primaryColor}15 100%), url(${animeBackground})`,
+        backgroundImage: themeMode === 'dark'
+          ? `linear-gradient(to bottom, rgba(15,23,42,0.96) 0%, rgba(15,23,42,0.92) 52%, ${animeTheme.primaryColor}22 100%), url(${animeBackground})`
+          : `linear-gradient(to bottom, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 52%, ${animeTheme.primaryColor}15 100%), url(${animeBackground})`,
         backgroundPosition: 'center, bottom center',
         backgroundSize: 'cover, 100% auto',
         backgroundRepeat: 'no-repeat',
       }}
     >
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-200/60 bg-gradient-to-r from-white via-slate-50 to-white">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-white via-slate-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
         <div
           className="relative w-11 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-md overflow-hidden cursor-pointer hover:scale-105 transition-transform"
           onClick={() => setThemeModalOpen(true)}
@@ -251,18 +290,31 @@ export default function App() {
           <h1 className="text-sm font-bold leading-tight truncate anime-title anime-title-glow">
             Faculty Load Portal
           </h1>
-          <p className="text-[11px] text-slate-500 leading-tight truncate font-mono">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight truncate font-mono">
             {animeTheme.characterName}
           </p>
         </div>
-        <button
-          onClick={() => setThemeModalOpen(true)}
-          title={`Anime Theme: ${animeTheme.name} (${animeTheme.colorName}) - Click to switch`}
-          className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:scale-110 shadow-xs transition-all flex items-center justify-center shrink-0"
-          style={{ color: animeTheme.primaryColor }}
-        >
-          <Sparkles className="w-4 h-4 animate-sparkle" style={{ color: animeTheme.primaryColor }} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleThemeMode}
+            title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:scale-110 shadow-xs transition-all flex items-center justify-center shrink-0"
+          >
+            {themeMode === 'dark' ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-500" />
+            )}
+          </button>
+          <button
+            onClick={() => setThemeModalOpen(true)}
+            title={`Anime Theme: ${animeTheme.name} (${animeTheme.colorName}) - Click to switch`}
+            className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:scale-110 shadow-xs transition-all flex items-center justify-center shrink-0"
+            style={{ color: animeTheme.primaryColor }}
+          >
+            <Sparkles className="w-4 h-4 animate-sparkle" style={{ color: animeTheme.primaryColor }} />
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 pt-6 pb-4 space-y-1 overflow-y-auto">
@@ -330,21 +382,23 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen flex transition-colors duration-500 anime-theme-${animeTheme.colorName.toLowerCase()}`}
+      className={`min-h-screen flex transition-colors duration-500 anime-theme-${animeTheme.colorName.toLowerCase()} ${themeMode === 'dark' ? 'dark' : ''}`}
       style={{
-        background: `${animeTheme.bgGlow}, #f8fafc`,
+        background: themeMode === 'dark'
+          ? `${animeTheme.bgGlow}, #0b0f19`
+          : `${animeTheme.bgGlow}, #f8fafc`,
       }}
     >
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-white/80 backdrop-blur-lg border-r border-slate-200/60 flex-col fixed inset-y-0 z-30">
+      <aside className="hidden lg:flex w-64 bg-white/80 dark:bg-slate-900/90 backdrop-blur-lg border-r border-slate-200/60 dark:border-slate-800 flex-col fixed inset-y-0 z-30">
         {sidebarContent}
       </aside>
 
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex animate-fade-in">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-64 bg-white/95 backdrop-blur-lg border-r border-slate-200/60 flex flex-col animate-slide-in">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative w-64 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-r border-slate-200/60 dark:border-slate-800 flex flex-col animate-slide-in">
             {sidebarContent}
           </aside>
         </div>
@@ -353,13 +407,13 @@ export default function App() {
       {/* Main Area */}
       <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
         {/* Universal Top Header */}
-        <header className="glass border-b border-slate-200/60 sticky top-0 z-20 backdrop-blur-md bg-white/75">
+        <header className="glass border-b border-slate-200/60 dark:border-slate-800 sticky top-0 z-20 backdrop-blur-md bg-white/75 dark:bg-slate-900/80">
           <div className="flex items-center gap-3 px-4 sm:px-6 h-16">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-              <Menu className="w-5 h-5 text-slate-600" />
+              <Menu className="w-5 h-5 text-slate-600 dark:text-slate-300" />
             </button>
             <div className="flex items-center gap-2.5">
               <div
@@ -375,12 +429,29 @@ export default function App() {
                 <h1 className="text-base font-bold anime-title anime-title-glow leading-tight">
                   Faculty Load Portal
                 </h1>
-                <p className="text-[10px] text-slate-500 hidden sm:block leading-tight font-mono">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 hidden sm:block leading-tight font-mono">
                   {animeTheme.series}
                 </p>
               </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={toggleThemeMode}
+                title={themeMode === 'dark' ? 'Switch to Light Mode (लाइट मोड)' : 'Switch to Dark Mode (डार्क मोड)'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                {themeMode === 'dark' ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
+                    <span className="hidden sm:inline">Light</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="hidden sm:inline">Dark</span>
+                  </>
+                )}
+              </button>
               <button
                 onClick={() => setThemeModalOpen(true)}
                 title={`Anime Theme: ${animeTheme.name} (${animeTheme.colorName}) - Click to switch`}

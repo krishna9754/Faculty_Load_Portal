@@ -573,4 +573,228 @@
     filter: brightness(1.08);
   }
 
+/* =========================================================================
+   🌙 DARK MODE COMPREHENSIVE THEME SYSTEM (रात / डार्क मोड)
+   ========================================================================= */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b0f19;
+  color: #f1f5f9;
+}
+
+/* Glass & translucent surfaces */
+html.dark .glass {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(51, 65, 85, 0.6) !important;
+}
+
+html.dark .glass-dark {
+  background: rgba(11, 15, 25, 0.94) !important;
+  border-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+/* Surface backgrounds */
+html.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+html.dark .bg-white\/70,
+html.dark .bg-white\/75,
+html.dark .bg-white\/80,
+html.dark .bg-white\/90,
+html.dark .bg-white\/95 {
+  background-color: rgba(22, 30, 49, 0.9) !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-gray-50 {
+  background-color: #0f172a !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: #1e293b !important;
+}
+
+html.dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* Borders */
+html.dark .border-slate-200,
+html.dark .border-slate-200\/60,
+html.dark .border-gray-200,
+html.dark .border-slate-100,
+html.dark .border-gray-100 {
+  border-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+/* Text colors */
+html.dark .text-slate-900,
+html.dark .text-gray-900,
+html.dark .text-slate-850 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-800,
+html.dark .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-gray-700 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-500,
+html.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* Form inputs & controls */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: rgba(71, 85, 105, 0.75) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark select option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* Cards & containers */
+html.dark .anime-card {
+  background-color: #1a2234;
+  border-color: rgba(51, 65, 85, 0.65);
+}
+
+html.dark .anime-card:hover {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px var(--theme-shadow, rgba(59, 130, 246, 0.15)) !important;
+}
+
+html.dark .anime-radial-bg {
+  background: radial-gradient(ellipse at top, rgba(59, 130, 246, 0.12), transparent 70%),
+              radial-gradient(ellipse at bottom right, rgba(6, 182, 212, 0.09), transparent 70%),
+              radial-gradient(ellipse at bottom left, rgba(14, 165, 233, 0.08), transparent 70%);
+}
+
+html.dark .mesh-bg {
+  background-color: #0b0f19;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(20, 184, 166, 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+}
+
+html.dark .shimmer {
+  background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%);
+}
+
+/* Modals & Popups */
+html.dark .bg-slate-900\/40,
+html.dark .bg-slate-900\/60 {
+  background-color: rgba(2, 6, 23, 0.75) !important;
+}
+
+/* Table rows & hover */
+html.dark tr.hover\:bg-slate-50\/80:hover,
+html.dark tr.hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-50:hover {
+  background-color: rgba(30, 41, 59, 0.7) !important;
+}
+
+html.dark tr.hover\:bg-slate-100:hover,
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #334155 !important;
+}
+
+/* Semantic Badges in Dark Mode */
+html.dark .text-emerald-700,
+html.dark .text-emerald-800,
+html.dark .text-green-700,
+html.dark .text-green-800 {
+  color: #34d399 !important;
+}
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100,
+html.dark .bg-green-50,
+html.dark .bg-green-100 {
+  background-color: rgba(5, 150, 105, 0.22) !important;
+}
+
+html.dark .text-blue-700,
+html.dark .text-blue-800 {
+  color: #60a5fa !important;
+}
+html.dark .bg-blue-50,
+html.dark .bg-blue-100 {
+  background-color: rgba(37, 99, 235, 0.22) !important;
+}
+
+html.dark .text-amber-700,
+html.dark .text-amber-800,
+html.dark .text-yellow-700,
+html.dark .text-yellow-800 {
+  color: #fbbf24 !important;
+}
+html.dark .bg-amber-50,
+html.dark .bg-amber-100,
+html.dark .bg-yellow-50,
+html.dark .bg-yellow-100 {
+  background-color: rgba(217, 119, 6, 0.22) !important;
+}
+
+html.dark .text-red-700,
+html.dark .text-red-800 {
+  color: #f87171 !important;
+}
+html.dark .bg-red-50,
+html.dark .bg-red-100 {
+  background-color: rgba(220, 38, 38, 0.22) !important;
+}
+
+html.dark .text-purple-700,
+html.dark .text-purple-800 {
+  color: #c084fc !important;
+}
+html.dark .bg-purple-50,
+html.dark .bg-purple-100 {
+  background-color: rgba(124, 58, 237, 0.22) !important;
+}
+
+html.dark .text-cyan-700,
+html.dark .text-cyan-800 {
+  color: #22d3ee !important;
+}
+html.dark .bg-cyan-50,
+html.dark .bg-cyan-100 {
+  background-color: rgba(8, 145, 178, 0.22) !important;
+}
+
+/* Custom Scrollbar in Dark Mode */
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
 

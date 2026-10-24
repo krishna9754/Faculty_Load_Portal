@@ -2301,7 +2301,8 @@ Core Personality & Rules:
       'portal', 'faculty', 'faculy', 'feculty', 'teacher', 'teachers', 'batch', 'batches', 'load', 'loads',
       'mail', 'tracker', 'kholo', 'open', 'oren', 'dikhao', 'batao', 'dekhna', 'check', 'holiday', 'timer',
       'alarm', 'khana', 'lunch', 'nashta', 'thik', 'theek', 'kam', 'kaam', 'section', 'class', 'classes',
-      'lecture', 'lectures', 'schedule', 'timetable', 'planner', 'syllabus', 'extra', 'reschedule', 'clash', 'clashes'
+      'lecture', 'lectures', 'schedule', 'timetable', 'planner', 'syllabus', 'extra', 'reschedule', 'clash', 'clashes',
+      'dark', 'light', 'mode', 'night', 'theme', 'black', 'white', 'kala', 'safed'
     ]);
 
     let detectedSpeakerName = '';
@@ -2355,8 +2356,8 @@ Core Personality & Rules:
 
       // Check if the query ALSO has an actionable portal command (e.g. "main amit bol raha hu dashboard kholo")
       const hasActionCommand =
-        /\b(dashboard|portal|faculty|faculties|faculy|feculty|teacher|teachers|batch|batches|load|loads|search|mail|tracker|clash|clashes|alert|alerts|class|classes|lecture|lectures|schedule|timetable|planner|syllabus|kholo|open|oren|dikhao|batao|dekhna|check|holiday|holidays|chhutti|timer|alarm|khana|lunch|nashta|breakfast|dinner|extra|reschedule|availability|spending)\b/i.test(q) ||
-        /(डैशबोर्ड|पोर्टल|फैकल्टी|टीचर|बैच|लोड|सर्च|मेल|ट्रैकर|क्लैश|अलर्ट|क्लास|लेक्चर|टाइमटेबल|प्लानर|सिलेबस|खोलो|ओपन|दिखाओ|बताओ|देखना|छुट्टी|अलार्म|लंच|खाना)/.test(q);
+        /\b(dashboard|portal|faculty|faculties|faculy|feculty|teacher|teachers|batch|batches|load|loads|search|mail|tracker|clash|clashes|alert|alerts|class|classes|lecture|lectures|schedule|timetable|planner|syllabus|kholo|open|oren|dikhao|batao|dekhna|check|holiday|holidays|chhutti|timer|alarm|khana|lunch|nashta|breakfast|dinner|extra|reschedule|availability|spending|dark|light|mode|theme|night)\b/i.test(q) ||
+        /(डैशबोर्ड|पोर्टल|फैकल्टी|टीचर|बैच|लोड|सर्च|मेल|ट्रैकर|क्लैश|अलर्ट|क्लास|लेक्चर|टाइमटेबल|प्लानर|सिलेबस|खोलो|ओपन|दिखाओ|बताओ|देखना|छुट्टी|अलार्म|लंच|खाना|डार्क|लाइट)/.test(q);
 
       // If it's PURELY an introduction / speaker switch (no portal action command in same utterance), respond immediately
       if (!hasActionCommand) {
@@ -2703,6 +2704,42 @@ Core Personality & Rules:
         'happy',
         romMsg
       );
+      return;
+    }
+
+    // 🌓 0.0115 DARK & LIGHT THEME MODE ("dark mode karo", "light mode karo", "dark theme", "night mode", "andhera mode", etc.)
+    const isDarkModeCmd =
+      /\b(dark mode|night mode|black mode|dark theme|andhera mode|डार्क मोड|नाईट मोड)\b/i.test(q) ||
+      (/\b(dark|night|black|kala|डार्क|नाईट|काला)\b/i.test(q) && /\b(mode|theme|karo|kar do|lagao|on|activate|kholo|chalu)\b/i.test(q));
+
+    const isLightModeCmd =
+      /\b(light mode|day mode|white mode|light theme|din mode|लाइट मोड|डे मोड)\b/i.test(q) ||
+      (/\b(light|day|white|safed|लाइट|डे|सफेद)\b/i.test(q) && /\b(mode|theme|karo|kar do|lagao|on|activate|kholo|chalu)\b/i.test(q));
+
+    const isToggleThemeModeCmd =
+      /\b(theme mode|mode badlo|mode change|dark light|light dark)\b/i.test(q);
+
+    if (isDarkModeCmd) {
+      window.dispatchEvent(new CustomEvent('set-portal-theme-mode', { detail: { mode: 'dark' } }));
+      const devMsg = 'सर! डार्क मोड एक्टिवेट कर दिया है। रात में काम करने और आँखों की सुरक्षा के लिए यह बहुत ही आरामदायक है! 🌙';
+      const romMsg = 'Sir! Dark mode activate kar diya hai. Raat me kaam karne aur aankhon ki suraksha ke liye yeh bohot hi aaramdayak hai! 🌙';
+      releaseLockWithSuccess('Dark Mode Activated 🌙', devMsg, undefined, 'happy', romMsg);
+      return;
+    }
+
+    if (isLightModeCmd) {
+      window.dispatchEvent(new CustomEvent('set-portal-theme-mode', { detail: { mode: 'light' } }));
+      const devMsg = 'सर! लाइट मोड एक्टिवेट कर दिया है! ब्राइट और फ्रेश डे-टाइम विजुअल्स एक्टिव हो गए हैं! ☀️';
+      const romMsg = 'Sir! Light mode activate kar diya hai! Bright aur fresh day-time visuals active ho gaye hain! ☀️';
+      releaseLockWithSuccess('Light Mode Activated ☀️', devMsg, undefined, 'happy', romMsg);
+      return;
+    }
+
+    if (isToggleThemeModeCmd) {
+      window.dispatchEvent(new CustomEvent('toggle-portal-theme-mode'));
+      const devMsg = 'सर! थीम मोड टॉगल कर दिया है!';
+      const romMsg = 'Sir! Theme mode toggle kar diya hai!';
+      releaseLockWithSuccess('Theme Mode Toggled 🌓', devMsg, undefined, 'happy', romMsg);
       return;
     }
 
