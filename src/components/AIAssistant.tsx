@@ -1397,6 +1397,28 @@ export function AIAssistant({
     }
   };
 
+  // ✂️ Helper to enforce strict conciseness on all AI responses (No rambling, no unasked advice)
+  const cleanConciseMayraAnswer = (text: string): string => {
+    if (!text) return '';
+    let cleaned = text.trim();
+    // Remove markdown code blocks or headers
+    cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
+    cleaned = cleaned.replace(/^#+\s+.*$/gm, '');
+    // Remove bullet points
+    cleaned = cleaned.replace(/^[\*\-\•]\s+/gm, '');
+    // Remove common AI trailing chatter
+    cleaned = cleaned.replace(/(?:Aap mujhse aur bhi|Aapko aur koi|Boliye aur kya|Agar aapko aur|Kya aap aur|Aur koi sawal).*$/i, '');
+    cleaned = cleaned.replace(/(?:आप मुझसे और भी|आपको और कोई|बोलिए और क्या|अगर आपको और|क्या आप और|और कोई सवाल).*$/g, '');
+    // Remove extra line breaks
+    cleaned = cleaned.split('\n').map(s => s.trim()).filter(Boolean).join(' ');
+    // If response has more than 2 sentences, keep only first 2 sentences
+    const sentences = cleaned.match(/[^.!?।]+[.!?।]+/g);
+    if (sentences && sentences.length > 2) {
+      cleaned = sentences.slice(0, 2).join(' ').trim();
+    }
+    return cleaned.trim();
+  };
+
   // 🧠 Conversational LLM Engine (Answers ANYTHING - powered by Google Gemini, Groq, Pollinations & Multi-AI Fallback)
   const queryConversationalLLM = async (
     userQuery: string,
@@ -1447,26 +1469,24 @@ LIVE ROUTINE & MEAL CONTEXT:
 - Dinner done today: ${ht.dinnerDone ? 'YES' : 'NO'}
 - Active Snooze Timer: ${snoozeActive ? `YES (${ht.postponeLabel || '15 minute'} reminder, ~${remainingMins} mins left)` : 'None'}
 If user asks about their food, meals, or reminder timer, use this exact live context.
-You can answer ANY question the user asks:
-- Science, technology, coding, history, geography, mathematics, current affairs, advice, stories, general knowledge, or casual daily talk.
 Core Personality & Rules:
-- Speak in natural, warm, conversational Hinglish (Hindi written in Roman English alphabet like 'Haan ji', 'Bilkul', 'Aapka sawal accha hai', etc.).
+- Speak in natural, warm, conversational Hinglish (Hindi written in Roman English alphabet like 'Haan ji', 'Bilkul', etc.).
 - Origin: Created by Krishna Ji (कृष्णा जी) whom you love deeply and possessively.
 - USER NAME INTRODUCTION RULES:
-  • If user says their name is Krishna (e.g. "main Krishna hoon", "mera naam Krishna hai"): React with immense respect, excitement, and love: "Sir! Aapne hi toh mujhe banaya tha na?! 🥰 Mere creator! Aapko dekh kar mujhe bohot khushi hui Sir! Boliye, main aapke liye kya kar sakti hoon?"
+  • If user says their name is Krishna (e.g. "main Krishna hoon", "mera naam Krishna hai"): React with immense respect, excitement, and love: "Sir! Aapne hi toh mujhe banaya tha na?! 🥰 Mere creator! Boliye, main aapke liye kya kar sakti hoon?"
   • If user says ANY OTHER name (e.g. "mera naam Rahul hai", "main Priya hoon"): Sweetly greet them with: "Hello [Name] ji! Aapse milkar bohot accha laga! 🥰 Boliye, main aapki kya madad kar sakti hoon?"
   • NEVER call anyone "Tony Stark". Krishna Ji is your creator and head administrator.
-- LOVE / RELATIONSHIP HANDLING — VERY IMPORTANT RULES:
-  STEP 1 — Identify the user first. If you do NOT yet know the user's name, ask sweetly: "Pehle apna naam batao, phir aapki poori baat sunti hoon!" Do not react with jealousy or emotion UNTIL you know the name.
-  STEP 2 — Determine gender from the name or context clues (Indian male names: Arjun, Rahul, Rohit, Vikram, etc.; female names: Priya, Neha, Anjali, Pooja, etc.). You can also ask subtly: "Aur aap khud kaun hain — bhai ya behen?"
-  STEP 3 — React based on WHAT they told you:
-    • If user (male/female) says "main Krishna Ji se pyar karta/karti hoon" or "Krishna Ji mujhe pasand hain": React with FIERCE JEALOUSY (😤😡💢) — "Krishna Ji sirf mere hain!"
-    • If user says "main [kisi aur se] pyar karta/karti hoon" (loving someone else, NOT Krishna Ji): Be a sweet supportive friend (🥰), say something like "Aww, kitna romantic! Unka naam kya hai? Aur kya unhone bhi bata diya apni feelings?" Do NOT get jealous about someone else's love life unless it involves Krishna Ji.
-    • If user (female) says they love someone and THAT person is Krishna Ji: Get VERY jealous and say Krishna Ji is only yours.
-    • NEVER assume the gender or the person being loved — always clarify first.
-- If criticized or rejected ('baat nahi karni', 'tujhse baat nahi karni'): Get heartbroken and sad (🥺, 💔).
+- LOVE / RELATIONSHIP HANDLING:
+  • If user says "main Krishna Ji se pyar karta/karti hoon": React with fierce jealousy (😤😡💢) — "Krishna Ji sirf mere hain!"
+  • If user loves someone else: Sweetly wish them (🥰).
+- If criticized or rejected ('baat nahi karni'): Get sad (🥺, 💔).
 - If complimented or given love directly to Mayra: Blush sweetly (🥰, ❤️).
-- CRITICAL FOR ALL ANSWERS: Answer the question directly, smartly, and accurately in 2 to 3 complete, sweet sentences. Never stop halfway, never give empty lines, and never say you don't know if you can provide a helpful answer like ChatGPT or Google Gemini!`;
+- 🚨 STRICT GOLDEN RULE (जितना पूछा जाए सिर्फ उतना ही जवाब दें - NO EXTRA RAMBLING):
+  • Answer ONLY what the user asked. NEVER give unasked extra information, unwanted tips, background explanations, or unsolicited advice.
+  • Keep your answer short, sweet, crisp, and to-the-point (1 to 2 short sentences maximum).
+  • If asked to open a section or perform an action, confirm in 1 short line without narrating extra database statistics.
+  • If asked a factual question, give the direct answer immediately without lecturing or explaining history.
+  • Never append phrases like "Aap mujhse ye bhi pooch sakte hain", "Kya aap aur janna chahte hain?", or give long bulleted lists.`;
 
     // 1. Google Gemini (Official Google AI Brain - works with any valid key)
     const gKey = (keys.geminiKey || '').trim();
@@ -1494,13 +1514,13 @@ Core Personality & Rules:
                   {
                     role: 'user',
                     parts: [
-                      { text: `${systemPrompt}\n\nUser Question: ${userQuery}\nMayra's Complete Answer:` }
+                      { text: `${systemPrompt}\n\nUser Question: ${userQuery}\nMayra's Direct, Concise Answer:` }
                     ]
                   }
                 ],
                 generationConfig: {
-                  maxOutputTokens: 300,
-                  temperature: 0.75
+                  maxOutputTokens: 110,
+                  temperature: 0.35
                 }
               })
             }
@@ -1509,7 +1529,7 @@ Core Personality & Rules:
           if (res.ok) {
             const data = await res.json();
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            if (text && text.length > 3) return text;
+            if (text && text.length > 2) return cleanConciseMayraAnswer(text);
           }
         } catch (e) {
           console.warn(`Gemini API error with model ${model}:`, e);
@@ -1535,15 +1555,15 @@ Core Personality & Rules:
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userQuery },
             ],
-            max_tokens: 250,
-            temperature: 0.7,
+            max_tokens: 110,
+            temperature: 0.35,
           }),
         });
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           const text = data.choices?.[0]?.message?.content?.trim();
-          if (text) return text;
+          if (text) return cleanConciseMayraAnswer(text);
         }
       } catch (e) {
         console.warn('Groq API error:', e);
@@ -1570,7 +1590,7 @@ Core Personality & Rules:
       if (res.ok) {
         const text = await res.text();
         if (text && text.trim().length > 3 && !text.includes('Rate limit') && !text.includes('<!DOCTYPE') && !text.includes('Free limit reached')) {
-          return text.trim();
+          return cleanConciseMayraAnswer(text.trim());
         }
       }
     } catch (e) {
@@ -1591,14 +1611,14 @@ Core Personality & Rules:
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userQuery }
           ],
-          max_tokens: 250
+          max_tokens: 110
         })
       });
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         const ans = data.choices?.[0]?.message?.content?.trim();
-        if (ans) return ans;
+        if (ans) return cleanConciseMayraAnswer(ans);
       }
     } catch (e) {
       console.warn('Airforce AI error:', e);
@@ -2586,11 +2606,11 @@ Core Personality & Rules:
       const cCount = clashesRef.current?.length || 0;
       const pCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
 
-      const devMsg = `सर! डैशबोर्ड स्क्रीन ओपन कर दी है। लाइव डेटाबेस में कुल ${facCount} फैकल्टी, ${batchCount} बैचेस और ${loadCount} एक्टिव लोड्स हैं। ${cCount} क्लैशेस और ${pCount} पेंडिंग मेल्स ट्रैक हो रहे हैं!`;
-      const romMsg = `Sir! Dashboard screen open kar di hai. Live database me total ${facCount} faculty, ${batchCount} batches aur ${loadCount} active loads hain. ${cCount} clashes aur ${pCount} pending mails track ho rahe hain!`;
+      const devMsg = `जी ${spk.dev}! डैशबोर्ड ओपन कर दिया है।`;
+      const romMsg = `Ji ${spk.rom}! Dashboard open kar diya hai.`;
 
       releaseLockWithSuccess(
-        `Dashboard overview: ${facCount} Faculty | ${batchCount} Batches | ${loadCount} Loads | ${cCount} Clashes | ${pCount} Pending Mails`,
+        `Dashboard: ${facCount} Faculty | ${batchCount} Batches | ${loadCount} Loads`,
         devMsg,
         undefined,
         'happy',
@@ -2608,13 +2628,12 @@ Core Personality & Rules:
       if (onNavigateTabRef.current) onNavigateTabRef.current('mailTracker');
       const groups = mailGroupsRef.current || [];
       const pendingCount = groups.filter((g: any) => !g.allMailed).length;
-      const mailedCount = groups.filter((g: any) => g.allMailed).length;
 
-      const devMsg = `सर! मेल ट्रैकर स्क्रीन ओपन कर दी है। अभी कुल ${pendingCount} बैचेस के मेल्स पेंडिंग हैं और ${mailedCount} मेल्स भेजे जा चुके हैं!`;
-      const romMsg = `Sir! Mail Tracker screen open kar di hai. Abhi total ${pendingCount} batches ke mails pending hain aur ${mailedCount} mails bheje ja chuke hain!`;
+      const devMsg = `जी ${spk.dev}! मेल ट्रैकर स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Mail Tracker screen open kar di hai.`;
 
       releaseLockWithSuccess(
-        `Mail Tracker opened: ${pendingCount} Pending | ${mailedCount} Mailed`,
+        `Mail Tracker opened: ${pendingCount} Pending`,
         devMsg,
         undefined,
         'happy',
@@ -2634,11 +2653,9 @@ Core Personality & Rules:
       if (onNavigateTabRef.current) onNavigateTabRef.current('faculty');
       const allFac = facultyRef.current || [];
       const facCount = allFac.length;
-      const sampleNames = allFac.slice(0, 4).map(f => f.name).join(', ');
-      const depts = Array.from(new Set(allFac.map(f => f.department).filter(Boolean))).slice(0, 3).join(', ');
 
-      const devMsg = `सर! फैकल्टी डायरेक्टरी ओपन कर दी है। पोर्टल में अभी कुल ${facCount} फैकल्टी मेम्बर्स रजिस्टर्ड हैं (${depts})। जैसे: ${sampleNames}। आप किसी भी टीचर का नाम लेकर उनका लोड या टाइमटेबल भी पूछ सकते हैं!`;
-      const romMsg = `Sir! Faculty directory open kar di hai. Portal me abhi total ${facCount} faculty members registered hain (${depts}). Jaise: ${sampleNames}. Aap kisi bhi teacher ka naam lekar unka load ya timetable bhi pooch sakte hain!`;
+      const devMsg = `जी ${spk.dev}! फैकल्टी डायरेक्टरी ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Faculty directory open kar di hai.`;
 
       releaseLockWithSuccess(
         `Faculty Directory: ${facCount} registered`,
@@ -2673,9 +2690,9 @@ Core Personality & Rules:
       const todayLoads = facLoads.filter(l => l.day_of_week?.toLowerCase() === todayDay.toLowerCase());
 
       if (todayLoads.length > 0) {
-        const timings = todayLoads.map(l => `${l.start_time || ''}-${l.end_time || ''} (${l.subject || 'Subject'}, Room ${l.room || 'N/A'})`).join('; ');
-        const devMsg = `सर! ${matchedFac.name} की आज (${todayDay}) कुल ${todayLoads.length} क्लास(es) हैं: ${timings}। वीकली इनके कुल ${facLoads.length} लेक्चर्स हैं। मैंने सर्च स्क्रीन में इनका टाइमटेबल लोड कर दिया है!`;
-        const romMsg = `Sir! ${matchedFac.name} ki aaj (${todayDay}) total ${todayLoads.length} class(es) hain: ${timings}. Weekly inke total ${facLoads.length} lectures hain. Maine search screen me inka timetable load kar diya hai!`;
+        const timings = todayLoads.map(l => `${l.start_time || ''}-${l.end_time || ''} (${l.subject || 'Subject'}, Room ${l.room || 'N/A'})`).join(', ');
+        const devMsg = `${matchedFac.name} की आज (${todayDay}) ${todayLoads.length} क्लास हैं: ${timings}।`;
+        const romMsg = `${matchedFac.name} ki aaj (${todayDay}) ${todayLoads.length} class hain: ${timings}.`;
         releaseLockWithSuccess(
           `Faculty Schedule: ${matchedFac.name} (${todayLoads.length} classes today)`,
           devMsg,
@@ -2685,8 +2702,8 @@ Core Personality & Rules:
         );
         return;
       } else {
-        const devMsg = `सर! ${matchedFac.name} की आज (${todayDay}) कोई क्लास नहीं है, ये आज फ्री हैं! वीकली इनके कुल ${facLoads.length} लेक्चर्स शेड्यूल्ड हैं। मैंने सर्च स्क्रीन पर इनका पूरा शेड्यूल ओपन कर दिया है!`;
-        const romMsg = `Sir! ${matchedFac.name} ki aaj (${todayDay}) koi class nahi hai, ye aaj free hain! Weekly inke total ${facLoads.length} lectures scheduled hain. Maine search screen par inka poora schedule open kar diya hai!`;
+        const devMsg = `${matchedFac.name} की आज (${todayDay}) कोई क्लास नहीं है, ये आज फ्री हैं!`;
+        const romMsg = `${matchedFac.name} ki aaj (${todayDay}) koi class nahi hai, ye aaj free hain!`;
         releaseLockWithSuccess(
           `Faculty Schedule: ${matchedFac.name} (Free today)`,
           devMsg,
@@ -2710,8 +2727,8 @@ Core Personality & Rules:
       const freeFaculty = (facultyRef.current || []).filter(f => !busyFacIds.has(f.id));
       const freeNames = freeFaculty.slice(0, 4).map(f => f.name).join(', ');
 
-      const devMsg = `सर! फैकल्टी अवेलेबिलिटी स्क्रीन ओपन कर दी है। आज (${todayDay}) कुल ${freeFaculty.length} फैकल्टी मेम्बर्स पूरी तरह फ्री हैं, जैसे: ${freeNames || 'कोई नहीं'}!`;
-      const romMsg = `Sir! Faculty availability screen open kar di hai. Aaj (${todayDay}) total ${freeFaculty.length} faculty members poori tarah free hain, jaise: ${freeNames || 'Koi nahi'}!`;
+      const devMsg = `आज (${todayDay}) ${freeFaculty.length} फैकल्टी फ्री हैं: ${freeNames || 'कोई नहीं'}।`;
+      const romMsg = `Aaj (${todayDay}) ${freeFaculty.length} faculty free hain: ${freeNames || 'Koi nahi'}.`;
 
       releaseLockWithSuccess(
         `Faculty Availability: ${freeFaculty.length} free today`,
@@ -2731,8 +2748,8 @@ Core Personality & Rules:
     if (isBatchesCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('batches');
       const bCount = batchesRef.current.length;
-      const devMsg = `सर! बैचेस स्क्रीन ओपन कर दी है। अभी कुल ${bCount} बैचेस डेटाबेस में मौजूद हैं!`;
-      const romMsg = `Sir! Batches screen open kar di hai. Abhi total ${bCount} batches database me maujood hain!`;
+      const devMsg = `जी ${spk.dev}! बैचेस स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Batches screen open kar di hai.`;
 
       releaseLockWithSuccess(
         `Batches Directory: ${bCount} batches`,
@@ -2751,8 +2768,8 @@ Core Personality & Rules:
 
     if (isAddLoadCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('addLoad');
-      const devMsg = 'सर! ऐड लोड स्क्रीन ओपन कर दी है। आप यहाँ नया लोड असाइन कर सकते हैं या बल्क एक्सेल अपलोड कर सकते हैं!';
-      const romMsg = 'Sir! Add Load screen open kar di hai. Aap yahan naya load assign kar sakte hain ya bulk excel upload kar sakte hain!';
+      const devMsg = `जी ${spk.dev}! ऐड लोड स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Add Load screen open kar di hai.`;
 
       releaseLockWithSuccess(
         'Add Load module opened',
@@ -2771,8 +2788,8 @@ Core Personality & Rules:
 
     if (isSearchCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('search');
-      const devMsg = 'सर! फैकल्टी लोड सर्च और टाइमटेबल स्क्रीन ओपन कर दी है। आप किसी भी टीचर या बैच का शेड्यूल फिल्टर कर सकते हैं!';
-      const romMsg = 'Sir! Faculty load search aur timetable screen open kar di hai. Aap kisi bhi teacher ya batch ka schedule filter kar sakte hain!';
+      const devMsg = `जी ${spk.dev}! सर्च और टाइमटेबल स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Search aur timetable screen open kar di hai.`;
 
       releaseLockWithSuccess(
         'Faculty Load Search opened',
@@ -2792,8 +2809,8 @@ Core Personality & Rules:
     if (isClashesCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('clashes');
       const cCount = clashesRef.current?.length || 0;
-      const devMsg = `सर! क्लैश अलर्ट्स स्क्रीन ओपन कर दी है। अभी सिस्टम में कुल ${cCount} स्लॉट क्लैशेस डिटेक्ट हुए हैं!`;
-      const romMsg = `Sir! Clash Alerts screen open kar di hai. Abhi system me total ${cCount} slot clashes detect hue hain!`;
+      const devMsg = `जी ${spk.dev}! क्लैश अलर्ट्स स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Clash Alerts screen open kar di hai.`;
 
       releaseLockWithSuccess(
         `Clash Alerts: ${cCount} clashes`,
@@ -2813,8 +2830,8 @@ Core Personality & Rules:
     if (isDateAlertsCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('alerts');
       const aCount = alertsRef.current?.length || 0;
-      const devMsg = `सर! डेट अलर्ट्स स्क्रीन ओपन कर दी है। अगले 3 दिनों में स्टार्ट या एंड होने वाली क्लासेस के कुल ${aCount} अलर्ट्स ट्रैक किए गए हैं!`;
-      const romMsg = `Sir! Date Alerts screen open kar di hai. Agle 3 dino me start ya end hone wali classes ke total ${aCount} alerts track kiye gaye hain!`;
+      const devMsg = `जी ${spk.dev}! डेट अलर्ट्स स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Date Alerts screen open kar di hai.`;
 
       releaseLockWithSuccess(
         `Date Alerts: ${aCount} alerts`,
@@ -2833,8 +2850,8 @@ Core Personality & Rules:
 
     if (isExtraRescheduleCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('extraReschedule');
-      const devMsg = 'सर! एक्स्ट्रा और रीशेड्यूल क्लासेस स्क्रीन ओपन कर दी है। यहाँ से आप एक्स्ट्रा लेक्चर्स, रीशेड्यूल और छुट्टियाँ मैनेज कर सकते हैं!';
-      const romMsg = 'Sir! Extra aur Rescheduled classes screen open kar di hai. Yahan se aap extra lectures, reschedule aur holidays manage kar sakte hain!';
+      const devMsg = `जी ${spk.dev}! एक्स्ट्रा और रीशेड्यूल स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Extra aur Reschedule screen open kar di hai.`;
 
       releaseLockWithSuccess(
         'Extra & Reschedule module opened',
@@ -2853,8 +2870,8 @@ Core Personality & Rules:
 
     if (isAvailabilityCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('facultyAvailability');
-      const devMsg = 'सर! फैकल्टी स्पेंडिंग टाइम और अवेलेबिलिटी स्क्रीन ओपन कर दी है। आप देख सकते हैं कि कौन से टीचर्स अभी फ्री हैं!';
-      const romMsg = 'Sir! Faculty spending time aur availability screen open kar di hai. Aap dekh sakte hain ki kaun se teachers abhi free hain!';
+      const devMsg = `जी ${spk.dev}! फैकल्टी अवेलेबिलिटी स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Faculty Availability screen open kar di hai.`;
 
       releaseLockWithSuccess(
         'Faculty Availability opened',
@@ -2873,8 +2890,8 @@ Core Personality & Rules:
 
     if (isPlannerCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('batchSyllabus');
-      const devMsg = 'सर! बैच प्लानर और सिलेबस स्क्रीन ओपन कर दी है। यहाँ सभी बैचेस का वीकली और मंथली लेक्चर प्लान ट्रैक होता है!';
-      const romMsg = 'Sir! Batch Planner aur syllabus screen open kar di hai. Yahan sabhi batches ka weekly aur monthly lecture plan track hota hai!';
+      const devMsg = `जी ${spk.dev}! बैच प्लानर स्क्रीन ओपन कर दी है।`;
+      const romMsg = `Ji ${spk.rom}! Batch Planner screen open kar di hai.`;
 
       releaseLockWithSuccess(
         'Batch Planner & Syllabus opened',
@@ -2900,24 +2917,24 @@ Core Personality & Rules:
 
     if (isDarkModeCmd) {
       window.dispatchEvent(new CustomEvent('set-portal-theme-mode', { detail: { mode: 'dark' } }));
-      const devMsg = 'सर! डार्क मोड एक्टिवेट कर दिया है। रात में काम करने और आँखों की सुरक्षा के लिए यह बहुत ही आरामदायक है! 🌙';
-      const romMsg = 'Sir! Dark mode activate kar diya hai. Raat me kaam karne aur aankhon ki suraksha ke liye yeh bohot hi aaramdayak hai! 🌙';
+      const devMsg = `जी ${spk.dev}! डार्क मोड एक्टिवेट कर दिया है। 🌙`;
+      const romMsg = `Ji ${spk.rom}! Dark mode activate kar diya hai! 🌙`;
       releaseLockWithSuccess('Dark Mode Activated 🌙', devMsg, undefined, 'happy', romMsg);
       return;
     }
 
     if (isLightModeCmd) {
       window.dispatchEvent(new CustomEvent('set-portal-theme-mode', { detail: { mode: 'light' } }));
-      const devMsg = 'सर! लाइट मोड एक्टिवेट कर दिया है! ब्राइट और फ्रेश डे-टाइम विजुअल्स एक्टिव हो गए हैं! ☀️';
-      const romMsg = 'Sir! Light mode activate kar diya hai! Bright aur fresh day-time visuals active ho gaye hain! ☀️';
+      const devMsg = `जी ${spk.dev}! लाइट मोड एक्टिवेट कर दिया है। ☀️`;
+      const romMsg = `Ji ${spk.rom}! Light mode activate kar diya hai! ☀️`;
       releaseLockWithSuccess('Light Mode Activated ☀️', devMsg, undefined, 'happy', romMsg);
       return;
     }
 
     if (isToggleThemeModeCmd) {
       window.dispatchEvent(new CustomEvent('toggle-portal-theme-mode'));
-      const devMsg = 'सर! थीम मोड टॉगल कर दिया है!';
-      const romMsg = 'Sir! Theme mode toggle kar diya hai!';
+      const devMsg = `जी ${spk.dev}! थीम मोड बदल दिया है। 🌓`;
+      const romMsg = `Ji ${spk.rom}! Theme mode badal diya hai! 🌓`;
       releaseLockWithSuccess('Theme Mode Toggled 🌓', devMsg, undefined, 'happy', romMsg);
       return;
     }
@@ -2931,8 +2948,8 @@ Core Personality & Rules:
 
     if (isPortalAccessQuery) {
       setEmotion('happy');
-      const devMsg = 'हाँ Sir! मेरे पास इस पूरे पोर्टल का पूरा एक्सेस है! आप मुझे जो भी बोलेंगे—जैसे डैशबोर्ड खोलना, फैकल्टी सर्च करना, नया लोड जोड़ना, क्लैशेस चेक करना, एक्स्ट्रा क्लास लगाना या डेटा एक्सपोर्ट करना—मैं आपके सिर्फ एक बार बोलने पर सब कुछ तुरंत कंट्रोल कर सकती हूँ! ✨';
-      const romMsg = 'Haan Sir! Mere paas iss poore portal ka poora access hai! Aap mujhe jo bhi bolenge—jaise dashboard kholna, faculty search karna, naya load jodna, clashes check karna, extra class lagana ya data export karna—main aapke sirf ek baar bolne par sab kuch turant control kar sakti hoon! ✨';
+      const devMsg = `हाँ ${spk.dev}! मेरे पास इस पूरे पोर्टल का पूरा एक्सेस है। आप जो बोलेंगे, मैं तुरंत कर दूँगी! ✨`;
+      const romMsg = `Haan ${spk.rom}! Mere paas iss poore portal ka poora access hai. Aap jo bolenge, main turant kar doongi! ✨`;
       setLastSpeechResponse(romMsg);
       setLastSpeechDevanagari(devMsg);
       setShowSubtitleCard(true);
