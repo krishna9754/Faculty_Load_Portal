@@ -1176,17 +1176,17 @@ function ScrollableSelect({
             <button
               key="__all__"
               onClick={() => { onChange(''); setOpen(false); }}
-              className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 transition-colors ${!selected ? 'bg-blue-50 font-medium' : ''}`}
+              className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 hover:!text-black group transition-colors ${!selected ? 'bg-blue-50 font-medium text-blue-900 dark:text-blue-900' : 'text-slate-800 dark:text-slate-200'}`}
             >
-              {placeholder}
+              <span className="group-hover:!text-black">{placeholder}</span>
             </button>
             {options.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 transition-colors ${opt.value === value ? 'bg-blue-50 font-medium' : ''}`}
+                className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 hover:!text-black group transition-colors ${opt.value === value ? 'bg-blue-50 font-medium text-blue-900 dark:text-blue-900' : 'text-slate-800 dark:text-slate-200'}`}
               >
-                {opt.label}
+                <span className="group-hover:!text-black">{opt.label}</span>
               </button>
             ))}
           </div>
@@ -1301,16 +1301,16 @@ function MultiSelect({
                   key={b.id}
                   type="button"
                   onClick={() => toggle(b.id)}
-                  className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-blue-50 transition-colors ${
-                    selected ? 'bg-blue-50' : ''
+                  className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-blue-50 hover:!text-black group transition-colors ${
+                    selected ? 'bg-blue-50 text-blue-900 font-semibold' : 'text-slate-800 dark:text-slate-200'
                   }`}
                 >
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                    selected ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                    selected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-600 group-hover:border-slate-800'
                   }`}>
                     {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
                   </div>
-                  {b.name}
+                  <span className="flex-1 font-medium group-hover:!text-black">{b.name}</span>
                 </button>
               );
             })}
@@ -1323,16 +1323,16 @@ function MultiSelect({
                       key={b.id}
                       type="button"
                       onClick={() => toggle(b.id)}
-                      className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-blue-50 transition-colors ${
-                        selected ? 'bg-blue-50' : ''
+                      className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-blue-50 hover:!text-black group transition-colors ${
+                        selected ? 'bg-blue-50 text-blue-900 font-semibold' : 'text-slate-800 dark:text-slate-200'
                       }`}
                     >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                        selected ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                        selected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-600 group-hover:border-slate-800'
                       }`}>
                         {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
                       </div>
-                      {b.name}
+                      <span className="flex-1 font-medium group-hover:!text-black">{b.name}</span>
                     </button>
                   );
                 })}

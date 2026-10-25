@@ -1249,8 +1249,8 @@ export function IndianHolidaysManager({
                       return (
                         <label
                           key={b.id}
-                          className={`flex items-center gap-1.5 p-1 rounded-md text-[11px] font-medium cursor-pointer transition-colors ${
-                            isChecked ? 'bg-purple-100 text-purple-900 font-bold' : 'hover:bg-slate-100 text-slate-700'
+                          className={`flex items-center gap-1.5 p-1 rounded-md text-[11px] font-medium cursor-pointer transition-colors group hover:!text-black ${
+                            isChecked ? 'bg-purple-100 text-purple-900 font-bold' : 'hover:bg-slate-100 text-slate-700 dark:text-slate-200'
                           }`}
                         >
                           <input
@@ -1265,7 +1265,7 @@ export function IndianHolidaysManager({
                             }}
                             className="rounded text-purple-600 focus:ring-purple-500"
                           />
-                          <span className="truncate">{b.name}</span>
+                          <span className="truncate group-hover:!text-black">{b.name}</span>
                         </label>
                       );
                     })}

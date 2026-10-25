@@ -419,8 +419,8 @@ function RowBatchSelector({
                   return (
                     <label
                       key={name}
-                      className={`flex items-start gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
-                        isChecked ? 'bg-blue-50/80 text-blue-900 font-medium' : 'hover:bg-slate-50 text-slate-700'
+                      className={`flex items-start gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors group hover:!text-black ${
+                        isChecked ? 'bg-blue-50/80 text-blue-900 font-medium' : 'hover:bg-slate-50 text-slate-700 dark:text-slate-200'
                       }`}
                     >
                       <input
@@ -429,7 +429,7 @@ function RowBatchSelector({
                         onChange={() => toggleBatch(name)}
                         className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5 shrink-0"
                       />
-                      <span className="text-xs leading-snug break-words flex-1">
+                      <span className="text-xs leading-snug break-words flex-1 group-hover:!text-black">
                         {name}
                       </span>
                     </label>

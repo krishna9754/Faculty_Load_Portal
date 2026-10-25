@@ -990,83 +990,161 @@ html.dark ::-webkit-scrollbar-thumb:hover {
    all sentence and word text inside turns sharp pitch-black!
    ========================================================================= */
 
-/* On any hovered row/item with a light/white hover background */
-[class*="hover:bg-slate-50"]:hover p,
-[class*="hover:bg-slate-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
-[class*="hover:bg-slate-100"]:hover p,
-[class*="hover:bg-slate-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
-[class*="hover:bg-white"]:hover p,
-[class*="hover:bg-white"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
-[class*="hover:bg-gray-50"]:hover p,
-[class*="hover:bg-gray-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
-[class*="hover:bg-gray-100"]:hover p,
-[class*="hover:bg-gray-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
-[class*="hover:bg-blue-50"]:hover p,
-[class*="hover:bg-blue-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
-.hover\:bg-white:hover p,
-.hover\:bg-white:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]) {
-  color: #000000 !important;
-}
-
-/* Secondary descriptions, batches, faculty names, and dates turn clear dark slate on hover */
-[class*="hover:bg-slate-50"]:hover .text-slate-500,
-[class*="hover:bg-slate-50"]:hover .text-slate-400,
-[class*="hover:bg-slate-50"]:hover .text-slate-600,
-[class*="hover:bg-slate-100"]:hover .text-slate-500,
-[class*="hover:bg-slate-100"]:hover .text-slate-400,
-[class*="hover:bg-slate-100"]:hover .text-slate-600,
-[class*="hover:bg-white"]:hover .text-slate-500,
-[class*="hover:bg-white"]:hover .text-slate-400,
-[class*="hover:bg-white"]:hover .text-slate-600 {
-  color: #1e293b !important;
-}
-
-/* Force dark mode hover to turn crisp white with jet-black text */
+/* Dark mode hover background turns crisp white */
 html.dark [class*="hover:bg-slate-50"]:hover,
 html.dark [class*="hover:bg-slate-100"]:hover,
+html.dark [class*="hover:bg-slate-200"]:hover,
 html.dark [class*="hover:bg-white"]:hover,
 html.dark [class*="hover:bg-gray-50"]:hover,
 html.dark [class*="hover:bg-gray-100"]:hover,
-html.dark [class*="hover:bg-blue-50"]:hover {
+html.dark [class*="hover:bg-blue-50"]:hover,
+html.dark [class*="hover:bg-blue-100"]:hover,
+html.dark [class*="hover:bg-emerald-50"]:hover,
+html.dark .hover\:bg-white:hover {
   background-color: #ffffff !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 
+/* Hovered element itself turns jet-black */
+[class*="hover:bg-slate-50"]:hover,
+[class*="hover:bg-slate-100"]:hover,
+[class*="hover:bg-white"]:hover,
+[class*="hover:bg-gray-50"]:hover,
+[class*="hover:bg-gray-100"]:hover,
+[class*="hover:bg-blue-50"]:hover,
+[class*="hover:bg-blue-100"]:hover,
+.hover\:bg-white:hover {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+/* All text descendants inside turn jet-black */
+[class*="hover:bg-slate-50"]:hover p,
+[class*="hover:bg-slate-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+[class*="hover:bg-slate-50"]:hover div:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-blue-600"]):not([class*="bg-emerald-"]):not([class*="bg-indigo-"]):not([class*="bg-purple-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]):not([class*="bg-red-"]):not([class*="w-"]):not([class*="h-"]),
+[class*="hover:bg-slate-50"]:hover label,
+[class*="hover:bg-slate-50"]:hover strong,
+[class*="hover:bg-slate-50"]:hover b,
+[class*="hover:bg-slate-50"]:hover td,
+[class*="hover:bg-slate-50"]:hover th,
+
+[class*="hover:bg-slate-100"]:hover p,
+[class*="hover:bg-slate-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+[class*="hover:bg-slate-100"]:hover div:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-blue-600"]):not([class*="bg-emerald-"]):not([class*="bg-indigo-"]):not([class*="bg-purple-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]):not([class*="bg-red-"]):not([class*="w-"]):not([class*="h-"]),
+[class*="hover:bg-slate-100"]:hover label,
+[class*="hover:bg-slate-100"]:hover strong,
+[class*="hover:bg-slate-100"]:hover b,
+[class*="hover:bg-slate-100"]:hover td,
+[class*="hover:bg-slate-100"]:hover th,
+
+[class*="hover:bg-white"]:hover p,
+[class*="hover:bg-white"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+[class*="hover:bg-white"]:hover div:not([class*="anime-badge"]):not([class*="rounded-full"]):not([class*="bg-blue-600"]):not([class*="bg-emerald-"]):not([class*="bg-indigo-"]):not([class*="bg-purple-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]):not([class*="bg-red-"]):not([class*="w-"]):not([class*="h-"]),
+[class*="hover:bg-white"]:hover label,
+[class*="hover:bg-white"]:hover strong,
+[class*="hover:bg-white"]:hover b,
+[class*="hover:bg-white"]:hover td,
+[class*="hover:bg-white"]:hover th,
+
+[class*="hover:bg-gray-50"]:hover p,
+[class*="hover:bg-gray-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+[class*="hover:bg-gray-100"]:hover p,
+[class*="hover:bg-gray-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+
+[class*="hover:bg-blue-50"]:hover p,
+[class*="hover:bg-blue-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+[class*="hover:bg-blue-50"]:hover label,
+[class*="hover:bg-blue-50"]:hover strong,
+[class*="hover:bg-blue-50"]:hover b,
+
+.hover\:bg-white:hover p,
+.hover\:bg-white:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]) {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+/* Dark mode descendants inside hovered element */
+html.dark [class*="hover:bg-blue-50"]:hover p,
+html.dark [class*="hover:bg-blue-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+html.dark [class*="hover:bg-blue-50"]:hover label,
+html.dark [class*="hover:bg-blue-50"]:hover strong,
+html.dark [class*="hover:bg-blue-50"]:hover b,
+
 html.dark [class*="hover:bg-slate-50"]:hover p,
-html.dark [class*="hover:bg-slate-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
+html.dark [class*="hover:bg-slate-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
 html.dark [class*="hover:bg-slate-50"]:hover strong,
+html.dark [class*="hover:bg-slate-50"]:hover b,
+html.dark [class*="hover:bg-slate-50"]:hover td,
+html.dark [class*="hover:bg-slate-50"]:hover th,
 html.dark [class*="hover:bg-slate-50"]:hover h1,
 html.dark [class*="hover:bg-slate-50"]:hover h2,
 html.dark [class*="hover:bg-slate-50"]:hover h3,
 html.dark [class*="hover:bg-slate-50"]:hover h4,
+
 html.dark [class*="hover:bg-slate-100"]:hover p,
-html.dark [class*="hover:bg-slate-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
+html.dark [class*="hover:bg-slate-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
 html.dark [class*="hover:bg-slate-100"]:hover strong,
+html.dark [class*="hover:bg-slate-100"]:hover b,
+html.dark [class*="hover:bg-slate-100"]:hover td,
+html.dark [class*="hover:bg-slate-100"]:hover th,
 html.dark [class*="hover:bg-slate-100"]:hover h1,
 html.dark [class*="hover:bg-slate-100"]:hover h2,
 html.dark [class*="hover:bg-slate-100"]:hover h3,
 html.dark [class*="hover:bg-slate-100"]:hover h4,
+
 html.dark [class*="hover:bg-white"]:hover p,
-html.dark [class*="hover:bg-white"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
+html.dark [class*="hover:bg-white"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
 html.dark [class*="hover:bg-white"]:hover strong,
+html.dark [class*="hover:bg-white"]:hover b,
+html.dark [class*="hover:bg-white"]:hover td,
+html.dark [class*="hover:bg-white"]:hover th,
 html.dark [class*="hover:bg-white"]:hover h1,
 html.dark [class*="hover:bg-white"]:hover h2,
 html.dark [class*="hover:bg-white"]:hover h3,
 html.dark [class*="hover:bg-white"]:hover h4,
+
 html.dark [class*="hover:bg-gray-50"]:hover p,
-html.dark [class*="hover:bg-gray-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]),
-html.dark [class*="hover:bg-blue-50"]:hover p,
-html.dark [class*="hover:bg-blue-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full"]) {
+html.dark [class*="hover:bg-gray-50"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]),
+html.dark [class*="hover:bg-gray-100"]:hover p,
+html.dark [class*="hover:bg-gray-100"]:hover span:not([class*="anime-badge"]):not([class*="rounded-full.bg-"]) {
   color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 
-html.dark [class*="hover:bg-slate-50"]:hover .text-slate-400,
-html.dark [class*="hover:bg-slate-50"]:hover .text-slate-500,
-html.dark [class*="hover:bg-slate-50"]:hover .text-slate-600,
-html.dark [class*="hover:bg-white"]:hover .text-slate-400,
-html.dark [class*="hover:bg-white"]:hover .text-slate-500,
-html.dark [class*="hover:bg-white"]:hover .text-slate-600 {
-  color: #334155 !important;
+/* Secondary descriptions, subtitles, batches, faculty names, and dates turn clear dark slate on hover */
+[class*="hover:bg-slate-50"]:hover [class*="text-slate-"],
+[class*="hover:bg-slate-50"]:hover [class*="text-gray-"],
+[class*="hover:bg-slate-100"]:hover [class*="text-slate-"],
+[class*="hover:bg-slate-100"]:hover [class*="text-gray-"],
+[class*="hover:bg-white"]:hover [class*="text-slate-"],
+[class*="hover:bg-white"]:hover [class*="text-gray-"],
+[class*="hover:bg-blue-50"]:hover [class*="text-slate-"],
+[class*="hover:bg-blue-50"]:hover [class*="text-gray-"],
+html.dark [class*="hover:bg-slate-50"]:hover [class*="text-slate-"],
+html.dark [class*="hover:bg-slate-50"]:hover [class*="text-gray-"],
+html.dark [class*="hover:bg-slate-100"]:hover [class*="text-slate-"],
+html.dark [class*="hover:bg-slate-100"]:hover [class*="text-gray-"],
+html.dark [class*="hover:bg-white"]:hover [class*="text-slate-"],
+html.dark [class*="hover:bg-white"]:hover [class*="text-gray-"],
+html.dark [class*="hover:bg-blue-50"]:hover [class*="text-slate-"],
+html.dark [class*="hover:bg-blue-50"]:hover [class*="text-gray-"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
+
+/* Checkbox borders and internal borders turn visible dark slate on hover */
+html.dark [class*="hover:bg-blue-50"]:hover .border,
+html.dark [class*="hover:bg-blue-50"]:hover [class*="border-slate-"],
+html.dark [class*="hover:bg-slate-50"]:hover .border,
+html.dark [class*="hover:bg-slate-50"]:hover [class*="border-slate-"],
+html.dark [class*="hover:bg-slate-100"]:hover .border,
+html.dark [class*="hover:bg-slate-100"]:hover [class*="border-slate-"],
+html.dark [class*="hover:bg-white"]:hover .border,
+html.dark [class*="hover:bg-white"]:hover [class*="border-slate-"] {
+  border-color: #334155 !important;
+}
+
 
 
 
