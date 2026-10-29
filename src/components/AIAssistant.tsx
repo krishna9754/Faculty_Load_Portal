@@ -491,6 +491,38 @@ export function AIAssistant({
     } catch (e) {}
   };
 
+  // 🎛️ Mayra Controls Visibility State (Hidden by default, shown on click, auto-hides after 30s)
+  const [showControls, setShowControls] = useState<boolean>(false);
+  const autoHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetAutoHideTimer = () => {
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+    }
+    // Auto-hide options after 30 seconds of inactivity
+    autoHideTimerRef.current = setTimeout(() => {
+      setShowControls(false);
+      setShowSubtitleCard(false);
+    }, 30000);
+  };
+
+  const handleMayraInteraction = () => {
+    setShowControls(true);
+    resetAutoHideTimer();
+  };
+
+  // Reset 30s timer on speaking, typing, or live text update
+  useEffect(() => {
+    if (showControls) {
+      resetAutoHideTimer();
+    }
+    return () => {
+      if (autoHideTimerRef.current) {
+        clearTimeout(autoHideTimerRef.current);
+      }
+    };
+  }, [showControls, isSpeaking, liveHeardText, chatInputText]);
+
   // 🛡️ Spoken phrase history buffer to prevent Mayra from hearing and answering her own voice
   const mayraRecentPhrasesRef = useRef<{ text: string; ts: number }[]>([]);
   const recordMayraSpokenPhrase = (text: string) => {
@@ -6920,7 +6952,7 @@ Core Personality & Rules:
               )}
             </div>
           ) : (
-            /* 💭 Resting Thought Cloud Pill ("✨ Mayra 💭") */
+            /* 💭 Resting Mayra Name Pill ("✨ Mayra 💭") - Always cleanly visible */
             <div
               onClick={(e) => {
                 if (isDraggingRef.current || (dragStartRef.current && dragStartRef.current.moved)) {
@@ -6928,52 +6960,48 @@ Core Personality & Rules:
                   return;
                 }
                 unlockAudio();
-                // 🛑 TEXT MODE: Mute mic completely so Mayra DOES NOT take voice commands!
-                muteMic();
-                setShowSubtitleCard(true);
-                if (!lastSpeechResponse) {
-                  const welcome = 'Hello Sir! Main Mayra hoon. Boliye, main aapki kya madad kar sakti hoon?';
-                  setLastSpeechResponse(welcome);
-                  setLastSpeechDevanagari('हैलो सर! मैं मायरा हूँ। बोलिए, मैं आपकी क्या मदद कर सकती हूँ?');
-                }
+                handleMayraInteraction();
+                handleMayraClick();
               }}
               className={`absolute z-30 cursor-pointer select-none flex flex-col items-center animate-bounce-slow hover:scale-105 active:scale-95 ${
                 isNearTop ? 'top-[144px]' : 'bottom-[98px] sm:bottom-[104px]'
               } ${
                 isNearLeft ? 'left-3 sm:left-5' : 'right-3 sm:right-5'
               }`}
-              title="Click to open Mayra Chat • Mouse se slide karein"
+              title="Click karke options kholein • Mouse se slide karein"
             >
-              <div className="relative px-3 py-1 rounded-full bg-white text-slate-800 border-2 border-sky-400 shadow-[0_4px_16px_rgba(56,189,248,0.35)] text-[11px] font-black tracking-wider flex items-center gap-1">
-                <span className="text-sky-500 text-xs">✨</span>
-                <span className="bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent font-black">
+              <div className="relative px-3 py-1 rounded-full bg-slate-950/90 text-white border-2 border-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.5)] text-[11px] font-black tracking-wider flex items-center gap-1 backdrop-blur-md">
+                <span className="text-sky-400 text-xs">✨</span>
+                <span className="bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent font-black">
                   Mayra
                 </span>
-                <span className="text-amber-500 text-xs">💭</span>
+                <span className="text-amber-400 text-xs">💭</span>
               </div>
               <div className="flex flex-col items-center -space-y-0.5 mt-0.5 -mr-4">
-                <span className="w-2 h-2 rounded-full bg-white border border-sky-400 shadow-2xs" />
-                <span className="w-1.5 h-1.5 rounded-full bg-white border border-sky-400 shadow-2xs mr-1" />
+                <span className="w-2 h-2 rounded-full bg-slate-900 border border-sky-400 shadow-2xs" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-900 border border-sky-400 shadow-2xs mr-1" />
               </div>
             </div>
           )
         )}
 
-          {/* ⚡ Iron Man JARVIS Arc Reactor Core & Dual Controls (Mute / Test Voice) */}
+          {/* ⚡ Iron Man JARVIS Arc Reactor Core & Dual Controls */}
           <div className="relative flex flex-col items-center select-none mt-1">
-            {/* ↔️ Glowing Draggable Handle Pill */}
-            <div
-              onDoubleClick={resetMayraPosition}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/90 border text-[9px] font-mono font-bold tracking-widest uppercase mb-1 shadow-md backdrop-blur-md transition-all select-none ${
-                isDragging
-                  ? 'border-cyan-300 text-white shadow-[0_0_15px_rgba(6,182,212,0.8)] cursor-grabbing'
-                  : 'border-cyan-500/50 text-cyan-300 hover:border-cyan-300 hover:text-white cursor-grab'
-              }`}
-              title="Mouse se slide karein • Double-click karke wapas reset karein"
-            >
-              <GripHorizontal className={`w-3.5 h-3.5 ${isDragging ? 'text-cyan-200' : 'text-cyan-400 animate-pulse'}`} />
-              <span>{isDragging ? 'SLIDING...' : 'SLIDE MAYRA'}</span>
-            </div>
+            {/* ↔️ Glowing Draggable Handle Pill (Visible ONLY when options are expanded) */}
+            {showControls && (
+              <div
+                onDoubleClick={resetMayraPosition}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/90 border text-[9px] font-mono font-bold tracking-widest uppercase mb-1 shadow-md backdrop-blur-md transition-all select-none animate-fadeIn ${
+                  isDragging
+                    ? 'border-cyan-300 text-white shadow-[0_0_15px_rgba(6,182,212,0.8)] cursor-grabbing'
+                    : 'border-cyan-500/50 text-cyan-300 hover:border-cyan-300 hover:text-white cursor-grab'
+                }`}
+                title="Mouse se slide karein • Double-click karke wapas reset karein"
+              >
+                <GripHorizontal className={`w-3.5 h-3.5 ${isDragging ? 'text-cyan-200' : 'text-cyan-400 animate-pulse'}`} />
+                <span>{isDragging ? 'SLIDING...' : 'SLIDE MAYRA'}</span>
+              </div>
+            )}
 
             {/* Clickable Mayra Avatar (Greeting / Wake Up / Slide) */}
             <div
@@ -6982,12 +7010,13 @@ Core Personality & Rules:
                   e.stopPropagation();
                   return;
                 }
+                handleMayraInteraction();
                 handleMayraClick();
               }}
               className={`group transition-transform duration-200 flex items-center justify-center select-none ${
                 isDragging ? 'cursor-grabbing scale-105' : 'cursor-grab hover:scale-105 active:scale-95'
               }`}
-              title="MAYRA A.I. (Mouse se slide karein • Click karke baat karein)"
+              title={showControls ? "MAYRA A.I. (Mouse se slide karein • Click karke baat karein)" : "MAYRA A.I. (Click karke options kholein • Slide karein)"}
             >
               <div className="w-[116px] h-[116px] sm:w-[124px] sm:h-[124px] flex items-center justify-center pointer-events-none">
                 <JarvisArcReactorAvatar
@@ -7000,82 +7029,103 @@ Core Personality & Rules:
               </div>
             </div>
 
-            {/* 🎙️ Dual Action Controls: Mute/Unmute & Direct Voice Tester */}
-            <div className="-mt-3 z-30 flex items-center gap-1.5 select-none">
-              <button
-                type="button"
-                onClick={toggleMicMute}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-lg text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 ${
-                  isMicMuted
-                    ? 'bg-rose-950/95 border-rose-500 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.7)] hover:bg-rose-900/95'
-                    : isSpeaking
-                    ? 'bg-amber-950/95 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.7)] hover:bg-amber-900/95'
-                    : 'bg-slate-950/95 border-cyan-500/90 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white'
-                }`}
-                title={isMicMuted ? 'Microphone is MUTED (Click to UNMUTE)' : 'Microphone is ACTIVE (Click to MUTE)'}
-              >
-                {isMicMuted ? (
-                  <>
-                    <MicOff className="w-3 h-3 text-rose-400 animate-pulse" />
-                    <span>MUTED</span>
-                  </>
-                ) : isSpeaking ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                    <Mic className="w-3 h-3 text-amber-300" />
-                    <span>SPEAKING</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <Mic className="w-3 h-3 text-cyan-300" />
-                    <span>LISTENING</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  unlockAudio();
-                  if (showSubtitleCard && isMicMuted) {
+            {/* 🎙️ Dual Action Controls: Mute/Unmute & Direct Voice Tester (Visible ONLY on click, auto-hides after 30s) */}
+            {showControls && (
+              <div className="-mt-3 z-30 flex items-center gap-1.5 select-none animate-fadeIn">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetAutoHideTimer();
                     toggleMicMute();
-                  } else {
-                    muteMic();
-                    setShowSubtitleCard(true);
-                    if (!lastSpeechResponse) {
-                      const welcome = 'Hello Sir! Main Mayra hoon. Boliye, main aapki kya madad kar sakti hoon?';
-                      setLastSpeechResponse(welcome);
-                      setLastSpeechDevanagari('हैलो सर! मैं मायरा हूँ। बोलिए, मैं आपकी क्या मदद कर सकती हूँ?');
-                    }
-                  }
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 ${
-                  showSubtitleCard && isMicMuted
-                    ? 'bg-sky-500 border-sky-300 text-white shadow-[0_0_15px_rgba(14,165,233,0.7)]'
-                    : 'bg-sky-950/95 border-sky-400 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)] hover:bg-sky-900 hover:border-sky-300 hover:text-white'
-                }`}
-                title={showSubtitleCard && isMicMuted ? 'Chat Mode Active (Click to Close / Back to Voice)' : 'Text / Chat Mode (Click to open Chat & Type)'}
-              >
-                <MessageSquare className="w-3 h-3 text-sky-300" />
-                <span>{showSubtitleCard && isMicMuted ? 'CHAT OPEN' : 'CHAT / TEXT'}</span>
-              </button>
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-lg text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 ${
+                    isMicMuted
+                      ? 'bg-rose-950/95 border-rose-500 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.7)] hover:bg-rose-900/95'
+                      : isSpeaking
+                      ? 'bg-amber-950/95 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.7)] hover:bg-amber-900/95'
+                      : 'bg-slate-950/95 border-cyan-500/90 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white'
+                  }`}
+                  title={isMicMuted ? 'Microphone is MUTED (Click to UNMUTE)' : 'Microphone is ACTIVE (Click to MUTE)'}
+                >
+                  {isMicMuted ? (
+                    <>
+                      <MicOff className="w-3 h-3 text-rose-400 animate-pulse" />
+                      <span>MUTED</span>
+                    </>
+                  ) : isSpeaking ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                      <Mic className="w-3 h-3 text-amber-300" />
+                      <span>SPEAKING</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <Mic className="w-3 h-3 text-cyan-300" />
+                      <span>LISTENING</span>
+                    </>
+                  )}
+                </button>
 
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  unlockAudio();
-                  refreshMayra(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-purple-400/90 bg-purple-950/95 text-purple-300 text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 hover:bg-purple-900 hover:border-purple-300 hover:text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]"
-                title="Mayra & Mic Refresh / Reset (Click anytime if Mayra stops hearing or to refresh assistant)"
-              >
-                <RotateCcw className="w-3 h-3 text-purple-300" />
-                <span>REFRESH</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    resetAutoHideTimer();
+                    unlockAudio();
+                    if (showSubtitleCard && isMicMuted) {
+                      toggleMicMute();
+                    } else {
+                      muteMic();
+                      setShowSubtitleCard(true);
+                      if (!lastSpeechResponse) {
+                        const welcome = 'Hello Sir! Main Mayra hoon. Boliye, main aapki kya madad kar sakti hoon?';
+                        setLastSpeechResponse(welcome);
+                        setLastSpeechDevanagari('हैलो सर! मैं मायरा हूँ। बोलिए, मैं आपकी क्या मदद कर सकती हूँ?');
+                      }
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 ${
+                    showSubtitleCard && isMicMuted
+                      ? 'bg-sky-500 border-sky-300 text-white shadow-[0_0_15px_rgba(14,165,233,0.7)]'
+                      : 'bg-sky-950/95 border-sky-400 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)] hover:bg-sky-900 hover:border-sky-300 hover:text-white'
+                  }`}
+                  title={showSubtitleCard && isMicMuted ? 'Chat Mode Active (Click to Close / Back to Voice)' : 'Text / Chat Mode (Click to open Chat & Type)'}
+                >
+                  <MessageSquare className="w-3 h-3 text-sky-300" />
+                  <span>{showSubtitleCard && isMicMuted ? 'CHAT OPEN' : 'CHAT / TEXT'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    resetAutoHideTimer();
+                    unlockAudio();
+                    refreshMayra(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-purple-400/90 bg-purple-950/95 text-purple-300 text-[10px] font-mono tracking-wider font-extrabold uppercase transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 hover:bg-purple-900 hover:border-purple-300 hover:text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]"
+                  title="Mayra & Mic Refresh / Reset (Click anytime if Mayra stops hearing or to refresh assistant)"
+                >
+                  <RotateCcw className="w-3 h-3 text-purple-300" />
+                  <span>REFRESH</span>
+                </button>
+
+                {/* ✕ Close button to instantly collapse options */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowControls(false);
+                    setShowSubtitleCard(false);
+                  }}
+                  className="p-1 rounded-full bg-slate-900/80 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors cursor-pointer"
+                  title="Hide options"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
