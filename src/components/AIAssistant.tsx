@@ -511,18 +511,6 @@ export function AIAssistant({
     resetAutoHideTimer();
   };
 
-  // Reset 30s timer on speaking, typing, or live text update
-  useEffect(() => {
-    if (showControls) {
-      resetAutoHideTimer();
-    }
-    return () => {
-      if (autoHideTimerRef.current) {
-        clearTimeout(autoHideTimerRef.current);
-      }
-    };
-  }, [showControls, isSpeaking, liveHeardText, chatInputText]);
-
   // 🛡️ Spoken phrase history buffer to prevent Mayra from hearing and answering her own voice
   const mayraRecentPhrasesRef = useRef<{ text: string; ts: number }[]>([]);
   const recordMayraSpokenPhrase = (text: string) => {
@@ -621,6 +609,18 @@ export function AIAssistant({
   const [liveHeardText, setLiveHeardText] = useState<string>('');
   const [isDetectingSpeech, setIsDetectingSpeech] = useState<boolean>(false);
   const [wakeWordDetected, setWakeWordDetected] = useState<boolean>(false);
+
+  // ⏱️ Auto-reset 30s controls timer on user speaking, typing, or hearing text
+  useEffect(() => {
+    if (showControls) {
+      resetAutoHideTimer();
+    }
+    return () => {
+      if (autoHideTimerRef.current) {
+        clearTimeout(autoHideTimerRef.current);
+      }
+    };
+  }, [showControls, isSpeaking, liveHeardText, chatInputText]);
 
   // 🔒 Concurrency & Autonomous Command Locking Protocol States
   const [commandLockState, setCommandLockState] = useState<'IDLE' | 'LOCKED' | 'SUCCESS' | 'CONFLICT' | 'ERROR'>('IDLE');
@@ -2575,7 +2575,8 @@ Core Personality & Rules:
     }
     try {
       const q = rawText.toLowerCase().trim();
-    const now = new Date();
+      const spk = getSpeakerTitle();
+      const now = new Date();
     const today = DAYS[now.getDay()];
     const todayIso = now.toISOString().split('T')[0];
     const curHours = String(now.getHours()).padStart(2, '0');
@@ -3382,7 +3383,7 @@ Core Personality & Rules:
       !/\b(kya|kab|kyu|kyun)\b/i.test(q);
 
     if (isMealNotDoneYet) {
-      setEmotion('worried');
+      setEmotion('sad');
       const h = new Date().getHours();
       const meal = h < 13 ? 'breakfast' : h < 19 ? 'lunch' : 'dinner';
       const mealName = meal === 'breakfast' ? 'नाश्ता' : meal === 'lunch' ? 'लंच' : 'डिनर';
