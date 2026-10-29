@@ -30,6 +30,7 @@ import {
   Trash2,
   KeyRound,
   RotateCcw,
+  GripHorizontal,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -346,6 +347,149 @@ export function AIAssistant({
   useEffect(() => {
     showSubtitleCardRef.current = showSubtitleCard;
   }, [showSubtitleCard]);
+
+  // 📍 Mayra Draggable / Slidable Position State & Mouse Drag Hooks
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const savedX = localStorage.getItem('mayra_pos_x');
+      const savedY = localStorage.getItem('mayra_pos_y');
+      if (savedX && savedY) {
+        const px = parseFloat(savedX);
+        const py = parseFloat(savedY);
+        if (!isNaN(px) && !isNaN(py)) {
+          return { x: px, y: py };
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const isDraggingRef = useRef(false);
+
+  const clampPos = (x: number, y: number) => {
+    const w = 170;
+    const h = 180;
+    const maxX = Math.max(10, (typeof window !== 'undefined' ? window.innerWidth : 1000) - w);
+    const maxY = Math.max(10, (typeof window !== 'undefined' ? window.innerHeight : 800) - h);
+    return {
+      x: Math.min(Math.max(10, x), maxX),
+      y: Math.min(Math.max(10, y), maxY),
+    };
+  };
+
+  // Ensure initial position is computed on mount if not saved in localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!position) {
+      const w = window.innerWidth < 640 ? 150 : 180;
+      const h = window.innerWidth < 640 ? 170 : 190;
+      setPosition({
+        x: Math.max(10, window.innerWidth - w),
+        y: Math.max(10, window.innerHeight - h),
+      });
+    }
+  }, []);
+
+  // Clamp on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition((prev) => {
+        if (!prev) return prev;
+        return clampPos(prev.x, prev.y);
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Global pointer move & up listeners for buttery-smooth mouse sliding
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragStartRef.current) return;
+      const dx = e.clientX - dragStartRef.current.mouseX;
+      const dy = e.clientY - dragStartRef.current.mouseY;
+
+      if (!dragStartRef.current.moved && Math.hypot(dx, dy) > 4) {
+        dragStartRef.current.moved = true;
+        setIsDragging(true);
+        isDraggingRef.current = true;
+      }
+
+      if (dragStartRef.current.moved) {
+        const nextX = dragStartRef.current.startX + dx;
+        const nextY = dragStartRef.current.startY + dy;
+        const clamped = clampPos(nextX, nextY);
+        setPosition(clamped);
+      }
+    };
+
+    const onPointerUp = () => {
+      if (dragStartRef.current) {
+        if (dragStartRef.current.moved) {
+          setPosition((curr) => {
+            if (curr) {
+              try {
+                localStorage.setItem('mayra_pos_x', String(Math.round(curr.x)));
+                localStorage.setItem('mayra_pos_y', String(Math.round(curr.y)));
+              } catch (e) {}
+            }
+            return curr;
+          });
+        }
+        dragStartRef.current = null;
+        setTimeout(() => {
+          setIsDragging(false);
+          isDraggingRef.current = false;
+        }, 60);
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Only initiate drag if not clicking interactive buttons/inputs
+    if ((e.target as HTMLElement).closest('button, input, form, textarea, select, a')) {
+      return;
+    }
+    // Only left click for mouse
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    const curX = position ? position.x : (window.innerWidth - 180);
+    const curY = position ? position.y : (window.innerHeight - 190);
+
+    dragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startX: curX,
+      startY: curY,
+      moved: false,
+    };
+    isDraggingRef.current = false;
+  };
+
+  const resetMayraPosition = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const w = window.innerWidth < 640 ? 150 : 180;
+    const h = window.innerWidth < 640 ? 170 : 190;
+    const def = {
+      x: Math.max(10, window.innerWidth - w),
+      y: Math.max(10, window.innerHeight - h),
+    };
+    setPosition(def);
+    try {
+      localStorage.removeItem('mayra_pos_x');
+      localStorage.removeItem('mayra_pos_y');
+    } catch (e) {}
+  };
 
   // 🛡️ Spoken phrase history buffer to prevent Mayra from hearing and answering her own voice
   const mayraRecentPhrasesRef = useRef<{ text: string; ts: number }[]>([]);
@@ -6486,6 +6630,9 @@ Core Personality & Rules:
 
   // Click handler on Mayra Arc Reactor: Open interaction / Mute without accidental listening
   const handleMayraClick = () => {
+    if (isDraggingRef.current || (dragStartRef.current && dragStartRef.current.moved)) {
+      return;
+    }
     unlockAudio();
     if (isMicMutedRef.current) {
       setShowSubtitleCard(true);
@@ -6496,6 +6643,9 @@ Core Personality & Rules:
       muteMic();
     }
   };
+
+  const isNearTop = Boolean(position && position.y < 240);
+  const isNearLeft = Boolean(position && position.x < 360);
 
   return (
     <>
@@ -6513,12 +6663,22 @@ Core Personality & Rules:
         }}
       />
 
-      {/* ⚡ Iron Man JARVIS Floating Arc Reactor AI Companion */}
-      <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50">
-        <div className="relative flex flex-col items-end">
+      {/* ⚡ Iron Man JARVIS Floating Arc Reactor AI Companion (Draggable / Slidable anywhere on screen with mouse) */}
+      <div
+        style={position ? { left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' } : undefined}
+        onPointerDown={handlePointerDown}
+        className={`fixed z-50 select-none transition-shadow duration-150 ${
+          !position ? 'bottom-3 right-3 sm:bottom-6 sm:right-6' : ''
+        } ${isDragging ? 'scale-105 filter drop-shadow-[0_15px_30px_rgba(6,182,212,0.6)] cursor-grabbing' : ''}`}
+      >
+        <div className={`relative flex flex-col ${isNearLeft ? 'items-start' : 'items-end'}`}>
           {/* 🎙️ LIVE VOICE TRANSCRIPTION & CAPTION CARD (Shows Sir's spoken words live in real-time!) */}
           {!isMicMuted && (
-            <div className="absolute bottom-[130px] sm:bottom-[138px] right-0 z-50 w-[300px] sm:w-[360px] flex flex-col items-end animate-fadeIn select-none">
+            <div className={`absolute z-50 w-[300px] sm:w-[360px] flex flex-col animate-fadeIn select-none ${
+              isNearTop ? 'top-[150px]' : 'bottom-[138px]'
+            } ${
+              isNearLeft ? 'left-0 items-start' : 'right-0 items-end'
+            }`}>
               <div className="w-full bg-slate-950/95 text-white border-2 border-cyan-400/80 rounded-2xl p-3.5 shadow-[0_0_25px_rgba(6,182,212,0.45)] backdrop-blur-xl space-y-2">
                 {/* Header with Live Soundbars & Status */}
                 <div className="flex items-center justify-between pb-1.5 border-b border-cyan-500/30">
@@ -6585,7 +6745,20 @@ Core Personality & Rules:
           {/* 💭 Thought Cloud & Chat Bar: Strictly visible only in Text Mode (when microphone is muted) */}
           {isMicMuted && (
             showSubtitleCard && lastSpeechResponse ? (
-              <div className="absolute bottom-[116px] sm:bottom-[122px] right-0 sm:right-2 z-40 w-[295px] sm:w-[350px] flex flex-col items-end animate-fadeIn select-none">
+              <div className={`absolute z-40 w-[295px] sm:w-[350px] flex flex-col animate-fadeIn select-none ${
+                isNearTop ? 'top-[150px]' : 'bottom-[122px]'
+              } ${
+                isNearLeft ? 'left-0 sm:left-2 items-start' : 'right-0 sm:right-2 items-end'
+              }`}>
+              {/* Comic Thought Bubble Trail (when near top, bubbles point upwards to Mayra) */}
+              {isNearTop && (
+                <div className={`flex flex-col items-center -space-y-0.5 mb-1 pointer-events-none ${isNearLeft ? 'ml-12' : 'mr-12'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-white border border-sky-400 shadow-2xs mr-3" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-white border-2 border-sky-400 shadow-xs mr-2" />
+                  <span className="w-3.5 h-3.5 rounded-full bg-white border-2 border-sky-400 shadow-sm" />
+                </div>
+              )}
+
               {/* Fluffy Pure White Comic Thought Cloud Body */}
               <div className="relative w-full bg-white text-slate-850 border-2 border-sky-300 rounded-[28px] p-3.5 sm:p-4 shadow-[0_14px_35px_rgba(56,189,248,0.3),0_4px_16px_rgba(0,0,0,0.12)] space-y-2">
                 {/* Cloud Header */}
@@ -6737,17 +6910,23 @@ Core Personality & Rules:
                 </form>
               </div>
 
-              {/* Comic Thought Bubble Trail (White Dots pointing down to Mayra's head) */}
-              <div className="flex flex-col items-center -space-y-0.5 mr-12 mt-1 pointer-events-none">
-                <span className="w-3.5 h-3.5 rounded-full bg-white border-2 border-sky-400 shadow-sm" />
-                <span className="w-2.5 h-2.5 rounded-full bg-white border-2 border-sky-400 shadow-xs mr-2" />
-                <span className="w-1.5 h-1.5 rounded-full bg-white border border-sky-400 shadow-2xs mr-3" />
-              </div>
+              {/* Comic Thought Bubble Trail (when below, bubbles point down to Mayra) */}
+              {!isNearTop && (
+                <div className={`flex flex-col items-center -space-y-0.5 mt-1 pointer-events-none ${isNearLeft ? 'ml-12' : 'mr-12'}`}>
+                  <span className="w-3.5 h-3.5 rounded-full bg-white border-2 border-sky-400 shadow-sm" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-white border-2 border-sky-400 shadow-xs mr-2" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-white border border-sky-400 shadow-2xs mr-3" />
+                </div>
+              )}
             </div>
           ) : (
-            /* 💭 Resting Thought Cloud Pill ("✨ Mayra 💭") above head (Clickable to open) */
+            /* 💭 Resting Thought Cloud Pill ("✨ Mayra 💭") */
             <div
-              onClick={() => {
+              onClick={(e) => {
+                if (isDraggingRef.current || (dragStartRef.current && dragStartRef.current.moved)) {
+                  e.stopPropagation();
+                  return;
+                }
                 unlockAudio();
                 // 🛑 TEXT MODE: Mute mic completely so Mayra DOES NOT take voice commands!
                 muteMic();
@@ -6758,8 +6937,12 @@ Core Personality & Rules:
                   setLastSpeechDevanagari('हैलो सर! मैं मायरा हूँ। बोलिए, मैं आपकी क्या मदद कर सकती हूँ?');
                 }
               }}
-              className="absolute bottom-[98px] sm:bottom-[104px] right-3 sm:right-5 z-30 cursor-pointer select-none flex flex-col items-center animate-bounce-slow hover:scale-105 active:scale-95"
-              title="Click to open Mayra Chat"
+              className={`absolute z-30 cursor-pointer select-none flex flex-col items-center animate-bounce-slow hover:scale-105 active:scale-95 ${
+                isNearTop ? 'top-[144px]' : 'bottom-[98px] sm:bottom-[104px]'
+              } ${
+                isNearLeft ? 'left-3 sm:left-5' : 'right-3 sm:right-5'
+              }`}
+              title="Click to open Mayra Chat • Mouse se slide karein"
             >
               <div className="relative px-3 py-1 rounded-full bg-white text-slate-800 border-2 border-sky-400 shadow-[0_4px_16px_rgba(56,189,248,0.35)] text-[11px] font-black tracking-wider flex items-center gap-1">
                 <span className="text-sky-500 text-xs">✨</span>
@@ -6778,13 +6961,35 @@ Core Personality & Rules:
 
           {/* ⚡ Iron Man JARVIS Arc Reactor Core & Dual Controls (Mute / Test Voice) */}
           <div className="relative flex flex-col items-center select-none mt-1">
-            {/* Clickable Mayra Avatar (Greeting / Wake Up) */}
+            {/* ↔️ Glowing Draggable Handle Pill */}
             <div
-              onClick={handleMayraClick}
-              className="group cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 flex items-center justify-center"
-              title="MAYRA A.I. (Click to Talk / Wake Up)"
+              onDoubleClick={resetMayraPosition}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/90 border text-[9px] font-mono font-bold tracking-widest uppercase mb-1 shadow-md backdrop-blur-md transition-all select-none ${
+                isDragging
+                  ? 'border-cyan-300 text-white shadow-[0_0_15px_rgba(6,182,212,0.8)] cursor-grabbing'
+                  : 'border-cyan-500/50 text-cyan-300 hover:border-cyan-300 hover:text-white cursor-grab'
+              }`}
+              title="Mouse se slide karein • Double-click karke wapas reset karein"
             >
-              <div className="w-[116px] h-[116px] sm:w-[124px] sm:h-[124px] flex items-center justify-center">
+              <GripHorizontal className={`w-3.5 h-3.5 ${isDragging ? 'text-cyan-200' : 'text-cyan-400 animate-pulse'}`} />
+              <span>{isDragging ? 'SLIDING...' : 'SLIDE MAYRA'}</span>
+            </div>
+
+            {/* Clickable Mayra Avatar (Greeting / Wake Up / Slide) */}
+            <div
+              onClick={(e) => {
+                if (isDraggingRef.current || (dragStartRef.current && dragStartRef.current.moved)) {
+                  e.stopPropagation();
+                  return;
+                }
+                handleMayraClick();
+              }}
+              className={`group transition-transform duration-200 flex items-center justify-center select-none ${
+                isDragging ? 'cursor-grabbing scale-105' : 'cursor-grab hover:scale-105 active:scale-95'
+              }`}
+              title="MAYRA A.I. (Mouse se slide karein • Click karke baat karein)"
+            >
+              <div className="w-[116px] h-[116px] sm:w-[124px] sm:h-[124px] flex items-center justify-center pointer-events-none">
                 <JarvisArcReactorAvatar
                   size={120}
                   isSpeaking={isSpeaking}
