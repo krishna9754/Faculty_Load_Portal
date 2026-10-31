@@ -357,6 +357,7 @@ export function BatchSyllabusView({
   const [isMultiBatchAlertExpanded, setIsMultiBatchAlertExpanded] = useState(true);
 
   // Detect multi-batch synchronized sessions (same faculty, same time, same date across >1 batches)
+  // Detect multi-batch synchronized sessions that are strictly PENDING (start_date > today)
   const multiBatchSessions = useMemo(() => {
     const map = new Map<
       string,
@@ -372,15 +373,25 @@ export function BatchSyllabusView({
         end_date: string;
         room: string | null;
         batches: { id: string; name: string }[];
-        isRunning: boolean;
-        isStartingSoon: boolean;
+        daysLeft: number;
       }
     >();
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     for (const load of loads) {
       if (!load.faculty_id || !load.subject || !load.start_date || !load.end_date) continue;
+
+      // Sirf pending subjects filter karein (jo aage start hone wale hain: start_date > today)
+      const sDate = new Date(load.start_date);
+      sDate.setHours(0, 0, 0, 0);
+      if (sDate.getTime() <= today.getTime()) {
+        // Today is on or after start_date (Running or Expired) -> Skip!
+        continue;
+      }
+
+      const daysLeft = Math.max(1, Math.round((sDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
       const key = `${load.faculty_id}__${load.subject.trim().toLowerCase()}__${load.start_time}__${load.end_time}__${load.start_date}__${load.end_date}`;
       const existing = map.get(key);
       const batchObj = { id: load.batch_id, name: load.batch?.name || 'Unknown Batch' };
@@ -390,8 +401,6 @@ export function BatchSyllabusView({
           existing.batches.push(batchObj);
         }
       } else {
-        const isRunning = today >= load.start_date && today <= load.end_date;
-        const isStartingSoon = today <= load.start_date;
         map.set(key, {
           key,
           faculty_id: load.faculty_id,
@@ -404,8 +413,7 @@ export function BatchSyllabusView({
           end_date: load.end_date,
           room: load.room || null,
           batches: [batchObj],
-          isRunning,
-          isStartingSoon,
+          daysLeft,
         });
       }
     }
@@ -741,25 +749,25 @@ export function BatchSyllabusView({
         </div>
       </div>
 
-      {/* Multi-Batch Synchronized Class Alert Notification */}
+      {/* Multi-Batch Pending Class Alert Notification */}
       {multiBatchSessions.length > 0 && (
-        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border-2 border-indigo-200/90 rounded-2xl p-4.5 shadow-sm space-y-3 animate-bounce-in">
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-indigo-50 border-2 border-amber-200/90 rounded-2xl p-4.5 shadow-sm space-y-3 animate-bounce-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white flex items-center justify-center shadow-md shrink-0 mt-0.5 sm:mt-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-indigo-600 text-white flex items-center justify-center shadow-md shrink-0 mt-0.5 sm:mt-0">
                 <Sparkles className="w-5 h-5 text-white animate-pulse" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                    📢 Multi-Batch Synchronized Class Alerts
+                    📢 Multi-Batch Pending Class Alerts
                   </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white shadow-xs">
-                    {multiBatchSessions.length} {multiBatchSessions.length > 1 ? 'Sessions' : 'Session'}
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-600 text-white shadow-xs">
+                    {multiBatchSessions.length} Pending {multiBatchSessions.length > 1 ? 'Sessions' : 'Session'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  Same faculty, same time aur same date par multiple batches mein schedule hone wale subjects ka live notification:
+                  Sirf aage start hone wale (Pending) subjects jo multiple batches mein same faculty, date aur time par shuru honge:
                 </p>
               </div>
             </div>
@@ -767,7 +775,7 @@ export function BatchSyllabusView({
             <button
               type="button"
               onClick={() => setIsMultiBatchAlertExpanded(!isMultiBatchAlertExpanded)}
-              className="text-xs font-bold text-indigo-700 hover:text-indigo-900 px-3 py-1.5 rounded-lg bg-white/90 hover:bg-white border border-indigo-200 shadow-2xs transition-all flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+              className="text-xs font-bold text-amber-800 hover:text-amber-950 px-3 py-1.5 rounded-lg bg-white/90 hover:bg-white border border-amber-200 shadow-2xs transition-all flex items-center gap-1.5 self-start sm:self-auto shrink-0"
             >
               <span>{isMultiBatchAlertExpanded ? 'Hide Alerts' : 'Show Alerts'}</span>
               <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMultiBatchAlertExpanded ? 'rotate-180' : ''}`} />
@@ -779,7 +787,7 @@ export function BatchSyllabusView({
               {multiBatchSessions.map((session, sIdx) => (
                 <div
                   key={sIdx}
-                  className="bg-white/95 rounded-xl border border-indigo-100 p-3.5 shadow-xs hover:border-indigo-300 transition-all space-y-2.5"
+                  className="bg-white/95 rounded-xl border border-amber-200 p-3.5 shadow-xs hover:border-amber-400 transition-all space-y-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -787,21 +795,15 @@ export function BatchSyllabusView({
                         <span className="text-xs font-black text-slate-900">
                           {session.subject}
                         </span>
-                        {session.isRunning ? (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                            Live Now
-                          </span>
-                        ) : session.isStartingSoon ? (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                            Upcoming
-                          </span>
-                        ) : null}
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          Pending • Starts in {session.daysLeft} {session.daysLeft === 1 ? 'day' : 'days'}
+                        </span>
                       </div>
-                      <p className="text-[11px] text-slate-600 font-medium flex items-center gap-1 mt-0.5">
-                        <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+                      <p className="text-[11px] text-slate-600 font-medium flex items-center gap-1 mt-1">
+                        <GraduationCap className="w-3.5 h-3.5 text-amber-600" />
                         <span className="font-bold text-slate-800">{session.faculty_name}</span>
                         {session.faculty_branch && (
-                          <span className="text-indigo-500 font-semibold">({session.faculty_branch})</span>
+                          <span className="text-amber-700 font-semibold">({session.faculty_branch})</span>
                         )}
                       </p>
                     </div>
@@ -812,29 +814,29 @@ export function BatchSyllabusView({
                         {session.start_time} - {session.end_time}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        {session.start_date} to {session.end_date}
+                        Starts: {session.start_date}
                       </p>
                     </div>
                   </div>
 
                   {/* Batches Pill List */}
                   <div className="pt-2 border-t border-slate-100">
-                    <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                      <Users className="w-3 h-3 text-indigo-500" />
-                      Synchronized Across {session.batches.length} Batches:
+                    <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                      <Users className="w-3 h-3 text-amber-600" />
+                      Starting Together Across {session.batches.length} Batches:
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {session.batches.map((b) => (
                         <span
                           key={b.id}
-                          className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/80"
+                          className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200/80"
                         >
                           {b.name}
                         </span>
                       ))}
                     </div>
-                    <div className="mt-2 p-2 rounded-lg bg-indigo-50/60 border border-indigo-100 text-[11px] text-indigo-900">
-                      📢 <strong>Notification:</strong> Yeh subject in sabhi <strong>{session.batches.length} batches</strong> ({session.batches.map(b => b.name).join(', ')}) mein ek saath start hoga.
+                    <div className="mt-2 p-2 rounded-lg bg-amber-50/70 border border-amber-200 text-[11px] text-amber-900">
+                      📢 <strong>Pending Alert:</strong> Yeh subject in sabhi <strong>{session.batches.length} batches</strong> ({session.batches.map(b => b.name).join(', ')}) mein <strong>{session.start_date}</strong> ko start hoga ({session.daysLeft} din baaki).
                     </div>
                   </div>
                 </div>
@@ -1176,9 +1178,9 @@ export function BatchSyllabusView({
                                     </p>
                                     {otherBatches && otherBatches.length > 0 && (
                                       <div className="mt-1">
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                          <Sparkles className="w-3 h-3 text-indigo-500" />
-                                          Multi-Batch: {otherBatches.join(', ')}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                          <Sparkles className="w-3 h-3 text-amber-600" />
+                                          Pending Multi-Batch: {otherBatches.join(', ')}
                                         </span>
                                       </div>
                                     )}
