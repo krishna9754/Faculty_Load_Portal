@@ -391,6 +391,30 @@ export function AIAssistant({
     }
   }, []);
 
+  // 🛑 Complete shutdown when unmounted / hidden
+  useEffect(() => {
+    return () => {
+      isMicMutedRef.current = true;
+      micActiveRef.current = false;
+      try {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+      } catch (e) {}
+      try {
+        if (recognitionRef.current) {
+          recognitionRef.current.abort();
+          recognitionRef.current = null;
+        }
+      } catch (e) {}
+      try {
+        if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+          audioCtxRef.current.close();
+        }
+      } catch (e) {}
+    };
+  }, []);
+
   // Clamp on window resize
   useEffect(() => {
     const handleResize = () => {

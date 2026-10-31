@@ -50,6 +50,8 @@ import {
   Palette,
   Sun,
   Moon,
+  Bot,
+  BotOff,
 } from 'lucide-react';
 
 type Tab = 'dashboard' | 'faculty' | 'batches' | 'addLoad' | 'search' | 'facultyAvailability' | 'batchSyllabus' | 'clashes' | 'alerts' | 'mailTracker' | 'extraReschedule';
@@ -148,6 +150,21 @@ export default function App() {
   const toggleThemeMode = () => {
     setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
+
+  const [isMayraVisible, setIsMayraVisible] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('mayra_visible');
+      return saved !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('mayra_visible', String(isMayraVisible));
+    } catch {}
+  }, [isMayraVisible]);
 
   useEffect(() => {
     const handleToggle = () => toggleThemeMode();
@@ -296,6 +313,21 @@ export default function App() {
         </div>
         <div className="flex items-center gap-1">
           <button
+            onClick={() => setIsMayraVisible((prev) => !prev)}
+            title={isMayraVisible ? 'Mayra AI Hide Karein (Deactivate)' : 'Mayra AI Unhide Karein (Activate)'}
+            className={`w-8 h-8 rounded-lg border hover:scale-110 shadow-xs transition-all flex items-center justify-center shrink-0 ${
+              isMayraVisible
+                ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-300'
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+            }`}
+          >
+            {isMayraVisible ? (
+              <Bot className="w-4 h-4 text-purple-600 dark:text-purple-300" />
+            ) : (
+              <BotOff className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+          <button
             onClick={toggleThemeMode}
             title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:scale-110 shadow-xs transition-all flex items-center justify-center shrink-0"
@@ -435,6 +467,37 @@ export default function App() {
               </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              {/* Mayra AI Hide/Unhide Toggle Button */}
+              <button
+                onClick={() => setIsMayraVisible((prev) => !prev)}
+                title={
+                  isMayraVisible
+                    ? 'Mayra AI ko Hide karein (Inactive/Disabled)'
+                    : 'Mayra AI ko Unhide karein (Active/Enabled)'
+                }
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                  isMayraVisible
+                    ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <div className="relative flex items-center justify-center">
+                  {isMayraVisible ? (
+                    <Bot className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                  ) : (
+                    <BotOff className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                  <span
+                    className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${
+                      isMayraVisible ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                    }`}
+                  />
+                </div>
+                <span className="hidden sm:inline">
+                  {isMayraVisible ? 'Mayra: Active' : 'Mayra: Hidden'}
+                </span>
+              </button>
+
               <button
                 onClick={toggleThemeMode}
                 title={themeMode === 'dark' ? 'Switch to Light Mode (लाइट मोड)' : 'Switch to Dark Mode (डार्क मोड)'}
@@ -614,23 +677,25 @@ export default function App() {
       />
 
       {/* AI Assistant Mayra (Iron Man JARVIS A.I. with Full Portal Access) */}
-      <AIAssistant
-        faculty={faculty}
-        batches={batches}
-        loads={loads}
-        batchManagers={batchManagers}
-        extraClasses={extraClasses}
-        rescheduledClasses={rescheduledClasses}
-        cancelledClasses={cancelledClasses}
-        clashes={clashes}
-        alerts={alerts}
-        mailGroups={mailGroups}
-        activeTab={activeTab}
-        onNavigateTab={(tab) => setActiveTab(tab as Tab)}
-        onRefreshData={fetchAll}
-        onOpenBulkModal={() => setBulkModalOpen(true)}
-        onOpenThemeModal={() => setThemeModalOpen(true)}
-      />
+      {isMayraVisible && (
+        <AIAssistant
+          faculty={faculty}
+          batches={batches}
+          loads={loads}
+          batchManagers={batchManagers}
+          extraClasses={extraClasses}
+          rescheduledClasses={rescheduledClasses}
+          cancelledClasses={cancelledClasses}
+          clashes={clashes}
+          alerts={alerts}
+          mailGroups={mailGroups}
+          activeTab={activeTab}
+          onNavigateTab={(tab) => setActiveTab(tab as Tab)}
+          onRefreshData={fetchAll}
+          onOpenBulkModal={() => setBulkModalOpen(true)}
+          onOpenThemeModal={() => setThemeModalOpen(true)}
+        />
+      )}
     </div>
   );
 }
