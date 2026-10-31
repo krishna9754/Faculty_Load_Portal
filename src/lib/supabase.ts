@@ -39,10 +39,25 @@ export type FacultyLoadWithDetails = FacultyLoad & {
   batch: { name: string };
 };
 
+export const BRANCHES = [
+  'Civil',
+  'Mechanical',
+  'Electrical',
+  'Electronic',
+  'EE/ECE',
+  'Chemical',
+  'CS/IT',
+  'CS/DA',
+  'DS/AI',
+  'Non-Tech AE/JE',
+  'Non-Tech Gate',
+] as const;
+
 export type MailTrackerGroup = {
   faculty_id: string;
   faculty_name: string;
   department: string;
+  branch: string | null;
   subject: string;
   start_time: string;
   end_time: string;

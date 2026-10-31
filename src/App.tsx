@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Component, type ReactNode, type ErrorInfo } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, BRANCHES } from '@/lib/supabase';
 import type { Faculty, Batch, FacultyLoadWithDetails, MailTrackerGroup, LoadBatchManager, ExtraClassWithDetails, RescheduledClassWithDetails, CancelledClassWithDetails } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 import { ExtraRescheduleView } from '@/components/ExtraReschedule';
@@ -1390,8 +1390,6 @@ function FacultyManager({
     return () => window.removeEventListener('ai-filter-faculty', handleFilterFaculty);
   }, []);
 
-  const BRANCHES = ['Civil', 'Mechanical', 'Electronic', 'Electrical', 'EE/ECE', 'Chemical', 'CS/IT', 'CS/DA', 'DS/AI'];
-
   const categories = Array.from(new Set((faculty || []).map((f) => f?.department).filter(Boolean))).sort();
 
   // Deduplicate live/running classes by (subject + day + time) so multi-batch classes at same time count as 1 session
@@ -2445,6 +2443,7 @@ function AddLoadForm({
   onOpenBulkModal?: () => void;
 }) {
   const [form, setForm] = useState({
+    branch: '',
     faculty_id: '',
     batch_ids: [] as string[],
     subject: '',
@@ -2461,6 +2460,7 @@ function AddLoadForm({
       if (e.detail) {
         setForm((prev) => ({
           ...prev,
+          branch: e.detail.branch || prev.branch,
           faculty_id: e.detail.faculty_id || prev.faculty_id,
           batch_ids: e.detail.batch_ids || (e.detail.batch_id ? [e.detail.batch_id] : prev.batch_ids),
           subject: e.detail.subject || prev.subject,
@@ -2521,8 +2521,13 @@ function AddLoadForm({
   }, [form]);
 
   const handleSubmit = async () => {
-    if (!form.faculty_id || form.batch_ids.length === 0 || !form.subject.trim() || !form.start_date || !form.end_date) return;
+    if (!form.branch || !form.faculty_id || form.batch_ids.length === 0 || !form.subject.trim() || !form.start_date || !form.end_date) return;
     setSaving(true);
+    // Keep faculty branch in sync with selected branch if changed
+    const selectedFaculty = faculty.find((f) => f.id === form.faculty_id);
+    if (selectedFaculty && selectedFaculty.branch !== form.branch) {
+      await supabase.from('faculty').update({ branch: form.branch }).eq('id', form.faculty_id);
+    }
     const records = form.batch_ids.map((bid) => ({
       faculty_id: form.faculty_id,
       batch_id: bid,
@@ -2538,6 +2543,7 @@ function AddLoadForm({
     setSaving(false);
     setSuccess(true);
     setForm({
+      branch: '',
       faculty_id: '',
       batch_ids: [],
       subject: '',
@@ -2552,7 +2558,7 @@ function AddLoadForm({
     setTimeout(() => setSuccess(false), 3000);
   };
 
-  const isValid = form.faculty_id && form.batch_ids.length > 0 && form.subject.trim() && form.start_date && form.end_date;
+  const isValid = Boolean(form.branch && form.faculty_id && form.batch_ids.length > 0 && form.subject.trim() && form.start_date && form.end_date);
 
   if (faculty.length === 0 || batches.length === 0) {
     return (
@@ -2649,18 +2655,73 @@ function AddLoadForm({
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Branch (Mandatory) */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1 font-semibold text-slate-900 dark:text-white">
+                Branch / Discipline <span className="text-red-500 font-bold">*</span>
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+                Mandatory
+              </span>
+            </label>
+            <select
+              value={form.branch}
+              onChange={(e) => {
+                const newBranch = e.target.value;
+                setForm((prev) => {
+                  const curFac = faculty.find((f) => f.id === prev.faculty_id);
+                  const shouldResetFaculty = curFac && curFac.branch && curFac.branch !== newBranch;
+                  return {
+                    ...prev,
+                    branch: newBranch,
+                    faculty_id: shouldResetFaculty ? '' : prev.faculty_id,
+                  };
+                });
+              }}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 dark:text-white"
+            >
+              <option value="">Select branch (Mandatory)...</option>
+              {BRANCHES.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Faculty */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Faculty Member</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1 font-semibold text-slate-900 dark:text-white">
+                Faculty Member <span className="text-red-500 font-bold">*</span>
+              </span>
+              {form.branch && (
+                <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+                  {form.branch} faculty
+                </span>
+              )}
+            </label>
             <select
               value={form.faculty_id}
-              onChange={(e) => setForm({ ...form, faculty_id: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              onChange={(e) => {
+                const facId = e.target.value;
+                const fac = faculty.find((f) => f.id === facId);
+                setForm((prev) => ({
+                  ...prev,
+                  faculty_id: facId,
+                  branch: prev.branch || fac?.branch || prev.branch,
+                }));
+              }}
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 dark:text-white"
             >
               <option value="">Select faculty...</option>
-              {faculty.map((f) => (
+              {(form.branch
+                ? faculty.filter((f) => !f.branch || f.branch === form.branch)
+                : faculty
+              ).map((f) => (
                 <option key={f.id} value={f.id}>
-                  {f.name} ({f.department})
+                  {f.name} {f.branch ? `(${f.branch})` : f.department ? `(${f.department})` : ''}
                 </option>
               ))}
             </select>
@@ -3557,6 +3618,17 @@ function detectClashes(loads: FacultyLoadWithDetails[]): ClashAlert[] {
 /* ==================== CLASH VIEW ==================== */
 
 function ClashView({ clashes }: { clashes: ReturnType<typeof detectClashes> }) {
+  const [filterBranch, setFilterBranch] = useState<string>('');
+
+  const filteredClashes = useMemo(() => {
+    if (!filterBranch) return clashes;
+    return clashes.filter(
+      (c) =>
+        c.load1.faculty?.branch === filterBranch ||
+        c.load2.faculty?.branch === filterBranch
+    );
+  }, [clashes, filterBranch]);
+
   if (clashes.length === 0) {
     return (
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-12 text-center anime-card anime-radial-bg">
@@ -3571,11 +3643,53 @@ function ClashView({ clashes }: { clashes: ReturnType<typeof detectClashes> }) {
 
   return (
     <div className="space-y-4 anime-radial-bg rounded-3xl p-1">
+      {/* Branch Filter & Summary Header */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 anime-card">
+        <div className="flex items-center gap-3">
+          <Filter className="w-5 h-5 text-blue-600" />
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Branch Filter</p>
+            <p className="text-sm font-bold text-slate-900">
+              {filterBranch ? `${filterBranch} Branch Clashes` : 'All Branches'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={filterBranch}
+            onChange={(e) => setFilterBranch(e.target.value)}
+            className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs"
+          >
+            <option value="">All Branches ({clashes.length})</option>
+            {BRANCHES.map((b) => {
+              const count = clashes.filter(
+                (c) => c.load1.faculty?.branch === b || c.load2.faculty?.branch === b
+              ).length;
+              return (
+                <option key={b} value={b}>
+                  {b} {count > 0 ? `(${count})` : ''}
+                </option>
+              );
+            })}
+          </select>
+          {filterBranch && (
+            <button
+              onClick={() => setFilterBranch('')}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Reset branch filter"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 anime-glow-red animate-bounce-in">
         <AnimeMascot variant="clash" color="red" size={56} pointing="right" message="Fix these clashes!" />
         <div>
           <p className="font-bold text-red-900">
-            {clashes.length} clash{clashes.length > 1 ? 'es' : ''} detected
+            {filteredClashes.length} {filterBranch ? `${filterBranch} ` : ''}clash{filteredClashes.length !== 1 ? 'es' : ''} detected
           </p>
           <p className="text-sm text-red-700">
             These schedules overlap. Review and adjust times or dates to resolve conflicts.
@@ -3583,63 +3697,81 @@ function ClashView({ clashes }: { clashes: ReturnType<typeof detectClashes> }) {
         </div>
       </div>
 
-      {clashes.map((clash, idx) => (
-        <div
-          key={idx}
-          className={`bg-white/90 backdrop-blur-sm rounded-2xl border-2 overflow-hidden anime-card animate-impact ${
-            clash.type === 'faculty' ? 'border-red-300' : 'border-amber-300'
-          }`}
-        >
+      {filteredClashes.length === 0 ? (
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-12 text-center anime-card">
+          <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-900 mb-1">
+            No clashes found for {filterBranch}
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Is branch ke kisi bhi faculty ya batch mein time clash nahi hai.
+          </p>
+          <button
+            onClick={() => setFilterBranch('')}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+          >
+            Show All Branches
+          </button>
+        </div>
+      ) : (
+        filteredClashes.map((clash, idx) => (
           <div
-            className={`anime-header-bar px-6 py-3 flex items-center gap-2 ${
-              clash.type === 'faculty' ? 'bg-red-50' : 'bg-amber-50'
+            key={idx}
+            className={`bg-white/90 backdrop-blur-sm rounded-2xl border-2 overflow-hidden anime-card animate-impact ${
+              clash.type === 'faculty' ? 'border-red-300' : 'border-amber-300'
             }`}
           >
-            {clash.type === 'faculty' ? (
-              <GraduationCap className="w-5 h-5 text-red-600" />
-            ) : (
-              <Users className="w-5 h-5 text-amber-600" />
-            )}
-            <span
-              className={`text-sm font-semibold ${
-                clash.type === 'faculty' ? 'text-red-900' : 'text-amber-900'
+            <div
+              className={`anime-header-bar px-6 py-3 flex items-center gap-2 ${
+                clash.type === 'faculty' ? 'bg-red-50' : 'bg-amber-50'
               }`}
             >
-              {clash.type === 'faculty' ? 'Faculty Time Clash' : 'Batch Time Clash'}
-            </span>
-          </div>
+              {clash.type === 'faculty' ? (
+                <GraduationCap className="w-5 h-5 text-red-600" />
+              ) : (
+                <Users className="w-5 h-5 text-amber-600" />
+              )}
+              <span
+                className={`text-sm font-semibold ${
+                  clash.type === 'faculty' ? 'text-red-900' : 'text-amber-900'
+                }`}
+              >
+                {clash.type === 'faculty' ? 'Faculty Time Clash' : 'Batch Time Clash'}
+              </span>
+            </div>
 
-          <div className="p-6">
-            <p className="text-sm text-slate-700 mb-4">{clash.message}</p>
+            <div className="p-6">
+              <p className="text-sm text-slate-700 mb-4">{clash.message}</p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[clash.load1, clash.load2].map((load, i) => (
-                <div key={i} className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                  <p className="font-medium text-slate-900 mb-2">{load.subject}</p>
-                  <div className="space-y-1 text-sm text-slate-600">
-                    <p className="flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-slate-400" />
-                      {load.faculty.name}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-slate-400" />
-                      {load.batch.name}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-slate-400" />
-                      {load.start_time}-{load.end_time}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <CalendarClock className="w-4 h-4 text-slate-400" />
-                      {formatDate(load.start_date)} to {formatDate(load.end_date)}
-                    </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[clash.load1, clash.load2].map((load, i) => (
+                  <div key={i} className="rounded-xl border border-slate-200 p-4 bg-slate-50">
+                    <p className="font-medium text-slate-900 mb-2">{load.subject}</p>
+                    <div className="space-y-1 text-sm text-slate-600">
+                      <p className="flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-slate-400" />
+                        {load.faculty.name} {load.faculty.branch ? `(${load.faculty.branch})` : ''}
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        {load.batch.name}
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-slate-400" />
+                        {load.start_time}-{load.end_time}
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <CalendarClock className="w-4 h-4 text-slate-400" />
+                        {formatDate(load.start_date)} to {formatDate(load.end_date)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
@@ -3659,11 +3791,13 @@ function AlertsView({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'starting' | 'ending'>('all');
+  const [filterBranch, setFilterBranch] = useState<string>('');
 
   useEffect(() => {
     const handleFilterAlerts = (e: any) => {
       if (e.detail?.filterType !== undefined) setFilterType(e.detail.filterType);
       if (e.detail?.searchQuery !== undefined) setSearchQuery(e.detail.searchQuery);
+      if (e.detail?.branch !== undefined) setFilterBranch(e.detail.branch);
     };
     window.addEventListener('ai-filter-alerts', handleFilterAlerts);
     return () => window.removeEventListener('ai-filter-alerts', handleFilterAlerts);
@@ -3693,12 +3827,14 @@ function AlertsView({
   };
 
   const filteredAlerts = alerts.filter((alert) => {
+    if (filterBranch && alert.load.faculty?.branch !== filterBranch) return false;
     if (filterType !== 'all' && alert.type !== filterType) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       alert.load.subject.toLowerCase().includes(q) ||
       alert.load.faculty.name.toLowerCase().includes(q) ||
+      (alert.load.faculty.branch || '').toLowerCase().includes(q) ||
       alert.load.day_of_week.toLowerCase().includes(q) ||
       alert.batchNames.some((bn) => bn.toLowerCase().includes(q)) ||
       (alert.load.room || '').toLowerCase().includes(q)
@@ -3733,7 +3869,7 @@ function AlertsView({
 
       {/* Search & Filter Bar */}
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-4 anime-card">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
@@ -3749,6 +3885,33 @@ function AlertsView({
               </button>
             )}
           </div>
+
+          {/* Branch Dropdown Filter */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <select
+              value={filterBranch}
+              onChange={(e) => setFilterBranch(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+            >
+              <option value="">All Branches</option>
+              {BRANCHES.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+            {filterBranch && (
+              <button
+                onClick={() => setFilterBranch('')}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Reset branch filter"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           <div className="flex gap-2">
             {([
               { id: 'all' as const, label: 'All' },
@@ -3769,9 +3932,9 @@ function AlertsView({
             ))}
           </div>
         </div>
-        {(searchQuery || filterType !== 'all') && (
+        {(searchQuery || filterType !== 'all' || filterBranch) && (
           <p className="text-xs text-slate-500 mt-2 font-medium">
-            Showing {filteredAlerts.length} of {alerts.length} alerts
+            Showing {filteredAlerts.length} of {alerts.length} alerts {filterBranch ? `(Branch: ${filterBranch})` : ''}
           </p>
         )}
       </div>
@@ -4033,6 +4196,7 @@ function groupMailTracker(loads: FacultyLoadWithDetails[]): MailTrackerGroup[] {
         faculty_id: load.faculty_id,
         faculty_name: load.faculty.name,
         department: load.faculty.department,
+        branch: load.faculty.branch || null,
         subject: load.subject,
         start_time: load.start_time,
         end_time: load.end_time,
@@ -4113,16 +4277,25 @@ function MailTrackerView({
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [mailTab, setMailTab] = useState<'all' | 'sent' | 'pending'>('all');
+  const [filterBranch, setFilterBranch] = useState<string>('');
 
   useEffect(() => {
     const handleFilterMail = (e: any) => {
       if (e.detail?.tab) {
         setMailTab(e.detail.tab);
       }
+      if (e.detail?.branch !== undefined) {
+        setFilterBranch(e.detail.branch);
+      }
     };
     window.addEventListener('ai-filter-mail', handleFilterMail);
     return () => window.removeEventListener('ai-filter-mail', handleFilterMail);
   }, []);
+
+  const branchFilteredGroups = useMemo(() => {
+    if (!filterBranch) return groups;
+    return groups.filter((g) => g.branch === filterBranch);
+  }, [groups, filterBranch]);
 
   const markMailed = async (group: MailTrackerGroup) => {
     setMarkingId(group.loadIds.join(','));
@@ -4136,7 +4309,7 @@ function MailTrackerView({
 
   const markAllMailed = async () => {
     setMarkingAll(true);
-    const pendingIds = groups.filter(g => !g.allMailed).flatMap(g => g.loadIds);
+    const pendingIds = branchFilteredGroups.filter(g => !g.allMailed).flatMap(g => g.loadIds);
     if (pendingIds.length > 0) {
       await supabase
         .from('faculty_loads')
@@ -4159,14 +4332,14 @@ function MailTrackerView({
     );
   }
 
-  const pending = groups.filter(g => !g.allMailed);
-  const mailed = groups.filter(g => g.allMailed);
-  const visibleGroups = mailTab === 'all' ? groups : mailTab === 'sent' ? mailed : pending;
+  const pending = branchFilteredGroups.filter(g => !g.allMailed);
+  const mailed = branchFilteredGroups.filter(g => g.allMailed);
+  const visibleGroups = mailTab === 'all' ? branchFilteredGroups : mailTab === 'sent' ? mailed : pending;
 
   return (
     <div className="space-y-6 anime-radial-bg rounded-3xl p-1">
-      <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-4 flex items-center justify-between anime-card">
-        <div className="flex items-center gap-4">
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 anime-card">
+        <div className="flex flex-wrap items-center gap-4">
           <AnimeMascot variant="mail" color="blue" size={44} pointing="right" message="Track your mails here!" />
           <div className="flex items-center gap-2">
             <Mail className="w-5 h-5 text-blue-600" />
@@ -4178,21 +4351,53 @@ function MailTrackerView({
             <span className="font-bold text-slate-900">{mailed.length} Mailed</span>
           </div>
         </div>
-        {pending.length > 0 && (
-          <button
-            onClick={markAllMailed}
-            disabled={markingAll}
-            className="anime-btn px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-sm font-bold hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 disabled:opacity-50 hover:scale-105 active:scale-95"
-          >
-            {markingAll ? 'Marking...' : 'Mark All as Mailed'}
-          </button>
-        )}
+
+        {/* Branch Filter dropdown & Action buttons */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <select
+              value={filterBranch}
+              onChange={(e) => setFilterBranch(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+            >
+              <option value="">All Branches ({groups.length})</option>
+              {BRANCHES.map((b) => {
+                const count = groups.filter(g => g.branch === b).length;
+                return (
+                  <option key={b} value={b}>
+                    {b} {count > 0 ? `(${count})` : ''}
+                  </option>
+                );
+              })}
+            </select>
+            {filterBranch && (
+              <button
+                onClick={() => setFilterBranch('')}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Reset branch filter"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {pending.length > 0 && (
+            <button
+              onClick={markAllMailed}
+              disabled={markingAll}
+              className="anime-btn px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-sm font-bold hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 disabled:opacity-50 hover:scale-105 active:scale-95"
+            >
+              {markingAll ? 'Marking...' : 'Mark All as Mailed'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Mail Tabs */}
       <div className="flex gap-2">
         {([
-          { id: 'all' as const, label: `All Mail (${groups.length})` },
+          { id: 'all' as const, label: `All Mail (${branchFilteredGroups.length})` },
           { id: 'sent' as const, label: `Mail Sent (${mailed.length})` },
           { id: 'pending' as const, label: `Mail Pending (${pending.length})` },
         ]).map((tab, idx) => (
@@ -4262,7 +4467,7 @@ function MailTrackerView({
                   <div>
                     <p className="font-bold text-slate-900">{group.subject}</p>
                     <p className="text-sm text-slate-500">
-                      {group.faculty_name} ({group.department}) • {group.start_time}-{group.end_time}
+                      {group.faculty_name} {group.branch ? `(${group.branch})` : `(${group.department})`} • {group.start_time}-{group.end_time}
                     </p>
                   </div>
                 </div>
