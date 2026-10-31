@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Component, type ReactNode, type ErrorInfo } from 'react';
-import { supabase, BRANCHES } from '@/lib/supabase';
+import { supabase, BRANCHES, isMailPending } from '@/lib/supabase';
 import type { Faculty, Batch, FacultyLoadWithDetails, MailTrackerGroup, LoadBatchManager, ExtraClassWithDetails, RescheduledClassWithDetails, CancelledClassWithDetails } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 import { ExtraRescheduleView } from '@/components/ExtraReschedule';
@@ -247,7 +247,7 @@ export default function App() {
   const alerts = detectDateAlerts(loads);
   const mailGroups = groupMailTracker(loads);
   const mailedCount = mailGroups.filter(g => g.allMailed).length;
-  const pendingMailCount = mailGroups.filter(g => !g.allMailed).length;
+  const pendingMailCount = mailGroups.filter(g => isMailPending(g)).length;
 
   const navItems: { id: Tab; label: string; icon: typeof GraduationCap; mascotColor: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Layers, mascotColor: 'blue' },
@@ -4374,7 +4374,7 @@ function MailTrackerView({
 
   const markAllMailed = async () => {
     setMarkingAll(true);
-    const pendingIds = branchFilteredGroups.filter(g => !g.allMailed).flatMap(g => g.loadIds);
+    const pendingIds = pending.flatMap(g => g.loadIds);
     if (pendingIds.length > 0) {
       await supabase
         .from('faculty_loads')
@@ -4397,7 +4397,11 @@ function MailTrackerView({
     );
   }
 
-  const pending = branchFilteredGroups.filter(g => !g.allMailed);
+  // Sirf wahi mails pending hain jo:
+  // 1. Mail nahi bheji gayi (!allMailed)
+  // 2. AND subject abhi shuru nahi hua hai (getLoadStatus === 'pending')
+  // Expired aur running classes pending mail queue mein show nahi honge
+  const pending = branchFilteredGroups.filter(g => isMailPending(g));
   const mailed = branchFilteredGroups.filter(g => g.allMailed);
   const visibleGroups = mailTab === 'all' ? branchFilteredGroups : mailTab === 'sent' ? mailed : pending;
 
@@ -4504,7 +4508,7 @@ function MailTrackerView({
                   <span className={`text-sm font-bold ${
                     group.allMailed ? 'text-emerald-900' : 'text-slate-900'
                   }`}>
-                    {group.allMailed ? 'Mail Sent' : 'Mail Pending'}
+                    {group.allMailed ? 'Mail Sent' : status === 'pending' ? 'Mail Pending' : status === 'running' ? 'Class Running (No Mail Needed)' : 'Class Expired (No Mail Needed)'}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold anime-badge ${
                     status === 'running' ? 'bg-emerald-100 text-emerald-700'

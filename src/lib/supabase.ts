@@ -147,3 +147,20 @@ export type ClashAlert = {
   type: 'faculty' | 'batch';
   message: string;
 };
+
+export function getLoadStatus(startDate: string, endDate: string): 'pending' | 'running' | 'expired' {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const s = new Date(startDate);
+  s.setHours(0, 0, 0, 0);
+  const e = new Date(endDate);
+  e.setHours(0, 0, 0, 0);
+  if (today < s) return 'pending';
+  if (today > e) return 'expired';
+  return 'running';
+}
+
+export function isMailPending(group: { allMailed: boolean; start_date: string; end_date: string }): boolean {
+  if (group.allMailed) return false;
+  return getLoadStatus(group.start_date, group.end_date) === 'pending';
+}

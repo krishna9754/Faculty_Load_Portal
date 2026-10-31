@@ -35,6 +35,7 @@ import {
 import * as XLSX from 'xlsx';
 import {
   supabase,
+  isMailPending,
   type Faculty,
   type Batch,
   type FacultyLoadWithDetails,
@@ -1635,7 +1636,7 @@ export function AIAssistant({
     const batchCount = batchesRef.current.length;
     const loadCount = loadsRef.current.length;
     const clashCount = clashesRef.current?.length || 0;
-    const pendingMailsCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
+    const pendingMailsCount = (mailGroupsRef.current || []).filter((g: any) => isMailPending(g)).length;
     const spk = getSpeakerTitle();
 
     const systemPrompt = `You are Mayra, a brilliant, sweet, charming 21-year-old Indian AI personal assistant embedded inside the "Faculty Workload Portal".
@@ -2805,7 +2806,7 @@ Core Personality & Rules:
       const batchCount = batchesRef.current.length;
       const loadCount = loadsRef.current.length;
       const cCount = clashesRef.current?.length || 0;
-      const pCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
+      const pCount = (mailGroupsRef.current || []).filter((g: any) => isMailPending(g)).length;
 
       const devMsg = `जी ${spk.dev}! डैशबोर्ड ओपन कर दिया है।`;
       const romMsg = `Ji ${spk.rom}! Dashboard open kar diya hai.`;
@@ -2828,7 +2829,7 @@ Core Personality & Rules:
     if (isMailTrackerCmd) {
       if (onNavigateTabRef.current) onNavigateTabRef.current('mailTracker');
       const groups = mailGroupsRef.current || [];
-      const pendingCount = groups.filter((g: any) => !g.allMailed).length;
+      const pendingCount = groups.filter((g: any) => isMailPending(g)).length;
 
       const devMsg = `जी ${spk.dev}! मेल ट्रैकर स्क्रीन ओपन कर दी है।`;
       const romMsg = `Ji ${spk.rom}! Mail Tracker screen open kar di hai.`;
@@ -4663,7 +4664,7 @@ Core Personality & Rules:
       // 3.2 Show Pending
       if (q.includes('pending') || q.includes('kisko') || q.includes('baki') || q.includes('पेंडिंग')) {
         window.dispatchEvent(new CustomEvent('ai-filter-mail', { detail: { tab: 'pending' } }));
-        const pCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
+        const pCount = (mailGroupsRef.current || []).filter((g: any) => isMailPending(g)).length;
         releaseLockWithSuccess(
           `[Radar Active] Filtered Mail Tracker to Pending queue (${pCount} batches pending), Sensei!`,
           `सेन्सेई! मेल ट्रैकर में पेंडिंग मेल्स का टैब ओपन कर दिया है। कुल ${pCount} बैचेस के मेल्स पेंडिंग हैं!`
@@ -5036,7 +5037,7 @@ Core Personality & Rules:
       if (onNavigateTabRef.current) onNavigateTabRef.current('mailTracker');
       window.dispatchEvent(new CustomEvent('ai-filter-mail', { detail: { tab: 'pending' } }));
       const groups = mailGroupsRef.current || [];
-      const pending = groups.filter((g: any) => !g.allMailed);
+      const pending = groups.filter((g: any) => isMailPending(g));
       if (pending.length === 0) {
         releaseLockWithSuccess(
           '[Radar Active] 0 pending mails. All batch schedule notifications dispatched, Sensei!',
@@ -5140,7 +5141,7 @@ Core Personality & Rules:
       const batchCount = batchesRef.current.length;
       const loadCount = loadsRef.current.length;
       const cCount = clashesRef.current?.length || 0;
-      const pCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
+      const pCount = (mailGroupsRef.current || []).filter((g: any) => isMailPending(g)).length;
 
       const successMsg = `[Telemetry Scanned] Total Faculty: ${facCount} | Total Batches: ${batchCount} | Active Loads: ${loadCount} | Pending Mails: ${pCount} | Active Clashes: ${cCount}. All metrics synchronized, Sensei!`;
       const speechMsg = `सेन्सेई! टेलीमेट्री स्कैन कम्प्लीट। कुल ${facCount} फैकल्टी, ${batchCount} बैचेस, ${loadCount} एक्टिव लोड्स, ${pCount} पेंडिंग मेल्स और ${cCount} क्लैशेस हैं। सब कुछ सिंक्रोनाइज़्ड है!`;
@@ -5435,7 +5436,7 @@ Core Personality & Rules:
       const tabToSet = isPendingReq ? 'pending' : 'all';
       window.dispatchEvent(new CustomEvent('ai-filter-mail', { detail: { tab: tabToSet } }));
 
-      const pCount = (mailGroupsRef.current || []).filter((g: any) => !g.allMailed).length;
+      const pCount = (mailGroupsRef.current || []).filter((g: any) => isMailPending(g)).length;
       releaseLockWithSuccess(
         `[Radar Active] Switched to Mail Tracker (${tabToSet === 'pending' ? `${pCount} pending` : 'All'} batches), Sensei!`,
         `सेन्सेई! मेल ट्रैकर स्क्रीन ओपन करके ${tabToSet === 'pending' ? 'पेंडिंग मेल्स' : 'सभी मेल्स'} डिस्प्ले कर दिए हैं!`
