@@ -356,11 +356,32 @@ export function BatchSyllabusView({
     return groupSyllabusByBatch(syllabusList, loads);
   }, [syllabusList, loads]);
 
+  // Batches that already have a syllabus card configured in Planner
+  const configuredBatchIds = useMemo(() => {
+    return new Set(batchCards.map((c) => c.batch_id));
+  }, [batchCards]);
+
+  // Keys of planned batch subjects: `${batch_id}__${subject.toLowerCase()}`
+  const plannedSubjectKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const card of batchCards) {
+      for (const s of card.subjects) {
+        set.add(`${card.batch_id}__${s.subject.trim().toLowerCase()}`);
+      }
+    }
+    return set;
+  }, [batchCards]);
+
   const [isMultiBatchAlertExpanded, setIsMultiBatchAlertExpanded] = useState(true);
 
-  // Detect multi-batch synchronized sessions (same faculty, same time, same date across >1 batches)
   // Detect multi-batch synchronized sessions that are strictly PENDING (start_date > today)
+  // AND belong ONLY to batches and subjects configured in this Planner!
   const multiBatchSessions = useMemo(() => {
+    // If no batches are added in planner yet, strictly return 0 alerts
+    if (batchCards.length === 0 || configuredBatchIds.size === 0) {
+      return [];
+    }
+
     const map = new Map<
       string,
       {
@@ -420,10 +441,16 @@ export function BatchSyllabusView({
       }
     }
 
+    // Sirf wahi sessions alerts mein show karein jo:
+    // 1. Multi-batch hain (> 1 batches)
+    // 2. AND unka kam se kam ek batch & subject is Planner mein configured hai!
     return Array.from(map.values())
-      .filter((s) => s.batches.length > 1)
+      .filter((s) => {
+        if (s.batches.length <= 1) return false;
+        return s.batches.some((b) => plannedSubjectKeys.has(`${b.id}__${s.subject.trim().toLowerCase()}`));
+      })
       .sort((a, b) => a.start_date.localeCompare(b.start_date));
-  }, [loads]);
+  }, [loads, batchCards.length, configuredBatchIds, plannedSubjectKeys]);
 
   const multiBatchLookup = useMemo(() => {
     const lookup = new Map<string, string[]>();
@@ -461,10 +488,6 @@ export function BatchSyllabusView({
     return [...batches].sort((a, b) => a.name.localeCompare(b.name));
   }, [batches]);
 
-  // Batches that already have a syllabus card
-  const configuredBatchIds = useMemo(() => {
-    return new Set(batchCards.map((c) => c.batch_id));
-  }, [batchCards]);
 
   // Filter and sort batch cards
   const filteredCards = useMemo(() => {
@@ -744,46 +767,48 @@ export function BatchSyllabusView({
       </div>
 
       {/* Metrics Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center gap-2 text-slate-500 mb-1">
-            <Users className="w-4 h-4 text-blue-500" />
-            <span className="text-xs font-semibold">Configured Batches</span>
+      {batchCards.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-2 text-slate-500 mb-1">
+              <Users className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-semibold">Configured Batches</span>
+            </div>
+            <p className="text-2xl font-black text-slate-900">{totalBatches}</p>
+            <span className="text-[11px] text-slate-400 font-mono">Batches in planner</span>
           </div>
-          <p className="text-2xl font-black text-slate-900">{totalBatches}</p>
-          <span className="text-[11px] text-slate-400 font-mono">Batches in planner</span>
-        </div>
 
-        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center gap-2 text-slate-500 mb-1">
-            <BookOpen className="w-4 h-4 text-purple-500" />
-            <span className="text-xs font-semibold">Total Subjects</span>
+          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-2 text-slate-500 mb-1">
+              <BookOpen className="w-4 h-4 text-purple-500" />
+              <span className="text-xs font-semibold">Total Subjects</span>
+            </div>
+            <p className="text-2xl font-black text-slate-900">{totalSubjects}</p>
+            <span className="text-[11px] text-slate-400 font-mono">Mapped subjects</span>
           </div>
-          <p className="text-2xl font-black text-slate-900">{totalSubjects}</p>
-          <span className="text-[11px] text-slate-400 font-mono">Mapped subjects</span>
-        </div>
 
-        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center gap-2 text-slate-500 mb-1">
-            <Clock className="w-4 h-4 text-amber-500" />
-            <span className="text-xs font-semibold">Total Syllabus Hours</span>
+          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-2 text-slate-500 mb-1">
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-semibold">Total Syllabus Hours</span>
+            </div>
+            <p className="text-2xl font-black text-slate-900">{totalAllocatedHours} hrs</p>
+            <span className="text-[11px] text-slate-400 font-mono">Planned teaching hours</span>
           </div>
-          <p className="text-2xl font-black text-slate-900">{totalAllocatedHours} hrs</p>
-          <span className="text-[11px] text-slate-400 font-mono">Planned teaching hours</span>
-        </div>
 
-        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center gap-2 text-slate-500 mb-1">
-            <GraduationCap className="w-4 h-4 text-emerald-500" />
-            <span className="text-xs font-semibold">Assigned Faculties</span>
+          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-2 text-slate-500 mb-1">
+              <GraduationCap className="w-4 h-4 text-emerald-500" />
+              <span className="text-xs font-semibold">Assigned Faculties</span>
+            </div>
+            <p className="text-2xl font-black text-slate-900">{allUniqueFaculties.length}</p>
+            <span className="text-[11px] text-slate-400 font-mono">Active teachers in syllabus</span>
           </div>
-          <p className="text-2xl font-black text-slate-900">{allUniqueFaculties.length}</p>
-          <span className="text-[11px] text-slate-400 font-mono">Active teachers in syllabus</span>
         </div>
-      </div>
+      )}
 
       {/* Multi-Batch Pending Class Alert Notification */}
-      {visibleMultiBatchSessions.length > 0 && (
+      {batchCards.length > 0 && visibleMultiBatchSessions.length > 0 && (
         <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-indigo-50 border-2 border-amber-200/90 rounded-2xl p-4.5 shadow-sm space-y-3 animate-bounce-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-3">
