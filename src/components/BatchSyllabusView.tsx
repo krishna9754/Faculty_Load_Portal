@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { Faculty, Batch, FacultyLoadWithDetails } from '@/lib/supabase';
+import { BRANCHES, type Faculty, type Batch, type FacultyLoadWithDetails } from '@/lib/supabase';
 import type { AnimeTheme } from '@/lib/animeThemes';
 import {
   type SyllabusSubject,
@@ -284,6 +284,7 @@ export function BatchSyllabusView({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('all');
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState('all');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'name' | 'hours' | 'subjects'>('name');
 
   useEffect(() => {
@@ -291,6 +292,7 @@ export function BatchSyllabusView({
       if (e.detail?.batchId !== undefined) setSelectedBatchFilter(e.detail.batchId);
       if (e.detail?.searchQuery !== undefined) setSearchQuery(e.detail.searchQuery);
       if (e.detail?.facultyId !== undefined) setSelectedFacultyFilter(e.detail.facultyId);
+      if (e.detail?.branch !== undefined) setSelectedBranchFilter(e.detail.branch);
     };
     window.addEventListener('ai-filter-planner', handleFilterPlanner);
     return () => window.removeEventListener('ai-filter-planner', handleFilterPlanner);
@@ -436,6 +438,24 @@ export function BatchSyllabusView({
     return lookup;
   }, [multiBatchSessions]);
 
+  const facultyBranchMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const f of faculty) {
+      map.set(f.id, f.branch || null);
+    }
+    return map;
+  }, [faculty]);
+
+  // Multi-batch sessions filtered by branch
+  const visibleMultiBatchSessions = useMemo(() => {
+    if (selectedBranchFilter === 'all') return multiBatchSessions;
+    const qb = selectedBranchFilter.toLowerCase();
+    return multiBatchSessions.filter((s) => {
+      if (s.faculty_branch === selectedBranchFilter) return true;
+      return s.batches.some((b) => b.name.toLowerCase().includes(qb));
+    });
+  }, [multiBatchSessions, selectedBranchFilter]);
+
   // Sorted list of existing batches for the select dropdown
   const sortedBatches = useMemo(() => {
     return [...batches].sort((a, b) => a.name.localeCompare(b.name));
@@ -450,6 +470,19 @@ export function BatchSyllabusView({
   const filteredCards = useMemo(() => {
     return batchCards
       .filter((card) => {
+        // Branch filter
+        if (selectedBranchFilter !== 'all') {
+          const qb = selectedBranchFilter.toLowerCase();
+          const batchNameMatch = card.batch_name.toLowerCase().includes(qb);
+          const facultyBranchMatch = card.subjects.some((s) => {
+            const fBranch = facultyBranchMap.get(s.faculty_id);
+            return fBranch === selectedBranchFilter;
+          });
+          if (!batchNameMatch && !facultyBranchMatch) {
+            return false;
+          }
+        }
+
         // Batch filter
         if (selectedBatchFilter !== 'all' && card.batch_id !== selectedBatchFilter) {
           return false;
@@ -481,7 +514,7 @@ export function BatchSyllabusView({
         }
         return a.batch_name.localeCompare(b.batch_name);
       });
-  }, [batchCards, searchQuery, selectedBatchFilter, selectedFacultyFilter, sortBy]);
+  }, [batchCards, searchQuery, selectedBatchFilter, selectedFacultyFilter, selectedBranchFilter, sortBy, facultyBranchMap]);
 
   // Overall Metrics
   const totalBatches = batchCards.length;
@@ -750,7 +783,7 @@ export function BatchSyllabusView({
       </div>
 
       {/* Multi-Batch Pending Class Alert Notification */}
-      {multiBatchSessions.length > 0 && (
+      {visibleMultiBatchSessions.length > 0 && (
         <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-indigo-50 border-2 border-amber-200/90 rounded-2xl p-4.5 shadow-sm space-y-3 animate-bounce-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-3">
@@ -763,11 +796,11 @@ export function BatchSyllabusView({
                     📢 Multi-Batch Pending Class Alerts
                   </h3>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-600 text-white shadow-xs">
-                    {multiBatchSessions.length} Pending {multiBatchSessions.length > 1 ? 'Sessions' : 'Session'}
+                    {visibleMultiBatchSessions.length} Pending {visibleMultiBatchSessions.length > 1 ? 'Sessions' : 'Session'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  Sirf aage start hone wale (Pending) subjects jo multiple batches mein same faculty, date aur time par shuru honge:
+                  Sirf aage start hone wale (Pending) subjects jo multiple batches mein same faculty, date aur time par shuru honge{selectedBranchFilter !== 'all' ? ` (Branch: ${selectedBranchFilter})` : ''}:
                 </p>
               </div>
             </div>
@@ -784,7 +817,7 @@ export function BatchSyllabusView({
 
           {isMultiBatchAlertExpanded && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-              {multiBatchSessions.map((session, sIdx) => (
+              {visibleMultiBatchSessions.map((session, sIdx) => (
                 <div
                   key={sIdx}
                   className="bg-white/95 rounded-xl border border-amber-200 p-3.5 shadow-xs hover:border-amber-400 transition-all space-y-2.5"
@@ -884,6 +917,23 @@ export function BatchSyllabusView({
               />
             </div>
 
+            {/* Branch Filter */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={selectedBranchFilter}
+                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                className="text-xs py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:outline-none focus:border-blue-400"
+              >
+                <option value="all">All Branches</option>
+                {BRANCHES.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Faculty Filter */}
             <div className="flex items-center gap-2 shrink-0">
               <select
@@ -913,9 +963,22 @@ export function BatchSyllabusView({
           </div>
 
           {/* Active Filter Chips */}
-          {(selectedBatchFilter !== 'all' || selectedFacultyFilter !== 'all' || searchQuery) && (
+          {(selectedBatchFilter !== 'all' || selectedBranchFilter !== 'all' || selectedFacultyFilter !== 'all' || searchQuery) && (
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Filters:</span>
+              {selectedBranchFilter !== 'all' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-bold border border-purple-200">
+                  <Filter className="w-3 h-3 text-purple-600" />
+                  Branch: {selectedBranchFilter}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBranchFilter('all')}
+                    className="hover:text-purple-900"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               {selectedBatchFilter !== 'all' && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold border border-blue-200">
                   <Layers className="w-3 h-3 text-blue-600" />
@@ -958,6 +1021,7 @@ export function BatchSyllabusView({
                 type="button"
                 onClick={() => {
                   setSelectedBatchFilter('all');
+                  setSelectedBranchFilter('all');
                   setSelectedFacultyFilter('all');
                   setSearchQuery('');
                 }}
